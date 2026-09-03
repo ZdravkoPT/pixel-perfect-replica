@@ -210,6 +210,70 @@ async function logConflict(params: {
   });
 }
 
+interface ExistingMatch {
+  id: string;
+  canonical_id: string;
+  league_id: string | null;
+  home_team_id: string;
+  away_team_id: string;
+  provider_ids: Record<string, string>;
+}
+
+/**
+ * Finds the row a fixture belongs to. Exact canonical hit first, then a fuzzy
+ * lookup on the same kickoff day so two providers naming the same clubs
+ * differently ("Celta Vigo" vs "RC Celta de Vigo") never create twin rows.
+ */
+async function findExistingMatch(
+  canonicalId: string,
+  probe: {
+    kickoffAt: string;
+    homeTeamId: string;
+    awayTeamId: string;
+    homeName: string;
+    awayName: string;
+  },
+): Promise<ExistingMatch | null> {
+  const select = "id, canonical_id, league_id, home_team_id, away_team_id, provider_ids";
+  const { data: exact } = await supabaseAdmin
+    .from("matches")
+    .select(select)
+    .eq("canonical_id", canonicalId)
+    .maybeSingle();
+  if (exact) return exact as unknown as ExistingMatch;
+
+  const day = probe.kickoffAt.slice(0, 10);
+  const from = new Date(`${day}T00:00:00.000Z`);
+  const to = new Date(from.getTime() + 2 * 86_400_000);
+  const { data: sameDay } = await supabaseAdmin
+    .from("matches")
+    .select(`${select}, home:home_team_id(name), away:away_team_id(name)`)
+    .gte("kickoff_at", new Date(from.getTime() - 86_400_000).toISOString())
+    .lt("kickoff_at", to.toISOString());
+
+  for (const row of (sameDay ?? []) as unknown as (ExistingMatch & {
+    home: { name: string } | null;
+    away: { name: string } | null;
+  })[]) {
+    const sameTeams = row.home_team_id === probe.homeTeamId && row.away_team_id === probe.awayTeamId;
+    const fuzzy =
+      namesMatch(row.home?.name ?? "", probe.homeName) &&
+      namesMatch(row.away?.name ?? "", probe.awayName);
+    if (sameTeams || fuzzy) {
+      return {
+        id: row.id,
+        canonical_id: row.canonical_id,
+        league_id: row.league_id,
+        home_team_id: row.home_team_id,
+        away_team_id: row.away_team_id,
+        provider_ids: (row.provider_ids as Record<string, string> | null) ?? {},
+      };
+    }
+  }
+  return null;
+}
+
+
 export async function ingestFixtures(options: {
   days?: number;
   triggeredBy?: string;
