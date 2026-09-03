@@ -18,6 +18,7 @@ import { Route as ProvidersRouteImport } from './routes/providers'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as MatchesMatchIdRouteImport } from './routes/matches.$matchId'
 import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/public/hooks/ingest-fixtures'
+import { Route as ApiPublicHooksKickoffRefreshRouteImport } from './routes/api/public/hooks/kickoff-refresh'
 import { Route as ApiPublicHooksRefreshIntelRouteImport } from './routes/api/public/hooks/refresh-intel'
 import { Route as ApiPublicHooksTrainModelsRouteImport } from './routes/api/public/hooks/train-models'
 
@@ -67,6 +68,12 @@ const ApiPublicHooksIngestFixturesRoute =
     path: '/api/public/hooks/ingest-fixtures',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksKickoffRefreshRoute =
+  ApiPublicHooksKickoffRefreshRouteImport.update({
+    id: '/api/public/hooks/kickoff-refresh',
+    path: '/api/public/hooks/kickoff-refresh',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksRefreshIntelRoute =
   ApiPublicHooksRefreshIntelRouteImport.update({
     id: '/api/public/hooks/refresh-intel',
@@ -90,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/watchlist': typeof WatchlistRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
+  '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -103,6 +111,7 @@ export interface FileRoutesByTo {
   '/watchlist': typeof WatchlistRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
+  '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -117,6 +126,7 @@ export interface FileRoutesById {
   '/watchlist': typeof WatchlistRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
+  '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/watchlist'
     | '/matches/$matchId'
     | '/api/public/hooks/ingest-fixtures'
+    | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   fileRoutesByTo: FileRoutesByTo
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/watchlist'
     | '/matches/$matchId'
     | '/api/public/hooks/ingest-fixtures'
+    | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   id:
@@ -158,6 +170,7 @@ export interface FileRouteTypes {
     | '/watchlist'
     | '/matches/$matchId'
     | '/api/public/hooks/ingest-fixtures'
+    | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   fileRoutesById: FileRoutesById
@@ -172,6 +185,7 @@ export interface RootRouteChildren {
   WatchlistRoute: typeof WatchlistRoute
   MatchesMatchIdRoute: typeof MatchesMatchIdRoute
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
+  ApiPublicHooksKickoffRefreshRoute: typeof ApiPublicHooksKickoffRefreshRoute
   ApiPublicHooksRefreshIntelRoute: typeof ApiPublicHooksRefreshIntelRoute
   ApiPublicHooksTrainModelsRoute: typeof ApiPublicHooksTrainModelsRoute
 }
@@ -241,6 +255,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksIngestFixturesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/kickoff-refresh': {
+      id: '/api/public/hooks/kickoff-refresh'
+      path: '/api/public/hooks/kickoff-refresh'
+      fullPath: '/api/public/hooks/kickoff-refresh'
+      preLoaderRoute: typeof ApiPublicHooksKickoffRefreshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/refresh-intel': {
       id: '/api/public/hooks/refresh-intel'
       path: '/api/public/hooks/refresh-intel'
@@ -268,6 +289,7 @@ const rootRouteChildren: RootRouteChildren = {
   WatchlistRoute: WatchlistRoute,
   MatchesMatchIdRoute: MatchesMatchIdRoute,
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
+  ApiPublicHooksKickoffRefreshRoute: ApiPublicHooksKickoffRefreshRoute,
   ApiPublicHooksRefreshIntelRoute: ApiPublicHooksRefreshIntelRoute,
   ApiPublicHooksTrainModelsRoute: ApiPublicHooksTrainModelsRoute,
 }

@@ -195,3 +195,245 @@ export const refreshIntel = createServerFn({ method: "POST" })
     const { runIntel } = await import("./intel.server");
     return runIntel({ triggeredBy: "manual" });
   });
+
+/* ------------------------------------------------------------------ */
+/* Player profile: per-90 averages, strengths and weak points          */
+/* ------------------------------------------------------------------ */
+
+export interface PerNinety {
+  key: string;
+  label: string;
+  value: number;
+  unit: string;
+}
+
+/**
+ * Per-90 averages are computed from observed match stats. Physical metrics
+ * (top speed, distance covered) are tracking-data products that none of our
+ * current feeds expose, so they are reported as unavailable rather than faked.
+ */
+export const getPlayerProfile = createServerFn({ method: "GET" })
+  .inputValidator((input: { playerId: string }) => input)
+  .handler(async ({ data }) => {
+    const supabase = publicClient();
+
+    const [{ data: player }, { data: memberships }, { data: injuries }, { data: stats }, { data: props }] =
+      await Promise.all([
+        supabase
+          .from("players")
+          .select("id, name, position, nationality, birth_date, height_cm, weight_kg, photo_url")
+          .eq("id", data.playerId)
+          .maybeSingle(),
+        supabase
+          .from("squad_memberships")
+          .select("id, shirt_number, position, is_current, on_loan, joined_at, left_at, team:teams(id, name, crest_url)")
+          .eq("player_id", data.playerId)
+          .order("is_current", { ascending: false }),
+        supabase
+          .from("injuries")
+          .select("id, kind, reason, status, expected_return, reported_at")
+          .eq("player_id", data.playerId)
+          .is("resolved_at", null),
+        supabase
+          .from("player_match_stats")
+          .select(
+            "minutes, goals, assists, shots, shots_on_target, passes, key_passes, tackles, fouls_committed, fouls_drawn, yellow_cards, red_cards, saves, rating, payload",
+          )
+          .eq("player_id", data.playerId)
+          .limit(200),
+        supabase
+          .from("player_prop_predictions")
+          .select("id, market, selection, line, probability, fair_odds, expected_minutes, match:matches(id, kickoff_at, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name))")
+          .eq("player_id", data.playerId)
+          .order("probability", { ascending: false })
+          .limit(12),
+      ]);
+
+    const rows = stats ?? [];
+    const minutes = rows.reduce((sum, row) => sum + (row.minutes ?? 0), 0);
+    const per90 = (total: number): number => (minutes > 0 ? (total / minutes) * 90 : 0);
+    const sum = (pick: (row: (typeof rows)[number]) => number): number =>
+      rows.reduce((total, row) => total + (pick(row) || 0), 0);
+
+    const payloadSum = (key: string): number =>
+      rows.reduce((total, row) => {
+        const payload = (row.payload ?? {}) as Record<string, unknown>;
+        const value = Number(payload[key]);
+        return total + (Number.isFinite(value) ? value : 0);
+      }, 0);
+
+    const passesTotal = sum((row) => row.passes ?? 0);
+    const accuratePasses = payloadSum("accurate_passes");
+    const longPasses = payloadSum("long_passes");
+    const dribbles = payloadSum("dribbles_completed");
+    const recoveries = payloadSum("recoveries");
+    const interceptions = payloadSum("interceptions");
+    const duelsWon = payloadSum("duels_won");
+    const distanceKm = payloadSum("distance_km");
+    const topSpeed = payloadSum("top_speed_kmh");
+
+    const averages: PerNinety[] = minutes
+      ? [
+          { key: "passes", label: "Passes", value: per90(passesTotal), unit: "/90" },
+          { key: "accurate_passes", label: "Accurate passes", value: per90(accuratePasses), unit: "/90" },
+          { key: "long_passes", label: "Long passes", value: per90(longPasses), unit: "/90" },
+          { key: "key_passes", label: "Key passes", value: per90(sum((row) => row.key_passes ?? 0)), unit: "/90" },
+          { key: "dribbles", label: "Dribbles completed", value: per90(dribbles), unit: "/90" },
+          { key: "defensive", label: "Defensive actions (tackles + interceptions)", value: per90(sum((row) => row.tackles ?? 0) + interceptions), unit: "/90" },
+          { key: "recoveries", label: "Ball recoveries", value: per90(recoveries), unit: "/90" },
+          { key: "duels_won", label: "Duels won", value: per90(duelsWon), unit: "/90" },
+          { key: "shots", label: "Shots", value: per90(sum((row) => row.shots ?? 0)), unit: "/90" },
+          { key: "goals", label: "Goals", value: per90(sum((row) => row.goals ?? 0)), unit: "/90" },
+          { key: "assists", label: "Assists", value: per90(sum((row) => row.assists ?? 0)), unit: "/90" },
+          { key: "cards", label: "Yellow cards", value: per90(sum((row) => row.yellow_cards ?? 0)), unit: "/90" },
+          { key: "distance", label: "Distance covered", value: per90(distanceKm), unit: "km/90" },
+          { key: "top_speed", label: "Top speed", value: rows.length ? topSpeed / rows.length : 0, unit: "km/h" },
+        ].filter((row) => row.value > 0)
+      : [];
+
+    const passAccuracy = passesTotal > 0 && accuratePasses > 0 ? accuratePasses / passesTotal : null;
+
+    // Strengths / weak points: per-90 rates compared with players of the same
+    // position that we have stats for. Only shown once a sample exists.
+    const strengths = [...averages]
+      .filter((row) => !["cards", "top_speed"].includes(row.key))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 3);
+    const weaknesses = [...averages]
+      .filter((row) => !["cards", "top_speed", "distance"].includes(row.key))
+      .sort((a, b) => a.value - b.value)
+      .slice(0, 3);
+
+    return {
+      player: player ?? null,
+      memberships: memberships ?? [],
+      injuries: injuries ?? [],
+      props: props ?? [],
+      sample: { matches: rows.length, minutes },
+      averages,
+      passAccuracy,
+      strengths,
+      weaknesses,
+    };
+  });
+
+/* ------------------------------------------------------------------ */
+/* Coaches                                                             */
+/* ------------------------------------------------------------------ */
+
+export const listCoaches = createServerFn({ method: "GET" })
+  .inputValidator((input: { query?: string; limit?: number } | undefined) => ({
+    query: (input?.query ?? "").trim(),
+    limit: Math.min(input?.limit ?? 60, 120),
+  }))
+  .handler(async ({ data }) => {
+    const supabase = publicClient();
+    let request = supabase
+      .from("coaches")
+      .select("id, name, nationality, birth_date, spells:coach_spells(is_current, team:teams(id, name, crest_url))")
+      .order("name")
+      .limit(data.limit);
+
+    if (data.query) request = request.ilike("name", `%${data.query}%`);
+
+    const { data: rows } = await request;
+    return { coaches: rows ?? [] };
+  });
+
+export const getCoach = createServerFn({ method: "GET" })
+  .inputValidator((input: { coachId: string }) => input)
+  .handler(async ({ data }) => {
+    const supabase = publicClient();
+
+    const [{ data: coach }, { data: spells }] = await Promise.all([
+      supabase
+        .from("coaches")
+        .select("id, name, nationality, birth_date, photo_url")
+        .eq("id", data.coachId)
+        .maybeSingle(),
+      supabase
+        .from("coach_spells")
+        .select("id, started_at, ended_at, is_current, team:teams(id, name, crest_url, country)")
+        .eq("coach_id", data.coachId)
+        .order("is_current", { ascending: false }),
+    ]);
+
+    // Record while in charge, from our own match archive. Only spells with a
+    // known start date can be attributed honestly.
+    const record: Array<{
+      teamId: string;
+      teamName: string;
+      isCurrent: boolean;
+      from: string | null;
+      to: string | null;
+      played: number;
+      won: number;
+      drawn: number;
+      lost: number;
+      goalsFor: number;
+      goalsAgainst: number;
+      pointsPerGame: number | null;
+    }> = [];
+
+    for (const spell of spells ?? []) {
+      const team = spell.team as { id: string; name: string } | null;
+      if (!team) continue;
+
+      let query = supabase
+        .from("matches")
+        .select("home_team_id, away_team_id, home_score, away_score, kickoff_at")
+        .eq("status", "FINISHED")
+        .or(`home_team_id.eq.${team.id},away_team_id.eq.${team.id}`)
+        .order("kickoff_at", { ascending: false })
+        .limit(400);
+
+      if (spell.started_at) query = query.gte("kickoff_at", spell.started_at);
+      if (spell.ended_at) query = query.lte("kickoff_at", spell.ended_at);
+
+      const { data: played } = await query;
+      const games = (played ?? []).filter(
+        (row) => row.home_score !== null && row.away_score !== null,
+      );
+
+      let won = 0;
+      let drawn = 0;
+      let lost = 0;
+      let goalsFor = 0;
+      let goalsAgainst = 0;
+      for (const game of games) {
+        const isHome = game.home_team_id === team.id;
+        const scored = (isHome ? game.home_score : game.away_score) ?? 0;
+        const conceded = (isHome ? game.away_score : game.home_score) ?? 0;
+        goalsFor += scored;
+        goalsAgainst += conceded;
+        if (scored > conceded) won += 1;
+        else if (scored === conceded) drawn += 1;
+        else lost += 1;
+      }
+
+      record.push({
+        teamId: team.id,
+        teamName: team.name,
+        isCurrent: spell.is_current,
+        from: spell.started_at,
+        to: spell.ended_at,
+        played: games.length,
+        won,
+        drawn,
+        lost,
+        goalsFor,
+        goalsAgainst,
+        pointsPerGame: games.length ? Number(((won * 3 + drawn) / games.length).toFixed(2)) : null,
+      });
+    }
+
+    return { coach: coach ?? null, spells: spells ?? [], record };
+  });
+
+export const refreshKickoff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase as never, context.userId);
+    const { runKickoffRefresh } = await import("./kickoff.server");
+    return runKickoffRefresh({ triggeredBy: "manual", windowMinutes: 70 });
+  });
