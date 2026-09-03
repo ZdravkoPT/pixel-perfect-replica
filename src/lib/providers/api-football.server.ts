@@ -45,7 +45,7 @@ function mapStatus(short: string): MatchStatus {
 }
 
 export class ApiFootballProvider implements FootballProvider {
-  readonly id = "api-football" as const;
+  readonly id = "api_football" as const;
   private readonly limiter = new RateLimiter(this.id);
 
   private async request<T>(path: string): Promise<ProviderResult<T>> {
