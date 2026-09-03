@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CoachesRouteImport } from './routes/coaches'
 import { Route as PlayersRouteImport } from './routes/players'
 import { Route as ProvidersRouteImport } from './routes/providers'
+import { Route as ValueRouteImport } from './routes/value'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as CoachesCoachIdRouteImport } from './routes/coaches.$coachId'
 import { Route as MatchesMatchIdRouteImport } from './routes/matches.$matchId'
@@ -58,6 +59,11 @@ const PlayersRoute = PlayersRouteImport.update({
 const ProvidersRoute = ProvidersRouteImport.update({
   id: '/providers',
   path: '/providers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ValueRoute = ValueRouteImport.update({
+  id: '/value',
+  path: '/value',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WatchlistRoute = WatchlistRouteImport.update({
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/coaches': typeof CoachesRouteWithChildren
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
+  '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/coaches': typeof CoachesRouteWithChildren
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
+  '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/coaches': typeof CoachesRouteWithChildren
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
+  '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/coaches'
     | '/players'
     | '/providers'
+    | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
     | '/matches/$matchId'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/coaches'
     | '/players'
     | '/providers'
+    | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
     | '/matches/$matchId'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/coaches'
     | '/players'
     | '/providers'
+    | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
     | '/matches/$matchId'
@@ -219,6 +231,7 @@ export interface RootRouteChildren {
   CoachesRoute: typeof CoachesRouteWithChildren
   PlayersRoute: typeof PlayersRouteWithChildren
   ProvidersRoute: typeof ProvidersRoute
+  ValueRoute: typeof ValueRoute
   WatchlistRoute: typeof WatchlistRoute
   MatchesMatchIdRoute: typeof MatchesMatchIdRoute
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
@@ -276,6 +289,13 @@ declare module '@tanstack/react-router' {
       path: '/providers'
       fullPath: '/providers'
       preLoaderRoute: typeof ProvidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/value': {
+      id: '/value'
+      path: '/value'
+      fullPath: '/value'
+      preLoaderRoute: typeof ValueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/watchlist': {
@@ -367,6 +387,7 @@ const rootRouteChildren: RootRouteChildren = {
   CoachesRoute: CoachesRouteWithChildren,
   PlayersRoute: PlayersRouteWithChildren,
   ProvidersRoute: ProvidersRoute,
+  ValueRoute: ValueRoute,
   WatchlistRoute: WatchlistRoute,
   MatchesMatchIdRoute: MatchesMatchIdRoute,
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
