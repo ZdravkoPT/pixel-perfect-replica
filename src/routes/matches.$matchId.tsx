@@ -141,12 +141,27 @@ function MatchDetail() {
               </span>
               <span className="text-sm font-medium">{match.away?.name ?? "TBD"}</span>
             </div>
+            {inPlay ? (
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+                </span>
+                <span className="text-xs font-medium text-primary">
+                  {match.status === "PAUSED" ? "Half time" : "In play"}
+                  {typeof (match as { minute?: number | null }).minute === "number"
+                    ? ` · ${(match as { minute?: number | null }).minute}′`
+                    : ""}
+                </span>
+              </div>
+            ) : null}
             <div className="mt-4 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-              <div>Status: {match.status}</div>
+              <div>Status: {statusLabel}</div>
               <div>Venue: {match.venue?.name ?? "Unknown"}</div>
               <div>Kickoff: {kickoff.toLocaleString()}</div>
             </div>
           </div>
+
 
           <div className="rounded-lg border border-border bg-card p-5">
             <h2 className="text-sm font-semibold">Provider sources</h2>
