@@ -397,44 +397,50 @@ export async function runIntel(
           side === "home" ? prediction.lambda_home : prediction.lambda_away,
         );
 
-        const candidates = await squadCandidates(teamId, unavailable);
-        if (candidates.length < 11) continue;
+        // A confirmed team sheet (stored by the T-60 refresh) always wins over
+        // the projection: props are then priced off the real XI.
+        const confirmed = await confirmedProjection(match.id, teamId);
+        const candidates = confirmed ? [] : await squadCandidates(teamId, unavailable);
+        if (!confirmed && candidates.length < 11) continue;
 
-        const projection = projectLineup(candidates);
+        const projection = confirmed ?? projectLineup(candidates);
 
-        await supabaseAdmin
-          .from("lineups")
-          .delete()
-          .eq("match_id", match.id)
-          .eq("team_id", teamId)
-          .eq("is_predicted", true);
+        if (!confirmed) {
+          await supabaseAdmin
+            .from("lineups")
+            .delete()
+            .eq("match_id", match.id)
+            .eq("team_id", teamId)
+            .eq("is_predicted", true);
 
-        const { data: lineup } = await supabaseAdmin
-          .from("lineups")
-          .insert({
-            match_id: match.id,
-            team_id: teamId,
-            formation: FORMATION_LABEL,
-            is_predicted: true,
-            confidence: 0.55,
-            source_id: "football_data",
-          })
-          .select("id")
-          .single();
+          const { data: lineup } = await supabaseAdmin
+            .from("lineups")
+            .insert({
+              match_id: match.id,
+              team_id: teamId,
+              formation: FORMATION_LABEL,
+              is_predicted: true,
+              confidence: 0.55,
+              source_id: "football_data",
+            })
+            .select("id")
+            .single();
 
-        if (lineup) {
-          const rows = projection.slice(0, 22).map((player) => ({
-            lineup_id: lineup.id,
-            player_id: player.playerId,
-            position: player.group,
-            is_starter: player.isStarter,
-            start_probability: player.startProbability,
-            expected_minutes: player.expectedMinutes,
-          }));
-          if (rows.length > 0) await supabaseAdmin.from("lineup_players").insert(rows);
+          if (lineup) {
+            const rows = projection.slice(0, 22).map((player) => ({
+              lineup_id: lineup.id,
+              player_id: player.playerId,
+              position: player.group,
+              is_starter: player.isStarter,
+              start_probability: player.startProbability,
+              expected_minutes: player.expectedMinutes,
+            }));
+            if (rows.length > 0) await supabaseAdmin.from("lineup_players").insert(rows);
+          }
         }
 
         const props = playerProps({
+
           players: projection.filter((player) => player.expectedMinutes >= 8),
           teamLambda,
           expectedCards,
