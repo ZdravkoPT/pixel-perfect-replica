@@ -98,29 +98,62 @@ function ValuePage() {
 
               {match.props.length > 0 ? (
                 <div className="mt-4">
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Strongest player projections
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Player projections
+                    </p>
+                    <Badge
+                      variant={match.lineupStatus === "confirmed" ? "default" : "outline"}
+                      className="text-[10px]"
+                    >
+                      {match.lineupStatus === "confirmed"
+                        ? "Confirmed T-60 XI"
+                        : match.lineupStatus === "projected"
+                          ? "Projected XI"
+                          : "No team sheet"}
+                    </Badge>
+                    {match.lineupUpdatedAt ? (
+                      <span className="text-[10px] text-muted-foreground">
+                        updated {new Date(match.lineupUpdatedAt).toLocaleString()}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {match.props.map((prop) => (
                       <div
                         key={`${prop.player}-${prop.market}-${prop.selection}`}
-                        className="flex items-center justify-between rounded border border-border px-3 py-2 text-xs"
+                        className="rounded border border-border px-3 py-2 text-xs"
                       >
-                        <span className="truncate">
-                          {prop.player}
-                          <span className="ml-1 text-muted-foreground">
-                            {prop.selection.replace(/_/g, " ")}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate">
+                            {prop.player}
+                            <span className="ml-1 text-muted-foreground">
+                              {prop.selection.replace(/_/g, " ")}
+                            </span>
                           </span>
-                        </span>
-                        <span className="ml-2 shrink-0 font-mono tabular-nums">
-                          {(prop.probability * 100).toFixed(0)}% · {prop.fairOdds.toFixed(2)}
-                        </span>
+                          <span className="ml-2 shrink-0 font-mono tabular-nums">
+                            {(prop.probability * 100).toFixed(0)}% · {prop.fairOdds.toFixed(2)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {prop.expectedMinutes !== null
+                            ? `${Math.round(prop.expectedMinutes)}′ expected`
+                            : "minutes unknown"}
+                          {prop.startProbability !== null
+                            ? ` · ${(prop.startProbability * 100).toFixed(0)}% to start`
+                            : ""}
+                          {prop.position ? ` · ${prop.position}` : ""}
+                        </p>
                       </div>
                     ))}
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                <p className="mt-4 text-[11px] text-muted-foreground">
+                  No player projections — waiting for the T-60 team sheet for this fixture.
+                </p>
+              )}
+
             </div>
           ))
         )}
