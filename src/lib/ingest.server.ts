@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ApiFootballProvider } from "./providers/api-football.server";
 import { FOOTBALL_DATA_COMPETITIONS, FootballDataProvider } from "./providers/football-data.server";
-import { matchCanonicalId, normalizeTeamName, similarity, slugify } from "./providers/normalize";
+import { matchCanonicalId, namesMatch, normalizeTeamName, similarity, slugify } from "./providers/normalize";
 import type { NormalizedMatch, NormalizedTeam, ProviderId } from "./providers/types";
 
 export interface IngestionSummary {
