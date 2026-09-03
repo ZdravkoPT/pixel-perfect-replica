@@ -122,7 +122,11 @@ export class FootballDataProvider implements FootballProvider {
     );
     if (!result.ok) return result;
 
-    const matches = (result.data.matches ?? []).map((raw) => {
+    return ok(this.mapMatches(result.data.matches ?? []));
+  }
+
+  private mapMatches(rawMatches: Array<Record<string, unknown>>): NormalizedMatch[] {
+    const matches = rawMatches.map((raw) => {
       const competition = raw["competition"] as { code?: string; name?: string } | undefined;
       const season = raw["season"] as { startDate?: string; endDate?: string } | undefined;
       const score = raw["score"] as
@@ -155,7 +159,19 @@ export class FootballDataProvider implements FootballProvider {
       } satisfies NormalizedMatch;
     });
 
-    return ok(matches.filter((match) => match.competitionProviderId !== ""));
+    return matches.filter((match) => match.competitionProviderId !== "");
+  }
+
+  /** Full season match list for one competition (used for historical bootstrap). */
+  async getCompetitionMatches(
+    competitionProviderId: string,
+    season: number,
+  ): Promise<ProviderResult<NormalizedMatch[]>> {
+    const result = await this.request<{ matches?: Array<Record<string, unknown>> }>(
+      `/competitions/${competitionProviderId}/matches?season=${season}`,
+    );
+    if (!result.ok) return result;
+    return ok(this.mapMatches(result.data.matches ?? []));
   }
 
   async getTeams(competitionProviderId: string): Promise<ProviderResult<NormalizedTeam[]>> {
