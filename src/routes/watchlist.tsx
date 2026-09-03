@@ -59,7 +59,10 @@ function WatchlistPage() {
 
   const followed = favorites.data?.favorites ?? [];
   const matches = (watchlist.data?.matches ?? []) as unknown as MatchCardData[];
-  const predictions = watchlist.data?.predictions ?? {};
+  const predictions = (watchlist.data?.predictions ?? {}) as Record<
+    string,
+    { p_home: number; p_draw: number; p_away: number; confidence: number | null }
+  >;
 
   return (
     <AppShell
