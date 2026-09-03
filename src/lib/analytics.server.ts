@@ -7,6 +7,8 @@ import { confidenceScore, fairOdds, marketsFromMatrix, scorelineMatrix } from ".
 const MODEL_NAME = "dixon-coles-elo";
 const ROLLING_WINDOW = 6;
 const ELO_LAMBDA_WEIGHT = 0.15;
+/** Maximum number of finished matches used to fit the model. */
+const TRAINING_LIMIT = 8000;
 
 export interface AnalyticsSummary {
   runId: string;
@@ -256,6 +258,8 @@ export async function runAnalytics(
           elo: ELO_CONFIG,
           eloLambdaWeight: ELO_LAMBDA_WEIGHT,
           rollingWindow: ROLLING_WINDOW,
+          attack: params.attack,
+          defence: params.defence,
         },
         metrics: { logLikelihood: params.logLikelihood, teams: Object.keys(params.attack).length },
         is_active: true,
