@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { getDiagnostics, triggerIngestion } from "@/lib/football.functions";
 import { startBacktest, syncHistory, trainModels } from "@/lib/analytics.functions";
-import { refreshIntel, syncOfficials, syncSquads } from "@/lib/intel.functions";
+import { refreshIntel, refreshKickoff, syncOfficials, syncSquads } from "@/lib/intel.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -36,6 +36,7 @@ function AdminPage() {
   const runSquads = useServerFn(syncSquads);
   const runOfficials = useServerFn(syncOfficials);
   const runIntelFn = useServerFn(refreshIntel);
+  const runKickoffFn = useServerFn(refreshKickoff);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
