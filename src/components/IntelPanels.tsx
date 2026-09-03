@@ -62,17 +62,30 @@ export function LineupsPanel({
   intel,
   homeName,
   awayName,
+  kickoffPassed = false,
 }: {
   intel: IntelData;
   homeName: string;
   awayName: string;
+  kickoffPassed?: boolean;
 }) {
   if (intel.lineups.length === 0) {
     return <Empty>No line-up projection yet — run the intelligence refresh once squads are loaded.</Empty>;
   }
 
+  const allProjected = intel.lineups.every((lineup) => lineup.is_predicted);
+
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="space-y-4">
+      {allProjected ? (
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+          {kickoffPassed
+            ? "This fixture has kicked off and no confirmed team sheet was published by the data provider, so the XI below is a model projection and is no longer valid for this match."
+            : "Model-projected XI — the confirmed team sheet is stored automatically once the provider publishes it, about an hour before kick-off."}
+        </div>
+      ) : null}
+      <div className="grid gap-4 lg:grid-cols-2">
+
       {intel.lineups.map((lineup) => {
         const name = lineup.team_id === intel.homeTeamId ? homeName : awayName;
         const order: Record<string, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
