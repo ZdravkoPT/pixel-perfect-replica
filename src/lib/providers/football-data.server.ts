@@ -241,4 +241,64 @@ export class FootballDataProvider implements FootballProvider {
   async getLineups(): Promise<ProviderResult<never[]>> {
     return unsupported("Lineups");
   }
+
+  /**
+   * Match detail used by the T-60 refresh. On the free tier the `lineup` and
+   * `bench` arrays are usually empty, so callers must fall back to the
+   * projected line-up; they populate automatically on richer plans.
+   */
+  async getMatchSheet(providerMatchId: string): Promise<ProviderResult<MatchSheet>> {
+    const result = await this.request<Record<string, unknown>>(`/matches/${providerMatchId}`);
+    if (!result.ok) return result;
+
+    const raw = result.data;
+    const side = (key: "homeTeam" | "awayTeam"): MatchSheetSide => {
+      const team = (raw[key] as Record<string, unknown> | undefined) ?? {};
+      const map = (list: unknown): MatchSheetPlayer[] =>
+        ((list as Array<Record<string, unknown>> | undefined) ?? [])
+          .filter((player) => player["id"] && player["name"])
+          .map((player) => ({
+            providerId: String(player["id"]),
+            name: String(player["name"]),
+            position: (player["position"] as string | null | undefined) ?? null,
+            shirtNumber: (player["shirtNumber"] as number | null | undefined) ?? null,
+          }));
+      const coach = team["coach"] as { id?: number; name?: string } | undefined;
+      return {
+        formation: (team["formation"] as string | null | undefined) ?? null,
+        coachProviderId: coach?.id ? String(coach.id) : null,
+        coachName: coach?.name ?? null,
+        lineup: map(team["lineup"]),
+        bench: map(team["bench"]),
+      };
+    };
+
+    return ok({
+      status: mapStatus(String(raw["status"] ?? "SCHEDULED")),
+      home: side("homeTeam"),
+      away: side("awayTeam"),
+    });
+  }
 }
+
+export interface MatchSheetPlayer {
+  providerId: string;
+  name: string;
+  position: string | null;
+  shirtNumber: number | null;
+}
+
+export interface MatchSheetSide {
+  formation: string | null;
+  coachProviderId: string | null;
+  coachName: string | null;
+  lineup: MatchSheetPlayer[];
+  bench: MatchSheetPlayer[];
+}
+
+export interface MatchSheet {
+  status: MatchStatus;
+  home: MatchSheetSide;
+  away: MatchSheetSide;
+}
+

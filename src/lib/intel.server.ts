@@ -16,7 +16,9 @@ import {
   derivedTeamMarkets,
   playerProps,
   projectLineup,
+  positionGroup,
   FORMATION_LABEL,
+  type ProjectedPlayer,
   type SquadCandidate,
 } from "./models/intel";
 
@@ -152,16 +154,36 @@ export async function ingestSquads(
           .select("id")
           .single();
         if (coach) {
+          // Any other coach previously listed at this club becomes a past spell.
           await supabaseAdmin
             .from("coach_spells")
-            .update({ is_current: false })
+            .update({ is_current: false, ended_at: new Date().toISOString().slice(0, 10) })
             .eq("team_id", teamId)
+            .eq("is_current", true)
             .neq("coach_id", coach.id);
-          await supabaseAdmin.from("coach_spells").upsert(
-            { coach_id: coach.id, team_id: teamId, is_current: true, started_at: null },
-            { onConflict: "coach_id,team_id,started_at", ignoreDuplicates: true },
-          );
+
+          // NULL started_at never conflicts in Postgres, so dedupe explicitly.
+          const { data: spell } = await supabaseAdmin
+            .from("coach_spells")
+            .select("id")
+            .eq("coach_id", coach.id)
+            .eq("team_id", teamId)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (spell) {
+            await supabaseAdmin
+              .from("coach_spells")
+              .update({ is_current: true, ended_at: null })
+              .eq("id", spell.id);
+          } else {
+            await supabaseAdmin
+              .from("coach_spells")
+              .insert({ coach_id: coach.id, team_id: teamId, is_current: true });
+          }
         }
+
       }
 
       await supabaseAdmin
@@ -328,7 +350,7 @@ export async function ingestOfficials(
 /* ------------------------------------------------------------------ */
 
 export async function runIntel(
-  options: { triggeredBy?: string; days?: number } = {},
+  options: { triggeredBy?: string; days?: number; matchIds?: string[] } = {},
 ): Promise<IntelSummary> {
   const startedAt = Date.now();
   const jobId = await startJob("intel", options.triggeredBy ?? "manual");
@@ -342,13 +364,18 @@ export async function runIntel(
   const from = new Date();
   const to = new Date(from.getTime() + days * 86_400_000);
 
-  const { data: matches } = await supabaseAdmin
+  const query = supabaseAdmin
     .from("matches")
-    .select("id, home_team_id, away_team_id, kickoff_at")
-    .gte("kickoff_at", from.toISOString())
-    .lte("kickoff_at", to.toISOString())
-    .order("kickoff_at", { ascending: true })
-    .limit(300);
+    .select("id, home_team_id, away_team_id, kickoff_at");
+
+  const { data: matches } = options.matchIds?.length
+    ? await query.in("id", options.matchIds).limit(300)
+    : await query
+        .gte("kickoff_at", from.toISOString())
+        .lte("kickoff_at", to.toISOString())
+        .order("kickoff_at", { ascending: true })
+        .limit(300);
+
 
   const { data: injuryRows } = await supabaseAdmin
     .from("injuries")
@@ -392,44 +419,50 @@ export async function runIntel(
           side === "home" ? prediction.lambda_home : prediction.lambda_away,
         );
 
-        const candidates = await squadCandidates(teamId, unavailable);
-        if (candidates.length < 11) continue;
+        // A confirmed team sheet (stored by the T-60 refresh) always wins over
+        // the projection: props are then priced off the real XI.
+        const confirmed = await confirmedProjection(match.id, teamId);
+        const candidates = confirmed ? [] : await squadCandidates(teamId, unavailable);
+        if (!confirmed && candidates.length < 11) continue;
 
-        const projection = projectLineup(candidates);
+        const projection = confirmed ?? projectLineup(candidates);
 
-        await supabaseAdmin
-          .from("lineups")
-          .delete()
-          .eq("match_id", match.id)
-          .eq("team_id", teamId)
-          .eq("is_predicted", true);
+        if (!confirmed) {
+          await supabaseAdmin
+            .from("lineups")
+            .delete()
+            .eq("match_id", match.id)
+            .eq("team_id", teamId)
+            .eq("is_predicted", true);
 
-        const { data: lineup } = await supabaseAdmin
-          .from("lineups")
-          .insert({
-            match_id: match.id,
-            team_id: teamId,
-            formation: FORMATION_LABEL,
-            is_predicted: true,
-            confidence: 0.55,
-            source_id: "football_data",
-          })
-          .select("id")
-          .single();
+          const { data: lineup } = await supabaseAdmin
+            .from("lineups")
+            .insert({
+              match_id: match.id,
+              team_id: teamId,
+              formation: FORMATION_LABEL,
+              is_predicted: true,
+              confidence: 0.55,
+              source_id: "football_data",
+            })
+            .select("id")
+            .single();
 
-        if (lineup) {
-          const rows = projection.slice(0, 22).map((player) => ({
-            lineup_id: lineup.id,
-            player_id: player.playerId,
-            position: player.group,
-            is_starter: player.isStarter,
-            start_probability: player.startProbability,
-            expected_minutes: player.expectedMinutes,
-          }));
-          if (rows.length > 0) await supabaseAdmin.from("lineup_players").insert(rows);
+          if (lineup) {
+            const rows = projection.slice(0, 22).map((player) => ({
+              lineup_id: lineup.id,
+              player_id: player.playerId,
+              position: player.group,
+              is_starter: player.isStarter,
+              start_probability: player.startProbability,
+              expected_minutes: player.expectedMinutes,
+            }));
+            if (rows.length > 0) await supabaseAdmin.from("lineup_players").insert(rows);
+          }
         }
 
         const props = playerProps({
+
           players: projection.filter((player) => player.expectedMinutes >= 8),
           teamLambda,
           expectedCards,
@@ -517,4 +550,37 @@ async function refereeCardRate(matchId: string): Promise<number | null> {
     .maybeSingle();
 
   return stats?.yellow_per_game ? Number(stats.yellow_per_game) : null;
+}
+
+/**
+ * Reads a confirmed team sheet back as a projection, so player props can be
+ * priced off the real XI once the T-60 refresh has stored one.
+ */
+async function confirmedProjection(
+  matchId: string,
+  teamId: string,
+): Promise<ProjectedPlayer[] | null> {
+  const { data: lineup } = await supabaseAdmin
+    .from("lineups")
+    .select(
+      "id, players:lineup_players(player_id, position, is_starter, start_probability, expected_minutes, player:players(id, name, position))",
+    )
+    .eq("match_id", matchId)
+    .eq("team_id", teamId)
+    .eq("is_predicted", false)
+    .maybeSingle();
+
+  if (!lineup || lineup.players.length < 11) return null;
+
+  return lineup.players.map((row) => {
+    const player = row.player as { id: string; name: string; position: string | null } | null;
+    return {
+      playerId: row.player_id,
+      name: player?.name ?? "Unknown",
+      group: positionGroup(row.position ?? player?.position),
+      isStarter: row.is_starter,
+      startProbability: Number(row.start_probability ?? (row.is_starter ? 1 : 0.05)),
+      expectedMinutes: Number(row.expected_minutes ?? (row.is_starter ? 90 : 12)),
+    } satisfies ProjectedPlayer;
+  });
 }

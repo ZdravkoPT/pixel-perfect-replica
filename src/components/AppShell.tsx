@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Activity, BarChart3, Brain, LayoutGrid, LogOut, ShieldCheck, Star, Users } from "lucide-react";
+import { Activity, BarChart3, Brain, ClipboardList, LayoutGrid, LogOut, ShieldCheck, Star, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,7 @@ const NAV = [
   { to: "/watchlist", label: "My watchlist", icon: Star },
   { to: "/analytics", label: "Model analytics", icon: Brain },
   { to: "/players", label: "Players", icon: Users },
+  { to: "/coaches", label: "Coaches", icon: ClipboardList },
   { to: "/providers", label: "Provider health", icon: Activity },
   { to: "/admin", label: "Diagnostics", icon: ShieldCheck },
 ] as const;
