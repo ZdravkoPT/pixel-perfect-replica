@@ -209,7 +209,8 @@ export async function runKickoffRefresh(
       "id, home_team_id, away_team_id, kickoff_at, status, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)",
     )
     .in("status", ["SCHEDULED", "LIVE", "PAUSED"])
-    .gte("kickoff_at", new Date(now.getTime() - 15 * 60_000).toISOString())
+    // Keep in-play fixtures in scope so live status/score stay fresh too.
+    .gte("kickoff_at", new Date(now.getTime() - 150 * 60_000).toISOString())
     .lte("kickoff_at", until.toISOString())
     .order("kickoff_at", { ascending: true })
     .limit(60);
