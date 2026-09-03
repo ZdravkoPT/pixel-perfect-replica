@@ -11,11 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AiBetsRouteImport } from './routes/ai-bets'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CoachesRouteImport } from './routes/coaches'
 import { Route as PlayersRouteImport } from './routes/players'
 import { Route as ProvidersRouteImport } from './routes/providers'
+import { Route as ValueRouteImport } from './routes/value'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as CoachesCoachIdRouteImport } from './routes/coaches.$coachId'
 import { Route as MatchesMatchIdRouteImport } from './routes/matches.$matchId'
@@ -33,6 +35,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiBetsRoute = AiBetsRouteImport.update({
+  id: '/ai-bets',
+  path: '/ai-bets',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -58,6 +65,11 @@ const PlayersRoute = PlayersRouteImport.update({
 const ProvidersRoute = ProvidersRouteImport.update({
   id: '/providers',
   path: '/providers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ValueRoute = ValueRouteImport.update({
+  id: '/value',
+  path: '/value',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WatchlistRoute = WatchlistRouteImport.update({
@@ -108,11 +120,13 @@ const ApiPublicHooksTrainModelsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/ai-bets': typeof AiBetsRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/coaches': typeof CoachesRouteWithChildren
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
+  '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
@@ -125,11 +139,13 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/ai-bets': typeof AiBetsRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/coaches': typeof CoachesRouteWithChildren
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
+  '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
@@ -143,11 +159,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/ai-bets': typeof AiBetsRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/coaches': typeof CoachesRouteWithChildren
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
+  '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
@@ -162,11 +180,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/ai-bets'
     | '/analytics'
     | '/auth'
     | '/coaches'
     | '/players'
     | '/providers'
+    | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
     | '/matches/$matchId'
@@ -179,11 +199,13 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/ai-bets'
     | '/analytics'
     | '/auth'
     | '/coaches'
     | '/players'
     | '/providers'
+    | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
     | '/matches/$matchId'
@@ -196,11 +218,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/ai-bets'
     | '/analytics'
     | '/auth'
     | '/coaches'
     | '/players'
     | '/providers'
+    | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
     | '/matches/$matchId'
@@ -214,11 +238,13 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AiBetsRoute: typeof AiBetsRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
   CoachesRoute: typeof CoachesRouteWithChildren
   PlayersRoute: typeof PlayersRouteWithChildren
   ProvidersRoute: typeof ProvidersRoute
+  ValueRoute: typeof ValueRoute
   WatchlistRoute: typeof WatchlistRoute
   MatchesMatchIdRoute: typeof MatchesMatchIdRoute
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
@@ -241,6 +267,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-bets': {
+      id: '/ai-bets'
+      path: '/ai-bets'
+      fullPath: '/ai-bets'
+      preLoaderRoute: typeof AiBetsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -276,6 +309,13 @@ declare module '@tanstack/react-router' {
       path: '/providers'
       fullPath: '/providers'
       preLoaderRoute: typeof ProvidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/value': {
+      id: '/value'
+      path: '/value'
+      fullPath: '/value'
+      preLoaderRoute: typeof ValueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/watchlist': {
@@ -362,11 +402,13 @@ const PlayersRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AiBetsRoute: AiBetsRoute,
   AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
   CoachesRoute: CoachesRouteWithChildren,
   PlayersRoute: PlayersRouteWithChildren,
   ProvidersRoute: ProvidersRoute,
+  ValueRoute: ValueRoute,
   WatchlistRoute: WatchlistRoute,
   MatchesMatchIdRoute: MatchesMatchIdRoute,
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
