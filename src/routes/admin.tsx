@@ -140,6 +140,14 @@ function AdminPage() {
           >
             Refresh player intelligence
           </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Kickoff refresh", () => runKickoffFn())}
+          >
+            Run T-60 kickoff refresh
+          </Button>
+
         </div>
         {status ? <p className="mt-3 break-all text-xs text-muted-foreground">{status}</p> : null}
       </div>
