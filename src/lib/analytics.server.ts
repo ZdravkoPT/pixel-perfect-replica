@@ -47,27 +47,43 @@ interface UpcomingMatch {
   kickoff_at: string;
 }
 
-async function loadFinished(): Promise<FinishedMatch[]> {
-  const { data } = await supabaseAdmin
-    .from("matches")
-    .select("id, league_id, home_team_id, away_team_id, kickoff_at, home_score, away_score")
-    .eq("status", "FINISHED")
-    .not("home_score", "is", null)
-    .not("away_score", "is", null)
-    .order("kickoff_at", { ascending: true })
-    .limit(5000);
+/**
+ * Loads finished matches for training. PostgREST caps a single response at
+ * 1000 rows, so we page through the archive (newest TRAINING_LIMIT matches)
+ * and return them oldest-first for the sequential Elo / form walk.
+ */
+async function loadFinished(limit = TRAINING_LIMIT): Promise<FinishedMatch[]> {
+  const page = 1000;
+  const rows: FinishedMatch[] = [];
 
-  return (data ?? [])
-    .filter((row) => row.home_score !== null && row.away_score !== null)
-    .map((row) => ({
-      id: row.id,
-      league_id: row.league_id,
-      home_team_id: row.home_team_id,
-      away_team_id: row.away_team_id,
-      kickoff_at: row.kickoff_at,
-      home_score: row.home_score as number,
-      away_score: row.away_score as number,
-    }));
+  for (let offset = 0; offset < limit; offset += page) {
+    const { data } = await supabaseAdmin
+      .from("matches")
+      .select("id, league_id, home_team_id, away_team_id, kickoff_at, home_score, away_score")
+      .eq("status", "FINISHED")
+      .not("home_score", "is", null)
+      .not("away_score", "is", null)
+      .order("kickoff_at", { ascending: false })
+      .range(offset, Math.min(offset + page, limit) - 1);
+
+    const batch = data ?? [];
+    for (const row of batch) {
+      if (row.home_score === null || row.away_score === null) continue;
+      rows.push({
+        id: row.id,
+        league_id: row.league_id,
+        home_team_id: row.home_team_id,
+        away_team_id: row.away_team_id,
+        kickoff_at: row.kickoff_at,
+        home_score: row.home_score as number,
+        away_score: row.away_score as number,
+      });
+    }
+    if (batch.length < page) break;
+  }
+
+  return rows.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
+
 }
 
 interface TeamState {
