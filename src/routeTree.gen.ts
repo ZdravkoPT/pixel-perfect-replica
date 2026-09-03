@@ -15,6 +15,7 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PlayersRouteImport } from './routes/players'
 import { Route as ProvidersRouteImport } from './routes/providers'
+import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as MatchesMatchIdRouteImport } from './routes/matches.$matchId'
 import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/public/hooks/ingest-fixtures'
 import { Route as ApiPublicHooksRefreshIntelRouteImport } from './routes/api/public/hooks/refresh-intel'
@@ -50,6 +51,11 @@ const ProvidersRoute = ProvidersRouteImport.update({
   path: '/providers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WatchlistRoute = WatchlistRouteImport.update({
+  id: '/watchlist',
+  path: '/watchlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MatchesMatchIdRoute = MatchesMatchIdRouteImport.update({
   id: '/matches/$matchId',
   path: '/matches/$matchId',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/players': typeof PlayersRoute
   '/providers': typeof ProvidersRoute
+  '/watchlist': typeof WatchlistRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/players': typeof PlayersRoute
   '/providers': typeof ProvidersRoute
+  '/watchlist': typeof WatchlistRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/players': typeof PlayersRoute
   '/providers': typeof ProvidersRoute
+  '/watchlist': typeof WatchlistRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/players'
     | '/providers'
+    | '/watchlist'
     | '/matches/$matchId'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/refresh-intel'
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/players'
     | '/providers'
+    | '/watchlist'
     | '/matches/$matchId'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/refresh-intel'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/players'
     | '/providers'
+    | '/watchlist'
     | '/matches/$matchId'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/refresh-intel'
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   PlayersRoute: typeof PlayersRoute
   ProvidersRoute: typeof ProvidersRoute
+  WatchlistRoute: typeof WatchlistRoute
   MatchesMatchIdRoute: typeof MatchesMatchIdRoute
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
   ApiPublicHooksRefreshIntelRoute: typeof ApiPublicHooksRefreshIntelRoute
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProvidersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/watchlist': {
+      id: '/watchlist'
+      path: '/watchlist'
+      fullPath: '/watchlist'
+      preLoaderRoute: typeof WatchlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/matches/$matchId': {
       id: '/matches/$matchId'
       path: '/matches/$matchId'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   PlayersRoute: PlayersRoute,
   ProvidersRoute: ProvidersRoute,
+  WatchlistRoute: WatchlistRoute,
   MatchesMatchIdRoute: MatchesMatchIdRoute,
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
   ApiPublicHooksRefreshIntelRoute: ApiPublicHooksRefreshIntelRoute,

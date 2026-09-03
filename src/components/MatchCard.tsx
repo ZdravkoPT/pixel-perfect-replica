@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
+import { FavoriteButton } from "@/components/FavoriteButton";
 
 export interface MatchCardData {
   id: string;
@@ -8,9 +9,9 @@ export interface MatchCardData {
   minute: number | null;
   home_score: number | null;
   away_score: number | null;
-  league: { name: string; country: string | null } | null;
-  home: { name: string; tla: string | null; crest_url: string | null } | null;
-  away: { name: string; tla: string | null; crest_url: string | null } | null;
+  league: { id?: string; name: string; country: string | null } | null;
+  home: { id?: string; name: string; tla: string | null; crest_url: string | null } | null;
+  away: { id?: string; name: string; tla: string | null; crest_url: string | null } | null;
 }
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
@@ -37,9 +38,18 @@ export function MatchCard({ match }: { match: MatchCardData }) {
           {match.league?.name ?? "Unknown league"}
           {match.league?.country ? ` · ${match.league.country}` : ""}
         </span>
-        <Badge variant={statusVariant(match.status)} className="shrink-0">
-          {match.status === "LIVE" && match.minute !== null ? `${match.minute}'` : match.status}
-        </Badge>
+        <span className="flex shrink-0 items-center gap-1">
+          <Badge variant={statusVariant(match.status)}>
+            {match.status === "LIVE" && match.minute !== null ? `${match.minute}'` : match.status}
+          </Badge>
+          {match.home?.id ? (
+            <FavoriteButton
+              entityType="team"
+              entityId={match.home.id}
+              label={match.home.name}
+            />
+          ) : null}
+        </span>
       </div>
 
       <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
