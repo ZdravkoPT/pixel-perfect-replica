@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { getDiagnostics, triggerIngestion } from "@/lib/football.functions";
 import { startBacktest, syncHistory, trainModels } from "@/lib/analytics.functions";
+import { refreshIntel, syncOfficials, syncSquads } from "@/lib/intel.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -32,6 +33,9 @@ function AdminPage() {
   const runHistory = useServerFn(syncHistory);
   const runTraining = useServerFn(trainModels);
   const runBacktestFn = useServerFn(startBacktest);
+  const runSquads = useServerFn(syncSquads);
+  const runOfficials = useServerFn(syncOfficials);
+  const runIntelFn = useServerFn(refreshIntel);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -114,6 +118,27 @@ function AdminPage() {
             onClick={() => runTask("Backtest", () => runBacktestFn())}
           >
             Run walk-forward backtest
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Squad sync", () => runSquads())}
+          >
+            Sync squads
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Officials sync", () => runOfficials())}
+          >
+            Sync referees
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Intelligence refresh", () => runIntelFn())}
+          >
+            Refresh player intelligence
           </Button>
         </div>
         {status ? <p className="mt-3 break-all text-xs text-muted-foreground">{status}</p> : null}

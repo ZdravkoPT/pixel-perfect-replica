@@ -5,15 +5,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { getMatchDetail } from "@/lib/football.functions";
 import { getMatchPrediction } from "@/lib/analytics.functions";
+import { getMatchIntel } from "@/lib/intel.functions";
 import { PredictionPanel } from "@/components/PredictionPanel";
+import {
+  InjuriesPanel,
+  LineupsPanel,
+  PropsPanel,
+  RefereePanel,
+  TeamMarketPanel,
+  type IntelData,
+} from "@/components/IntelPanels";
 
 const TABS = [
   "Overview",
   "AI Prediction",
   "Lineups",
-  "Tactics",
-  "Players",
-  "Stats",
+  "Injuries",
+  "Player props",
   "Corners",
   "Cards",
   "Referee",
@@ -33,6 +41,13 @@ const predictionQueryOptions = (matchId: string) =>
     queryKey: ["match-prediction", matchId],
     queryFn: () => getMatchPrediction({ data: { matchId } }),
   });
+
+const intelQueryOptions = (matchId: string) =>
+  queryOptions({
+    queryKey: ["match-intel", matchId],
+    queryFn: () => getMatchIntel({ data: { matchId } }),
+  });
+
 
 export const Route = createFileRoute("/matches/$matchId")({
   head: () => ({
@@ -56,6 +71,18 @@ function MatchDetail() {
   const { matchId } = Route.useParams();
   const { data } = useSuspenseQuery(detailQuery(matchId));
   const predictionQuery = useQuery(predictionQueryOptions(matchId));
+  const intelQuery = useQuery(intelQueryOptions(matchId));
+  const intel = (intelQuery.data ?? {
+    lineups: [],
+    officials: [],
+    injuries: [],
+    props: [],
+    markets: [],
+    refereeProfile: null,
+    homeTeamId: null,
+    awayTeamId: null,
+  }) as unknown as IntelData;
+
   const match = data.match as
     | (Record<string, unknown> & {
         kickoff_at: string;
@@ -78,6 +105,9 @@ function MatchDetail() {
   }
 
   const kickoff = new Date(match.kickoff_at);
+  const homeName = match.home?.name ?? "Home";
+  const awayName = match.away?.name ?? "Away";
+
 
   return (
     <AppShell
@@ -140,13 +170,50 @@ function MatchDetail() {
           />
         </TabsContent>
 
-        {TABS.filter((tab) => tab !== "Overview" && tab !== "AI Prediction").map((tab) => (
+        <TabsContent value="Lineups" className="mt-4">
+          <LineupsPanel intel={intel} homeName={homeName} awayName={awayName} />
+        </TabsContent>
+
+        <TabsContent value="Injuries" className="mt-4">
+          <InjuriesPanel intel={intel} homeName={homeName} awayName={awayName} />
+        </TabsContent>
+
+        <TabsContent value="Player props" className="mt-4 space-y-6">
+          {["player_goals", "player_assists", "player_cards"].map((market) => (
+            <div key={market}>
+              <h3 className="mb-2 text-sm font-semibold capitalize">
+                {market.replace("player_", "")}
+              </h3>
+              <PropsPanel
+                intel={intel}
+                market={market}
+                homeName={homeName}
+                awayName={awayName}
+              />
+            </div>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="Corners" className="mt-4">
+          <TeamMarketPanel intel={intel} market="corners" />
+        </TabsContent>
+
+        <TabsContent value="Cards" className="mt-4">
+          <TeamMarketPanel intel={intel} market="cards" />
+        </TabsContent>
+
+        <TabsContent value="Referee" className="mt-4">
+          <RefereePanel intel={intel} />
+        </TabsContent>
+
+        {(["Odds", "News", "H2H"] as const).map((tab) => (
           <TabsContent key={tab} value={tab} className="mt-4">
             <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {tab} arrives in a later phase.
             </div>
           </TabsContent>
         ))}
+
 
       </Tabs>
     </AppShell>

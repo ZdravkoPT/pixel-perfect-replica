@@ -281,7 +281,7 @@ export async function ingestFixtures(options: {
       ...((existing?.provider_ids as Record<string, string> | null) ?? {}),
       [provider]: match.providerMatchId,
     };
-    if (counterpart) providerIds["api-football"] = counterpart.providerMatchId;
+    if (counterpart) providerIds["api_football"] = counterpart.providerMatchId;
 
     const payload = {
       canonical_id: canonicalId,
@@ -326,7 +326,7 @@ export async function ingestFixtures(options: {
       await supabaseAdmin.from("match_sources").upsert(
         {
           match_id: saved.id,
-          source_id: "api-football",
+          source_id: "api_football",
           provider_match_id: counterpart.providerMatchId,
           payload: counterpart.raw as never,
         },
@@ -343,7 +343,7 @@ export async function ingestFixtures(options: {
           field: "kickoff_at",
           sourceA: provider,
           valueA: match.kickoffAt,
-          sourceB: "api-football",
+          sourceB: "api_football",
           valueB: counterpart.kickoffAt,
         });
       }
@@ -358,7 +358,7 @@ export async function ingestFixtures(options: {
           field: "score",
           sourceA: provider,
           valueA: { home: match.homeScore, away: match.awayScore },
-          sourceB: "api-football",
+          sourceB: "api_football",
           valueB: { home: counterpart.homeScore, away: counterpart.awayScore },
         });
       }
@@ -452,7 +452,7 @@ export async function ingestHistory(options: {
     .from("ingestion_jobs")
     .insert({
       job_type: "history",
-      source_id: "football-data-org",
+      source_id: "football_data",
       status: "running",
       triggered_by: triggeredBy,
     })

@@ -11,6 +11,8 @@ import {
   type NormalizedTeam,
   type ProviderResult,
 } from "./types";
+import type { NormalizedSquad } from "./intel-types";
+
 
 const BASE = "https://api.football-data.org/v4";
 
@@ -61,7 +63,7 @@ function mapTeam(team: FdTeam | undefined): NormalizedTeam {
 }
 
 export class FootballDataProvider implements FootballProvider {
-  readonly id = "football-data-org" as const;
+  readonly id = "football_data" as const;
   private readonly limiter = new RateLimiter(this.id);
 
   private async request<T>(path: string): Promise<ProviderResult<T>> {
@@ -182,9 +184,55 @@ export class FootballDataProvider implements FootballProvider {
     return ok((result.data.teams ?? []).map((team) => mapTeam(team)));
   }
 
+  /**
+   * Squads (players + coach) for every team of a competition.
+   * football-data.org exposes this on the free tier, so it is our primary
+   * player source.
+   */
+  async getSquads(competitionProviderId: string): Promise<ProviderResult<NormalizedSquad[]>> {
+    const result = await this.request<{ teams?: Array<Record<string, unknown>> }>(
+      `/competitions/${competitionProviderId}/teams`,
+    );
+    if (!result.ok) return result;
+
+    const squads = (result.data.teams ?? []).map((team) => {
+      const coachRaw = team["coach"] as
+        | { id?: number; name?: string; nationality?: string | null; dateOfBirth?: string | null }
+        | undefined;
+      const squad = (team["squad"] as Array<Record<string, unknown>> | undefined) ?? [];
+
+      return {
+        teamProviderId: String(team["id"] ?? ""),
+        teamName: String(team["name"] ?? "Unknown"),
+        coach:
+          coachRaw?.id && coachRaw.name
+            ? {
+                providerId: String(coachRaw.id),
+                name: coachRaw.name,
+                nationality: coachRaw.nationality ?? null,
+                birthDate: coachRaw.dateOfBirth ?? null,
+              }
+            : null,
+        players: squad
+          .filter((player) => player["id"] && player["name"])
+          .map((player) => ({
+            providerId: String(player["id"]),
+            name: String(player["name"]),
+            position: (player["position"] as string | null | undefined) ?? null,
+            birthDate: (player["dateOfBirth"] as string | null | undefined) ?? null,
+            nationality: (player["nationality"] as string | null | undefined) ?? null,
+            shirtNumber: (player["shirtNumber"] as number | null | undefined) ?? null,
+          })),
+      } satisfies NormalizedSquad;
+    });
+
+    return ok(squads);
+  }
+
   async getPlayers(): Promise<ProviderResult<never[]>> {
     return unsupported("Players");
   }
+
 
   async getOdds(): Promise<ProviderResult<never[]>> {
     return unsupported("Odds");
