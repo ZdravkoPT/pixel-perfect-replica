@@ -70,9 +70,14 @@ export const Route = createFileRoute("/matches/$matchId")({
 
 function MatchDetail() {
   const { matchId } = Route.useParams();
-  const { data } = useSuspenseQuery(detailQuery(matchId));
+  const { data } = useSuspenseQuery({
+    ...detailQuery(matchId),
+    // Keep score/status fresh while a fixture is in play.
+    refetchInterval: 60_000,
+  });
   const predictionQuery = useQuery(predictionQueryOptions(matchId));
-  const intelQuery = useQuery(intelQueryOptions(matchId));
+  const intelQuery = useQuery({ ...intelQueryOptions(matchId), refetchInterval: 120_000 });
+
   const intel = (intelQuery.data ?? {
     lineups: [],
     officials: [],
