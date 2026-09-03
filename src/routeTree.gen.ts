@@ -10,33 +10,44 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/public/hooks/ingest-fixtures'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksIngestFixturesRoute =
+  ApiPublicHooksIngestFixturesRouteImport.update({
+    id: '/api/public/hooks/ingest-fixtures',
+    path: '/api/public/hooks/ingest-fixtures',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/public/hooks/ingest-fixtures'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/public/hooks/ingest-fixtures'
+  id: '__root__' | '/' | '/api/public/hooks/ingest-fixtures'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +59,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/ingest-fixtures': {
+      id: '/api/public/hooks/ingest-fixtures'
+      path: '/api/public/hooks/ingest-fixtures'
+      fullPath: '/api/public/hooks/ingest-fixtures'
+      preLoaderRoute: typeof ApiPublicHooksIngestFixturesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
