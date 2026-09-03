@@ -328,7 +328,7 @@ export async function ingestOfficials(
 /* ------------------------------------------------------------------ */
 
 export async function runIntel(
-  options: { triggeredBy?: string; days?: number } = {},
+  options: { triggeredBy?: string; days?: number; matchIds?: string[] } = {},
 ): Promise<IntelSummary> {
   const startedAt = Date.now();
   const jobId = await startJob("intel", options.triggeredBy ?? "manual");
@@ -342,13 +342,18 @@ export async function runIntel(
   const from = new Date();
   const to = new Date(from.getTime() + days * 86_400_000);
 
-  const { data: matches } = await supabaseAdmin
+  const query = supabaseAdmin
     .from("matches")
-    .select("id, home_team_id, away_team_id, kickoff_at")
-    .gte("kickoff_at", from.toISOString())
-    .lte("kickoff_at", to.toISOString())
-    .order("kickoff_at", { ascending: true })
-    .limit(300);
+    .select("id, home_team_id, away_team_id, kickoff_at");
+
+  const { data: matches } = options.matchIds?.length
+    ? await query.in("id", options.matchIds).limit(300)
+    : await query
+        .gte("kickoff_at", from.toISOString())
+        .lte("kickoff_at", to.toISOString())
+        .order("kickoff_at", { ascending: true })
+        .limit(300);
+
 
   const { data: injuryRows } = await supabaseAdmin
     .from("injuries")
