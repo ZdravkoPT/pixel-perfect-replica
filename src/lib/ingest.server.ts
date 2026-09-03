@@ -448,19 +448,12 @@ export async function ingestFixtures(options: {
         const counterpart =
           secondaryMatches.find((candidate) => {
             if (usedSecondary.has(candidate.providerMatchId)) return false;
-            const sameHome =
-              similarity(
-                normalizeTeamName(candidate.homeTeam.name),
-                normalizeTeamName(match.homeTeam.name),
-              ) >= SIMILARITY_THRESHOLD;
-            const sameAway =
-              similarity(
-                normalizeTeamName(candidate.awayTeam.name),
-                normalizeTeamName(match.awayTeam.name),
-              ) >= SIMILARITY_THRESHOLD;
+            const sameHome = namesMatch(candidate.homeTeam.name, match.homeTeam.name);
+            const sameAway = namesMatch(candidate.awayTeam.name, match.awayTeam.name);
             const sameDay = candidate.kickoffAt.slice(0, 10) === match.kickoffAt.slice(0, 10);
             return sameHome && sameAway && sameDay;
           }) ?? null;
+
         if (counterpart) usedSecondary.add(counterpart.providerMatchId);
         await persist(primary.id, match, counterpart);
       } catch (error) {
