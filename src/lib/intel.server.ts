@@ -154,16 +154,36 @@ export async function ingestSquads(
           .select("id")
           .single();
         if (coach) {
+          // Any other coach previously listed at this club becomes a past spell.
           await supabaseAdmin
             .from("coach_spells")
-            .update({ is_current: false })
+            .update({ is_current: false, ended_at: new Date().toISOString().slice(0, 10) })
             .eq("team_id", teamId)
+            .eq("is_current", true)
             .neq("coach_id", coach.id);
-          await supabaseAdmin.from("coach_spells").upsert(
-            { coach_id: coach.id, team_id: teamId, is_current: true, started_at: null },
-            { onConflict: "coach_id,team_id,started_at", ignoreDuplicates: true },
-          );
+
+          // NULL started_at never conflicts in Postgres, so dedupe explicitly.
+          const { data: spell } = await supabaseAdmin
+            .from("coach_spells")
+            .select("id")
+            .eq("coach_id", coach.id)
+            .eq("team_id", teamId)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (spell) {
+            await supabaseAdmin
+              .from("coach_spells")
+              .update({ is_current: true, ended_at: null })
+              .eq("id", spell.id);
+          } else {
+            await supabaseAdmin
+              .from("coach_spells")
+              .insert({ coach_id: coach.id, team_id: teamId, is_current: true });
+          }
         }
+
       }
 
       await supabaseAdmin
