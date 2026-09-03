@@ -273,11 +273,13 @@ export async function ingestFixtures(options: {
       match.awayTeam.name,
     );
 
-    const { data: existing } = await supabaseAdmin
-      .from("matches")
-      .select("id, provider_ids, kickoff_at, home_score, away_score")
-      .eq("canonical_id", canonicalId)
-      .maybeSingle();
+    const existing = await findExistingMatch(canonicalId, {
+      kickoffAt: match.kickoffAt,
+      homeTeamId,
+      awayTeamId,
+      homeName: match.homeTeam.name,
+      awayName: match.awayTeam.name,
+    });
 
     const providerIds: Record<string, string> = {
       ...((existing?.provider_ids as Record<string, string> | null) ?? {}),
