@@ -73,7 +73,9 @@ class TeamResolver {
           candidate = row;
         }
       }
-      if (best < SIMILARITY_THRESHOLD) candidate = null;
+      if (best < SIMILARITY_THRESHOLD) {
+        candidate = this.all.find((row) => namesMatch(team.name, row.name)) ?? null;
+      }
     }
 
     if (candidate) {
