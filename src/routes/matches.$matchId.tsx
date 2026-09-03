@@ -195,7 +195,13 @@ function MatchDetail() {
         </TabsContent>
 
         <TabsContent value="Lineups" className="mt-4 space-y-6">
-          <LineupsPanel intel={intel} homeName={homeName} awayName={awayName} />
+          <LineupsPanel
+            intel={intel}
+            homeName={homeName}
+            awayName={awayName}
+            kickoffPassed={started}
+          />
+
           <div>
             <h3 className="mb-2 text-sm font-semibold">Squad profile</h3>
             <SquadProfilePanel matchId={matchId} />
