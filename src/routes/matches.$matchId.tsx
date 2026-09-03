@@ -15,6 +15,7 @@ import {
   TeamMarketPanel,
   type IntelData,
 } from "@/components/IntelPanels";
+import { SquadProfilePanel } from "@/components/SquadProfilePanel";
 
 const TABS = [
   "Overview",
@@ -170,8 +171,12 @@ function MatchDetail() {
           />
         </TabsContent>
 
-        <TabsContent value="Lineups" className="mt-4">
+        <TabsContent value="Lineups" className="mt-4 space-y-6">
           <LineupsPanel intel={intel} homeName={homeName} awayName={awayName} />
+          <div>
+            <h3 className="mb-2 text-sm font-semibold">Squad profile</h3>
+            <SquadProfilePanel matchId={matchId} />
+          </div>
         </TabsContent>
 
         <TabsContent value="Injuries" className="mt-4">

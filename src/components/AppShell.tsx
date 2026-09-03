@@ -1,12 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Activity, BarChart3, Brain, ClipboardList, LayoutGrid, LogOut, ShieldCheck, Star, Users } from "lucide-react";
+import { Activity, BarChart3, Brain, ClipboardList, LayoutGrid, LogOut, ShieldCheck, Sparkles, Star, TrendingUp, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
   { to: "/", label: "Matches", icon: LayoutGrid },
   { to: "/watchlist", label: "My watchlist", icon: Star },
+  { to: "/value", label: "Value board", icon: TrendingUp },
+  { to: "/ai-bets", label: "AI bet builder", icon: Sparkles },
   { to: "/analytics", label: "Model analytics", icon: Brain },
   { to: "/players", label: "Players", icon: Users },
   { to: "/coaches", label: "Coaches", icon: ClipboardList },
