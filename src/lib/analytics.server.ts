@@ -756,6 +756,7 @@ export async function runLivePredictions(
     rho: stored.rho ?? 0,
     xi: stored.xi ?? 0,
     logLikelihood: stored.logLikelihood ?? 0,
+    samples: stored.samples ?? 0,
   };
 
   const now = new Date();
