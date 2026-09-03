@@ -53,7 +53,9 @@ export async function runKickoffRefresh(
 
   const { data: matches } = await supabaseAdmin
     .from("matches")
-    .select("id, home_team_id, away_team_id, kickoff_at, status")
+    .select(
+      "id, home_team_id, away_team_id, kickoff_at, status, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)",
+    )
     .in("status", ["SCHEDULED", "LIVE", "PAUSED"])
     .gte("kickoff_at", new Date(now.getTime() - 15 * 60_000).toISOString())
     .lte("kickoff_at", until.toISOString())
@@ -62,20 +64,12 @@ export async function runKickoffRefresh(
 
   const provider = new FootballDataProvider();
 
-  for (const match of matches ?? []) {
+  for (const match of (matches ?? []) as unknown as ImminentMatch[]) {
     try {
       processed += 1;
 
-      const { data: source } = await supabaseAdmin
-        .from("match_sources")
-        .select("provider_match_id")
-        .eq("match_id", match.id)
-        .eq("source_id", "football_data")
-        .maybeSingle();
+      const sheet = await fetchTeamSheet(provider, match);
 
-      const sheet = source
-        ? await provider.getMatchSheet(source.provider_match_id)
-        : { ok: false as const, error: "no football_data source" };
 
       const factors: Record<"home" | "away", number> = { home: 1, away: 1 };
 
