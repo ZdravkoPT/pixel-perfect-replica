@@ -278,177 +278,8 @@ export async function runAnalytics(
       .limit(500);
 
     const upcoming = (upcomingRaw ?? []) as UpcomingMatch[];
-    let scored = 0;
+    const scored = await scoreMatches(upcoming, states, params, modelVersion.id);
 
-    for (const match of upcoming) {
-      const homeState = states.get(match.home_team_id);
-      const awayState = states.get(match.away_team_id);
-      const homeElo = homeState?.elo ?? ELO_CONFIG.base;
-      const awayElo = awayState?.elo ?? ELO_CONFIG.base;
-      const eloDiff = homeElo + ELO_CONFIG.homeAdvantage - awayElo;
-
-      const homeRoll = rolling(homeState);
-      const awayRoll = rolling(awayState);
-      const kickoffMs = new Date(match.kickoff_at).getTime();
-      const restHome = homeState?.lastKickoff
-        ? (kickoffMs - new Date(homeState.lastKickoff).getTime()) / 86_400_000
-        : null;
-      const restAway = awayState?.lastKickoff
-        ? (kickoffMs - new Date(awayState.lastKickoff).getTime()) / 86_400_000
-        : null;
-
-      const { lambdaHome, lambdaAway } = blendedLambdas(
-        params,
-        match.home_team_id,
-        match.away_team_id,
-        eloDiff,
-      );
-      const markets = marketsFromMatrix(scorelineMatrix(lambdaHome, lambdaAway, params.rho));
-      const featureTimestamp = new Date().toISOString();
-
-      const { data: feature } = await supabaseAdmin
-        .from("match_features")
-        .insert({
-          match_id: match.id,
-          feature_timestamp: featureTimestamp,
-          home_elo: Number(homeElo.toFixed(2)),
-          away_elo: Number(awayElo.toFixed(2)),
-          elo_diff: Number(eloDiff.toFixed(2)),
-          home_attack: Number((params.attack[match.home_team_id] ?? 0).toFixed(4)),
-          away_attack: Number((params.attack[match.away_team_id] ?? 0).toFixed(4)),
-          home_defence: Number((params.defence[match.home_team_id] ?? 0).toFixed(4)),
-          away_defence: Number((params.defence[match.away_team_id] ?? 0).toFixed(4)),
-          home_goals_for_avg: Number(homeRoll.goalsFor.toFixed(3)),
-          home_goals_against_avg: Number(homeRoll.goalsAgainst.toFixed(3)),
-          away_goals_for_avg: Number(awayRoll.goalsFor.toFixed(3)),
-          away_goals_against_avg: Number(awayRoll.goalsAgainst.toFixed(3)),
-          home_xg_rolling: Number(lambdaHome.toFixed(3)),
-          away_xg_rolling: Number(lambdaAway.toFixed(3)),
-          home_form_points: Number(homeRoll.points.toFixed(3)),
-          away_form_points: Number(awayRoll.points.toFixed(3)),
-          home_rest_days: restHome === null ? null : Number(restHome.toFixed(2)),
-          away_rest_days: restAway === null ? null : Number(restAway.toFixed(2)),
-          sample_size: Math.min(homeRoll.sample, awayRoll.sample),
-          payload: { rollingWindow: ROLLING_WINDOW },
-        })
-        .select("id")
-        .single();
-
-      const confidence = confidenceScore([markets.home, markets.draw, markets.away]);
-
-      const { data: prediction } = await supabaseAdmin
-        .from("predictions")
-        .insert({
-          match_id: match.id,
-          model_version_id: modelVersion.id,
-          feature_id: feature?.id ?? null,
-          prediction_timestamp: featureTimestamp,
-          p_home: Number(markets.home.toFixed(5)),
-          p_draw: Number(markets.draw.toFixed(5)),
-          p_away: Number(markets.away.toFixed(5)),
-          lambda_home: Number(lambdaHome.toFixed(4)),
-          lambda_away: Number(lambdaAway.toFixed(4)),
-          expected_goals: Number((lambdaHome + lambdaAway).toFixed(4)),
-          p_over_25: Number(markets.over25.toFixed(5)),
-          p_under_25: Number(markets.under25.toFixed(5)),
-          p_btts: Number(markets.btts.toFixed(5)),
-          confidence: Number(confidence.toFixed(4)),
-          top_scoreline: `${markets.topScoreline.home}-${markets.topScoreline.away}`,
-        })
-        .select("id")
-        .single();
-
-      if (!prediction) continue;
-
-      const marketRows: Array<{ market: string; selection: string; probability: number }> = [
-        { market: "1X2", selection: "HOME", probability: markets.home },
-        { market: "1X2", selection: "DRAW", probability: markets.draw },
-        { market: "1X2", selection: "AWAY", probability: markets.away },
-        { market: "OU15", selection: "OVER", probability: markets.over15 },
-        { market: "OU15", selection: "UNDER", probability: markets.under15 },
-        { market: "OU25", selection: "OVER", probability: markets.over25 },
-        { market: "OU25", selection: "UNDER", probability: markets.under25 },
-        { market: "OU35", selection: "OVER", probability: markets.over35 },
-        { market: "OU35", selection: "UNDER", probability: markets.under35 },
-        { market: "BTTS", selection: "YES", probability: markets.btts },
-        { market: "BTTS", selection: "NO", probability: markets.noBtts },
-      ];
-
-      await supabaseAdmin.from("prediction_markets").insert(
-        marketRows.map((row) => ({
-          prediction_id: prediction.id,
-          market: row.market,
-          selection: row.selection,
-          probability: Number(row.probability.toFixed(5)),
-          fair_odds: fairOdds(row.probability),
-        })),
-      );
-
-      const explanations = [
-        {
-          feature: "elo_diff",
-          label: "Elo edge (incl. home advantage)",
-          value: eloDiff,
-          contribution: eloDiff / 400,
-        },
-        {
-          feature: "attack_strength",
-          label: "Attack strength differential",
-          value: (params.attack[match.home_team_id] ?? 0) - (params.attack[match.away_team_id] ?? 0),
-          contribution: (params.attack[match.home_team_id] ?? 0) - (params.attack[match.away_team_id] ?? 0),
-        },
-        {
-          feature: "defence_strength",
-          label: "Defensive solidity differential",
-          value: (params.defence[match.away_team_id] ?? 0) - (params.defence[match.home_team_id] ?? 0),
-          contribution:
-            (params.defence[match.away_team_id] ?? 0) - (params.defence[match.home_team_id] ?? 0),
-        },
-        {
-          feature: "form_points",
-          label: `Form (last ${ROLLING_WINDOW} pts/game)`,
-          value: homeRoll.points - awayRoll.points,
-          contribution: (homeRoll.points - awayRoll.points) / 3,
-        },
-        {
-          feature: "rolling_goals",
-          label: `Rolling goals scored (last ${ROLLING_WINDOW})`,
-          value: homeRoll.goalsFor - awayRoll.goalsFor,
-          contribution: (homeRoll.goalsFor - awayRoll.goalsFor) / 3,
-        },
-        {
-          feature: "rest_days",
-          label: "Rest advantage (days)",
-          value: (restHome ?? 7) - (restAway ?? 7),
-          contribution: ((restHome ?? 7) - (restAway ?? 7)) / 20,
-        },
-        {
-          feature: "home_advantage",
-          label: "Model home advantage",
-          value: params.homeAdvantage,
-          contribution: params.homeAdvantage,
-        },
-      ];
-
-      const ranked = explanations
-        .map((item) => ({ ...item, magnitude: Math.abs(item.contribution) }))
-        .sort((a, b) => b.magnitude - a.magnitude)
-        .slice(0, 6);
-
-      await supabaseAdmin.from("prediction_explanations").insert(
-        ranked.map((item, index) => ({
-          prediction_id: prediction.id,
-          feature: item.feature,
-          label: item.label,
-          value: Number(item.value.toFixed(4)),
-          contribution: Number(item.contribution.toFixed(4)),
-          direction: item.contribution >= 0 ? "home" : "away",
-          rank: index + 1,
-        })),
-      );
-
-      scored += 1;
-    }
 
     const durationMs = Date.now() - startedAt;
     await finish({
@@ -667,3 +498,190 @@ export async function runBacktest(
 }
 
 export { MODEL_NAME, expectedScore };
+
+
+/**
+ * Writes features, predictions, markets and explanations for a set of fixtures
+ * using an already fitted model. Shared by full training runs and by the live
+ * re-scoring pass that runs whenever new fixtures arrive.
+ */
+async function scoreMatches(
+  upcoming: UpcomingMatch[],
+  states: Map<string, TeamState>,
+  params: DcParams,
+  modelVersionId: string,
+): Promise<number> {
+  let scored = 0;
+
+    for (const match of upcoming) {
+      const homeState = states.get(match.home_team_id);
+      const awayState = states.get(match.away_team_id);
+      const homeElo = homeState?.elo ?? ELO_CONFIG.base;
+      const awayElo = awayState?.elo ?? ELO_CONFIG.base;
+      const eloDiff = homeElo + ELO_CONFIG.homeAdvantage - awayElo;
+
+      const homeRoll = rolling(homeState);
+      const awayRoll = rolling(awayState);
+      const kickoffMs = new Date(match.kickoff_at).getTime();
+      const restHome = homeState?.lastKickoff
+        ? (kickoffMs - new Date(homeState.lastKickoff).getTime()) / 86_400_000
+        : null;
+      const restAway = awayState?.lastKickoff
+        ? (kickoffMs - new Date(awayState.lastKickoff).getTime()) / 86_400_000
+        : null;
+
+      const { lambdaHome, lambdaAway } = blendedLambdas(
+        params,
+        match.home_team_id,
+        match.away_team_id,
+        eloDiff,
+      );
+      const markets = marketsFromMatrix(scorelineMatrix(lambdaHome, lambdaAway, params.rho));
+      const featureTimestamp = new Date().toISOString();
+
+      const { data: feature } = await supabaseAdmin
+        .from("match_features")
+        .insert({
+          match_id: match.id,
+          feature_timestamp: featureTimestamp,
+          home_elo: Number(homeElo.toFixed(2)),
+          away_elo: Number(awayElo.toFixed(2)),
+          elo_diff: Number(eloDiff.toFixed(2)),
+          home_attack: Number((params.attack[match.home_team_id] ?? 0).toFixed(4)),
+          away_attack: Number((params.attack[match.away_team_id] ?? 0).toFixed(4)),
+          home_defence: Number((params.defence[match.home_team_id] ?? 0).toFixed(4)),
+          away_defence: Number((params.defence[match.away_team_id] ?? 0).toFixed(4)),
+          home_goals_for_avg: Number(homeRoll.goalsFor.toFixed(3)),
+          home_goals_against_avg: Number(homeRoll.goalsAgainst.toFixed(3)),
+          away_goals_for_avg: Number(awayRoll.goalsFor.toFixed(3)),
+          away_goals_against_avg: Number(awayRoll.goalsAgainst.toFixed(3)),
+          home_xg_rolling: Number(lambdaHome.toFixed(3)),
+          away_xg_rolling: Number(lambdaAway.toFixed(3)),
+          home_form_points: Number(homeRoll.points.toFixed(3)),
+          away_form_points: Number(awayRoll.points.toFixed(3)),
+          home_rest_days: restHome === null ? null : Number(restHome.toFixed(2)),
+          away_rest_days: restAway === null ? null : Number(restAway.toFixed(2)),
+          sample_size: Math.min(homeRoll.sample, awayRoll.sample),
+          payload: { rollingWindow: ROLLING_WINDOW },
+        })
+        .select("id")
+        .single();
+
+      const confidence = confidenceScore([markets.home, markets.draw, markets.away]);
+
+      const { data: prediction } = await supabaseAdmin
+        .from("predictions")
+        .insert({
+          match_id: match.id,
+          model_version_id: modelVersionId,
+          feature_id: feature?.id ?? null,
+          prediction_timestamp: featureTimestamp,
+          p_home: Number(markets.home.toFixed(5)),
+          p_draw: Number(markets.draw.toFixed(5)),
+          p_away: Number(markets.away.toFixed(5)),
+          lambda_home: Number(lambdaHome.toFixed(4)),
+          lambda_away: Number(lambdaAway.toFixed(4)),
+          expected_goals: Number((lambdaHome + lambdaAway).toFixed(4)),
+          p_over_25: Number(markets.over25.toFixed(5)),
+          p_under_25: Number(markets.under25.toFixed(5)),
+          p_btts: Number(markets.btts.toFixed(5)),
+          confidence: Number(confidence.toFixed(4)),
+          top_scoreline: `${markets.topScoreline.home}-${markets.topScoreline.away}`,
+        })
+        .select("id")
+        .single();
+
+      if (!prediction) continue;
+
+      const marketRows: Array<{ market: string; selection: string; probability: number }> = [
+        { market: "1X2", selection: "HOME", probability: markets.home },
+        { market: "1X2", selection: "DRAW", probability: markets.draw },
+        { market: "1X2", selection: "AWAY", probability: markets.away },
+        { market: "OU15", selection: "OVER", probability: markets.over15 },
+        { market: "OU15", selection: "UNDER", probability: markets.under15 },
+        { market: "OU25", selection: "OVER", probability: markets.over25 },
+        { market: "OU25", selection: "UNDER", probability: markets.under25 },
+        { market: "OU35", selection: "OVER", probability: markets.over35 },
+        { market: "OU35", selection: "UNDER", probability: markets.under35 },
+        { market: "BTTS", selection: "YES", probability: markets.btts },
+        { market: "BTTS", selection: "NO", probability: markets.noBtts },
+      ];
+
+      await supabaseAdmin.from("prediction_markets").insert(
+        marketRows.map((row) => ({
+          prediction_id: prediction.id,
+          market: row.market,
+          selection: row.selection,
+          probability: Number(row.probability.toFixed(5)),
+          fair_odds: fairOdds(row.probability),
+        })),
+      );
+
+      const explanations = [
+        {
+          feature: "elo_diff",
+          label: "Elo edge (incl. home advantage)",
+          value: eloDiff,
+          contribution: eloDiff / 400,
+        },
+        {
+          feature: "attack_strength",
+          label: "Attack strength differential",
+          value: (params.attack[match.home_team_id] ?? 0) - (params.attack[match.away_team_id] ?? 0),
+          contribution: (params.attack[match.home_team_id] ?? 0) - (params.attack[match.away_team_id] ?? 0),
+        },
+        {
+          feature: "defence_strength",
+          label: "Defensive solidity differential",
+          value: (params.defence[match.away_team_id] ?? 0) - (params.defence[match.home_team_id] ?? 0),
+          contribution:
+            (params.defence[match.away_team_id] ?? 0) - (params.defence[match.home_team_id] ?? 0),
+        },
+        {
+          feature: "form_points",
+          label: `Form (last ${ROLLING_WINDOW} pts/game)`,
+          value: homeRoll.points - awayRoll.points,
+          contribution: (homeRoll.points - awayRoll.points) / 3,
+        },
+        {
+          feature: "rolling_goals",
+          label: `Rolling goals scored (last ${ROLLING_WINDOW})`,
+          value: homeRoll.goalsFor - awayRoll.goalsFor,
+          contribution: (homeRoll.goalsFor - awayRoll.goalsFor) / 3,
+        },
+        {
+          feature: "rest_days",
+          label: "Rest advantage (days)",
+          value: (restHome ?? 7) - (restAway ?? 7),
+          contribution: ((restHome ?? 7) - (restAway ?? 7)) / 20,
+        },
+        {
+          feature: "home_advantage",
+          label: "Model home advantage",
+          value: params.homeAdvantage,
+          contribution: params.homeAdvantage,
+        },
+      ];
+
+      const ranked = explanations
+        .map((item) => ({ ...item, magnitude: Math.abs(item.contribution) }))
+        .sort((a, b) => b.magnitude - a.magnitude)
+        .slice(0, 6);
+
+      await supabaseAdmin.from("prediction_explanations").insert(
+        ranked.map((item, index) => ({
+          prediction_id: prediction.id,
+          feature: item.feature,
+          label: item.label,
+          value: Number(item.value.toFixed(4)),
+          contribution: Number(item.contribution.toFixed(4)),
+          direction: item.contribution >= 0 ? "home" : "away",
+          rank: index + 1,
+        })),
+      );
+
+      scored += 1;
+    }
+
+  return scored;
+}
