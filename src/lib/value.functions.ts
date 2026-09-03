@@ -61,7 +61,7 @@ export const getValueBoard = createServerFn({ method: "GET" })
     if (rows.length === 0) return { matches: [], generatedAt: now.toISOString() };
 
     const ids = rows.map((row) => row.id);
-    const [{ data: predictions }, { data: props }] = await Promise.all([
+    const [{ data: predictions }, { data: props }, { data: lineupRows }] = await Promise.all([
       supabase
         .from("predictions")
         .select("match_id, prediction_timestamp, p_home, p_draw, p_away, p_over_25, p_btts, confidence")
@@ -76,7 +76,42 @@ export const getValueBoard = createServerFn({ method: "GET" })
         .gte("probability", 0.18)
         .order("probability", { ascending: false })
         .limit(1200),
+      supabase
+        .from("lineups")
+        .select(
+          "match_id, team_id, is_predicted, confidence, updated_at, players:lineup_players(player_id, is_starter, expected_minutes, start_probability)",
+        )
+        .in("match_id", ids),
     ]);
+
+    type LineupInfo = {
+      confirmed: boolean;
+      updatedAt: string | null;
+      players: Map<
+        string,
+        { isStarter: boolean; expectedMinutes: number | null; startProbability: number | null }
+      >;
+    };
+
+    const lineupByMatch = new Map<string, LineupInfo>();
+    for (const lineup of lineupRows ?? []) {
+      const info =
+        lineupByMatch.get(lineup.match_id) ??
+        ({ confirmed: false, updatedAt: null, players: new Map() } as LineupInfo);
+      if (!lineup.is_predicted) info.confirmed = true;
+      if (lineup.updated_at && (!info.updatedAt || lineup.updated_at > info.updatedAt)) {
+        info.updatedAt = lineup.updated_at;
+      }
+      for (const row of lineup.players ?? []) {
+        info.players.set(row.player_id, {
+          isStarter: row.is_starter,
+          expectedMinutes: row.expected_minutes === null ? null : Number(row.expected_minutes),
+          startProbability: row.start_probability === null ? null : Number(row.start_probability),
+        });
+      }
+      lineupByMatch.set(lineup.match_id, info);
+    }
+
 
     const byMatch = new Map<string, typeof predictions>();
     for (const row of predictions ?? []) {
