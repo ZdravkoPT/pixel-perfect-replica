@@ -705,3 +705,93 @@ async function scoreMatches(
 
   return scored;
 }
+
+export interface LiveScoringSummary {
+  status: "success" | "skipped" | "failed";
+  scored: number;
+  modelVersionId: string | null;
+  durationMs: number;
+  reason?: string;
+}
+
+/**
+ * Live re-scoring: uses the currently active model version (no refit) to write
+ * fresh immutable predictions for fixtures that arrived or changed since the
+ * last training run. Cheap enough to run on every fixture ingest.
+ */
+export async function runLivePredictions(
+  options: { matchIds?: string[]; horizonDays?: number; onlyUnscored?: boolean } = {},
+): Promise<LiveScoringSummary> {
+  const startedAt = Date.now();
+  const horizonDays = options.horizonDays ?? 10;
+
+  const { data: model } = await supabaseAdmin
+    .from("model_versions")
+    .select("id, params")
+    .eq("name", MODEL_NAME)
+    .eq("is_active", true)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const stored = (model?.params ?? null) as
+    | (Partial<DcParams> & { attack?: Record<string, number>; defence?: Record<string, number> })
+    | null;
+
+  if (!model || !stored?.attack || !stored?.defence) {
+    return {
+      status: "skipped",
+      scored: 0,
+      modelVersionId: model?.id ?? null,
+      durationMs: Date.now() - startedAt,
+      reason: "no active model with stored strengths — run a full training first",
+    };
+  }
+
+  const params: DcParams = {
+    attack: stored.attack,
+    defence: stored.defence,
+    intercept: stored.intercept ?? 0,
+    homeAdvantage: stored.homeAdvantage ?? 0.25,
+    rho: stored.rho ?? 0,
+    xi: stored.xi ?? 0,
+    logLikelihood: stored.logLikelihood ?? 0,
+  };
+
+  const now = new Date();
+  const to = new Date(now.getTime() + horizonDays * 86_400_000).toISOString();
+
+  let query = supabaseAdmin
+    .from("matches")
+    .select("id, league_id, home_team_id, away_team_id, kickoff_at")
+    .in("status", ["SCHEDULED", "PAUSED", "LIVE"])
+    .gte("kickoff_at", now.toISOString())
+    .order("kickoff_at", { ascending: true })
+    .limit(500);
+
+  query = options.matchIds?.length
+    ? query.in("id", options.matchIds.slice(0, 500))
+    : query.lte("kickoff_at", to);
+
+  const { data: candidatesRaw } = await query;
+  let candidates = (candidatesRaw ?? []) as UpcomingMatch[];
+
+  if (options.onlyUnscored !== false && candidates.length > 0) {
+    const { data: existing } = await supabaseAdmin
+      .from("predictions")
+      .select("match_id")
+      .in("match_id", candidates.map((match) => match.id));
+    const scoredIds = new Set((existing ?? []).map((row) => row.match_id));
+    candidates = candidates.filter((match) => !scoredIds.has(match.id));
+  }
+
+  if (candidates.length === 0) {
+    return { status: "success", scored: 0, modelVersionId: model.id, durationMs: Date.now() - startedAt };
+  }
+
+  const finished = await loadFinished();
+  const states = buildStates(finished);
+  const scored = await scoreMatches(candidates, states, params, model.id);
+
+  return { status: "success", scored, modelVersionId: model.id, durationMs: Date.now() - startedAt };
+}
