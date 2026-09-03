@@ -41,6 +41,28 @@ export function similarity(a: string, b: string): number {
   return 1 - distance / s.length;
 }
 
+/**
+ * True when two club names almost certainly denote the same team.
+ * Combines edit-distance similarity with token containment so that
+ * "Celta Vigo" matches "RC Celta de Vigo" and "Monaco" matches "AS Monaco FC".
+ */
+export function namesMatch(a: string, b: string, threshold = 0.82): boolean {
+  const na = normalizeTeamName(a);
+  const nb = normalizeTeamName(b);
+  if (na === nb) return true;
+  if (similarity(na, nb) >= threshold) return true;
+
+  const ta = na.split("-").filter(Boolean);
+  const tb = nb.split("-").filter(Boolean);
+  if (ta.length === 0 || tb.length === 0) return false;
+  const [small, big] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  const covered = small.every((token) =>
+    big.some((other) => other === token || (token.length >= 4 && other.startsWith(token))),
+  );
+  return covered && small.join("").length >= 4;
+}
+
+
 export function matchCanonicalId(
   leagueCanonicalId: string,
   kickoffIso: string,

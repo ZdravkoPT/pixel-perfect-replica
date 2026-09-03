@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ApiFootballProvider } from "./providers/api-football.server";
 import { FOOTBALL_DATA_COMPETITIONS, FootballDataProvider } from "./providers/football-data.server";
-import { matchCanonicalId, normalizeTeamName, similarity, slugify } from "./providers/normalize";
+import { matchCanonicalId, namesMatch, normalizeTeamName, similarity, slugify } from "./providers/normalize";
 import type { NormalizedMatch, NormalizedTeam, ProviderId } from "./providers/types";
 
 export interface IngestionSummary {
@@ -73,7 +73,9 @@ class TeamResolver {
           candidate = row;
         }
       }
-      if (best < SIMILARITY_THRESHOLD) candidate = null;
+      if (best < SIMILARITY_THRESHOLD) {
+        candidate = this.all.find((row) => namesMatch(team.name, row.name)) ?? null;
+      }
     }
 
     if (candidate) {
@@ -208,6 +210,70 @@ async function logConflict(params: {
   });
 }
 
+interface ExistingMatch {
+  id: string;
+  canonical_id: string;
+  league_id: string | null;
+  home_team_id: string;
+  away_team_id: string;
+  provider_ids: Record<string, string>;
+}
+
+/**
+ * Finds the row a fixture belongs to. Exact canonical hit first, then a fuzzy
+ * lookup on the same kickoff day so two providers naming the same clubs
+ * differently ("Celta Vigo" vs "RC Celta de Vigo") never create twin rows.
+ */
+async function findExistingMatch(
+  canonicalId: string,
+  probe: {
+    kickoffAt: string;
+    homeTeamId: string;
+    awayTeamId: string;
+    homeName: string;
+    awayName: string;
+  },
+): Promise<ExistingMatch | null> {
+  const select = "id, canonical_id, league_id, home_team_id, away_team_id, provider_ids";
+  const { data: exact } = await supabaseAdmin
+    .from("matches")
+    .select(select)
+    .eq("canonical_id", canonicalId)
+    .maybeSingle();
+  if (exact) return exact as unknown as ExistingMatch;
+
+  const day = probe.kickoffAt.slice(0, 10);
+  const from = new Date(`${day}T00:00:00.000Z`);
+  const to = new Date(from.getTime() + 2 * 86_400_000);
+  const { data: sameDay } = await supabaseAdmin
+    .from("matches")
+    .select(`${select}, home:home_team_id(name), away:away_team_id(name)`)
+    .gte("kickoff_at", new Date(from.getTime() - 86_400_000).toISOString())
+    .lt("kickoff_at", to.toISOString());
+
+  for (const row of (sameDay ?? []) as unknown as (ExistingMatch & {
+    home: { name: string } | null;
+    away: { name: string } | null;
+  })[]) {
+    const sameTeams = row.home_team_id === probe.homeTeamId && row.away_team_id === probe.awayTeamId;
+    const fuzzy =
+      namesMatch(row.home?.name ?? "", probe.homeName) &&
+      namesMatch(row.away?.name ?? "", probe.awayName);
+    if (sameTeams || fuzzy) {
+      return {
+        id: row.id,
+        canonical_id: row.canonical_id,
+        league_id: row.league_id,
+        home_team_id: row.home_team_id,
+        away_team_id: row.away_team_id,
+        provider_ids: (row.provider_ids as Record<string, string> | null) ?? {},
+      };
+    }
+  }
+  return null;
+}
+
+
 export async function ingestFixtures(options: {
   days?: number;
   triggeredBy?: string;
@@ -271,11 +337,13 @@ export async function ingestFixtures(options: {
       match.awayTeam.name,
     );
 
-    const { data: existing } = await supabaseAdmin
-      .from("matches")
-      .select("id, provider_ids, kickoff_at, home_score, away_score")
-      .eq("canonical_id", canonicalId)
-      .maybeSingle();
+    const existing = await findExistingMatch(canonicalId, {
+      kickoffAt: match.kickoffAt,
+      homeTeamId,
+      awayTeamId,
+      homeName: match.homeTeam.name,
+      awayName: match.awayTeam.name,
+    });
 
     const providerIds: Record<string, string> = {
       ...((existing?.provider_ids as Record<string, string> | null) ?? {}),
@@ -284,11 +352,11 @@ export async function ingestFixtures(options: {
     if (counterpart) providerIds["api_football"] = counterpart.providerMatchId;
 
     const payload = {
-      canonical_id: canonicalId,
+      canonical_id: existing?.canonical_id ?? canonicalId,
       league_id: leagueId,
       season_id: seasonId,
-      home_team_id: homeTeamId,
-      away_team_id: awayTeamId,
+      home_team_id: existing?.home_team_id ?? homeTeamId,
+      away_team_id: existing?.away_team_id ?? awayTeamId,
       kickoff_at: match.kickoffAt,
       status: match.status,
       matchday: match.matchday,
@@ -302,15 +370,23 @@ export async function ingestFixtures(options: {
       last_ingested_at: new Date().toISOString(),
     };
 
-    const { data: saved } = await supabaseAdmin
-      .from("matches")
-      .upsert(payload, { onConflict: "canonical_id" })
-      .select("id")
-      .single();
+    const { data: saved } = existing
+      ? await supabaseAdmin
+          .from("matches")
+          .update({ ...payload, league_id: existing.league_id ?? leagueId })
+          .eq("id", existing.id)
+          .select("id")
+          .single()
+      : await supabaseAdmin
+          .from("matches")
+          .upsert(payload, { onConflict: "canonical_id" })
+          .select("id")
+          .single();
 
     if (!saved) throw new Error(`Could not persist match ${canonicalId}`);
     if (existing) updated += 1;
     else inserted += 1;
+
 
     await supabaseAdmin.from("match_sources").upsert(
       {
@@ -372,19 +448,12 @@ export async function ingestFixtures(options: {
         const counterpart =
           secondaryMatches.find((candidate) => {
             if (usedSecondary.has(candidate.providerMatchId)) return false;
-            const sameHome =
-              similarity(
-                normalizeTeamName(candidate.homeTeam.name),
-                normalizeTeamName(match.homeTeam.name),
-              ) >= SIMILARITY_THRESHOLD;
-            const sameAway =
-              similarity(
-                normalizeTeamName(candidate.awayTeam.name),
-                normalizeTeamName(match.awayTeam.name),
-              ) >= SIMILARITY_THRESHOLD;
+            const sameHome = namesMatch(candidate.homeTeam.name, match.homeTeam.name);
+            const sameAway = namesMatch(candidate.awayTeam.name, match.awayTeam.name);
             const sameDay = candidate.kickoffAt.slice(0, 10) === match.kickoffAt.slice(0, 10);
             return sameHome && sameAway && sameDay;
           }) ?? null;
+
         if (counterpart) usedSecondary.add(counterpart.providerMatchId);
         await persist(primary.id, match, counterpart);
       } catch (error) {
@@ -537,42 +606,46 @@ async function persistMatch(
     match.awayTeam.name,
   );
 
-  const { data: existing } = await supabaseAdmin
-    .from("matches")
-    .select("id, provider_ids")
-    .eq("canonical_id", canonicalId)
-    .maybeSingle();
+  const existing = await findExistingMatch(canonicalId, {
+    kickoffAt: match.kickoffAt,
+    homeTeamId,
+    awayTeamId,
+    homeName: match.homeTeam.name,
+    awayName: match.awayTeam.name,
+  });
 
   const providerIds: Record<string, string> = {
     ...((existing?.provider_ids as Record<string, string> | null) ?? {}),
     [provider]: match.providerMatchId,
   };
 
-  const { data: saved } = await supabaseAdmin
-    .from("matches")
-    .upsert(
-      {
-        canonical_id: canonicalId,
-        league_id: leagueId,
-        season_id: seasonId,
-        home_team_id: homeTeamId,
-        away_team_id: awayTeamId,
-        kickoff_at: match.kickoffAt,
-        status: match.status,
-        matchday: match.matchday,
-        stage: match.stage,
-        home_score: match.homeScore,
-        away_score: match.awayScore,
-        home_score_ht: match.homeScoreHt,
-        away_score_ht: match.awayScoreHt,
-        minute: match.minute,
-        provider_ids: providerIds,
-        last_ingested_at: new Date().toISOString(),
-      },
-      { onConflict: "canonical_id" },
-    )
-    .select("id")
-    .single();
+  const row = {
+    canonical_id: existing?.canonical_id ?? canonicalId,
+    league_id: existing?.league_id ?? leagueId,
+    season_id: seasonId,
+    home_team_id: existing?.home_team_id ?? homeTeamId,
+    away_team_id: existing?.away_team_id ?? awayTeamId,
+    kickoff_at: match.kickoffAt,
+    status: match.status,
+    matchday: match.matchday,
+    stage: match.stage,
+    home_score: match.homeScore,
+    away_score: match.awayScore,
+    home_score_ht: match.homeScoreHt,
+    away_score_ht: match.awayScoreHt,
+    minute: match.minute,
+    provider_ids: providerIds,
+    last_ingested_at: new Date().toISOString(),
+  };
+
+  const { data: saved } = existing
+    ? await supabaseAdmin.from("matches").update(row).eq("id", existing.id).select("id").single()
+    : await supabaseAdmin
+        .from("matches")
+        .upsert(row, { onConflict: "canonical_id" })
+        .select("id")
+        .single();
+
 
   if (!saved) throw new Error(`Could not persist match ${canonicalId}`);
 
