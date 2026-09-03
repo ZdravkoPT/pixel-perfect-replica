@@ -288,11 +288,11 @@ export async function ingestFixtures(options: {
     if (counterpart) providerIds["api_football"] = counterpart.providerMatchId;
 
     const payload = {
-      canonical_id: canonicalId,
+      canonical_id: existing?.canonical_id ?? canonicalId,
       league_id: leagueId,
       season_id: seasonId,
-      home_team_id: homeTeamId,
-      away_team_id: awayTeamId,
+      home_team_id: existing?.home_team_id ?? homeTeamId,
+      away_team_id: existing?.away_team_id ?? awayTeamId,
       kickoff_at: match.kickoffAt,
       status: match.status,
       matchday: match.matchday,
@@ -306,15 +306,23 @@ export async function ingestFixtures(options: {
       last_ingested_at: new Date().toISOString(),
     };
 
-    const { data: saved } = await supabaseAdmin
-      .from("matches")
-      .upsert(payload, { onConflict: "canonical_id" })
-      .select("id")
-      .single();
+    const { data: saved } = existing
+      ? await supabaseAdmin
+          .from("matches")
+          .update({ ...payload, league_id: existing.league_id ?? leagueId })
+          .eq("id", existing.id)
+          .select("id")
+          .single()
+      : await supabaseAdmin
+          .from("matches")
+          .upsert(payload, { onConflict: "canonical_id" })
+          .select("id")
+          .single();
 
     if (!saved) throw new Error(`Could not persist match ${canonicalId}`);
     if (existing) updated += 1;
     else inserted += 1;
+
 
     await supabaseAdmin.from("match_sources").upsert(
       {
