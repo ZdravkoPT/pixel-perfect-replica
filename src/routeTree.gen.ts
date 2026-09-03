@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CoachesRouteImport } from './routes/coaches'
 import { Route as PlayersRouteImport } from './routes/players'
 import { Route as ProvidersRouteImport } from './routes/providers'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
@@ -41,6 +42,11 @@ const AnalyticsRoute = AnalyticsRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoachesRoute = CoachesRouteImport.update({
+  id: '/coaches',
+  path: '/coaches',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayersRoute = PlayersRouteImport.update({
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
+  '/coaches': typeof CoachesRoute
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
   '/watchlist': typeof WatchlistRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
+  '/coaches': typeof CoachesRoute
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
   '/watchlist': typeof WatchlistRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
+  '/coaches': typeof CoachesRoute
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
   '/watchlist': typeof WatchlistRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/analytics'
     | '/auth'
+    | '/coaches'
     | '/players'
     | '/providers'
     | '/watchlist'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/analytics'
     | '/auth'
+    | '/coaches'
     | '/players'
     | '/providers'
     | '/watchlist'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/analytics'
     | '/auth'
+    | '/coaches'
     | '/players'
     | '/providers'
     | '/watchlist'
@@ -192,6 +204,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
+  CoachesRoute: typeof CoachesRoute
   PlayersRoute: typeof PlayersRouteWithChildren
   ProvidersRoute: typeof ProvidersRoute
   WatchlistRoute: typeof WatchlistRoute
@@ -230,6 +243,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/coaches': {
+      id: '/coaches'
+      path: '/coaches'
+      fullPath: '/coaches'
+      preLoaderRoute: typeof CoachesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/players': {
@@ -314,6 +334,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
+  CoachesRoute: CoachesRoute,
   PlayersRoute: PlayersRouteWithChildren,
   ProvidersRoute: ProvidersRoute,
   WatchlistRoute: WatchlistRoute,
