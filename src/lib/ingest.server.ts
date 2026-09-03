@@ -613,42 +613,46 @@ async function persistMatch(
     match.awayTeam.name,
   );
 
-  const { data: existing } = await supabaseAdmin
-    .from("matches")
-    .select("id, provider_ids")
-    .eq("canonical_id", canonicalId)
-    .maybeSingle();
+  const existing = await findExistingMatch(canonicalId, {
+    kickoffAt: match.kickoffAt,
+    homeTeamId,
+    awayTeamId,
+    homeName: match.homeTeam.name,
+    awayName: match.awayTeam.name,
+  });
 
   const providerIds: Record<string, string> = {
     ...((existing?.provider_ids as Record<string, string> | null) ?? {}),
     [provider]: match.providerMatchId,
   };
 
-  const { data: saved } = await supabaseAdmin
-    .from("matches")
-    .upsert(
-      {
-        canonical_id: canonicalId,
-        league_id: leagueId,
-        season_id: seasonId,
-        home_team_id: homeTeamId,
-        away_team_id: awayTeamId,
-        kickoff_at: match.kickoffAt,
-        status: match.status,
-        matchday: match.matchday,
-        stage: match.stage,
-        home_score: match.homeScore,
-        away_score: match.awayScore,
-        home_score_ht: match.homeScoreHt,
-        away_score_ht: match.awayScoreHt,
-        minute: match.minute,
-        provider_ids: providerIds,
-        last_ingested_at: new Date().toISOString(),
-      },
-      { onConflict: "canonical_id" },
-    )
-    .select("id")
-    .single();
+  const row = {
+    canonical_id: existing?.canonical_id ?? canonicalId,
+    league_id: existing?.league_id ?? leagueId,
+    season_id: seasonId,
+    home_team_id: existing?.home_team_id ?? homeTeamId,
+    away_team_id: existing?.away_team_id ?? awayTeamId,
+    kickoff_at: match.kickoffAt,
+    status: match.status,
+    matchday: match.matchday,
+    stage: match.stage,
+    home_score: match.homeScore,
+    away_score: match.awayScore,
+    home_score_ht: match.homeScoreHt,
+    away_score_ht: match.awayScoreHt,
+    minute: match.minute,
+    provider_ids: providerIds,
+    last_ingested_at: new Date().toISOString(),
+  };
+
+  const { data: saved } = existing
+    ? await supabaseAdmin.from("matches").update(row).eq("id", existing.id).select("id").single()
+    : await supabaseAdmin
+        .from("matches")
+        .upsert(row, { onConflict: "canonical_id" })
+        .select("id")
+        .single();
+
 
   if (!saved) throw new Error(`Could not persist match ${canonicalId}`);
 
