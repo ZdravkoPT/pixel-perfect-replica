@@ -129,9 +129,11 @@ export function LineupsPanel({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
+
 
 export function InjuriesPanel({
   intel,
