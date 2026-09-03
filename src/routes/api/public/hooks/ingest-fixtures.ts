@@ -10,7 +10,13 @@ export const Route = createFileRoute("/api/public/hooks/ingest-fixtures")({
 
         const { ingestFixtures } = await import("@/lib/ingest.server");
         const summary = await ingestFixtures({ days: 7, triggeredBy: "cron" });
-        return Response.json(summary);
+
+        // Live update: any fixture that arrived without a prediction is scored
+        // immediately with the active model, so new matches never sit blank.
+        const { runLivePredictions } = await import("@/lib/analytics.server");
+        const live = await runLivePredictions({ onlyUnscored: true });
+
+        return Response.json({ ...summary, live });
       },
     },
   },

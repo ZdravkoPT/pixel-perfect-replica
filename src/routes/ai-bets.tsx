@@ -3,6 +3,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useState } from "react";
+import { StakeCalculator, StakeSettings, type StakeInputs } from "@/components/StakeCalculator";
 import { getAiBets } from "@/lib/value.functions";
 
 const betsQuery = queryOptions({
@@ -35,6 +37,7 @@ export const Route = createFileRoute("/ai-bets")({
 
 function AiBetsPage() {
   const { data } = useSuspenseQuery(betsQuery);
+  const [settings, setSettings] = useState<StakeInputs>({ bankroll: 500, stake: 10, kellyFraction: 0.25 });
 
   return (
     <AppShell title="AI bet builder" subtitle="Strongest model signals kicking off today">
@@ -77,6 +80,8 @@ function AiBetsPage() {
               </p>
             )}
 
+            <StakeSettings value={settings} onChange={setSettings} />
+
             <section>
               <h2 className="text-sm font-semibold">Ranked signals</h2>
               <div className="mt-3 space-y-2">
@@ -107,6 +112,11 @@ function AiBetsPage() {
                       </div>
                     </div>
                     <Progress value={row.probability * 100} className="mt-3 h-1.5" />
+                    <StakeCalculator
+                      probability={row.probability}
+                      fairOdds={row.fairOdds}
+                      settings={settings}
+                    />
                   </div>
                 ))}
               </div>
@@ -115,8 +125,9 @@ function AiBetsPage() {
         )}
 
         <p className="text-xs text-muted-foreground">
-          Fair odds are 1 / model probability. No bookmaker feed is connected, so these are not
-          value calls against a market price. Bet responsibly; nothing here guarantees a return.
+          Fair odds are 1 / model probability. No bookmaker feed is connected, so enter your own
+          bookmaker price to see the edge, profit and Kelly stake. Bet responsibly; nothing here
+          guarantees a return.
         </p>
       </div>
     </AppShell>

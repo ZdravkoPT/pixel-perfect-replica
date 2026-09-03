@@ -1,4 +1,6 @@
 import { RateLimiter } from "./rate-limit.server";
+import { namesMatch } from "./normalize";
+import type { MatchSheet, MatchSheetPlayer, MatchSheetSide } from "./football-data.server";
 import {
   fail,
   ok,
@@ -78,6 +80,74 @@ export class ApiFootballProvider implements FootballProvider {
       await this.limiter.reportError(message);
       return fail(message);
     }
+  }
+
+  /**
+   * Resolves an api-football fixture id from kickoff date + team names, so real
+   * team sheets can be pulled even when the fixture was ingested from another
+   * provider. Returns null when no confident match is found.
+   */
+  async findFixtureId(
+    kickoffISO: string,
+    homeName: string,
+    awayName: string,
+  ): Promise<string | null> {
+    const date = kickoffISO.slice(0, 10);
+    const result = await this.request<{ response?: Array<Record<string, unknown>> }>(
+      `/fixtures?date=${date}`,
+    );
+    if (!result.ok) return null;
+
+    for (const entry of result.data.response ?? []) {
+      const teams = entry["teams"] as
+        | { home?: { name?: string }; away?: { name?: string } }
+        | undefined;
+      const fixture = entry["fixture"] as { id?: number } | undefined;
+      if (!fixture?.id || !teams?.home?.name || !teams?.away?.name) continue;
+      if (namesMatch(teams.home.name, homeName) && namesMatch(teams.away.name, awayName)) {
+        return String(fixture.id);
+      }
+    }
+    return null;
+  }
+
+  /** Real confirmed team sheets (starting XI + bench) for one fixture. */
+  async getMatchSheet(providerFixtureId: string): Promise<ProviderResult<MatchSheet>> {
+    const result = await this.request<{ response?: Array<Record<string, unknown>> }>(
+      `/fixtures/lineups?fixture=${providerFixtureId}`,
+    );
+    if (!result.ok) return result;
+
+    const sides = result.data.response ?? [];
+    if (sides.length < 2) return fail("api-football has not published lineups yet");
+
+    const map = (list: unknown): MatchSheetPlayer[] =>
+      ((list as Array<{ player?: Record<string, unknown> }> | undefined) ?? [])
+        .map((item) => item.player ?? {})
+        .filter((player) => player["id"] && player["name"])
+        .map((player) => ({
+          providerId: String(player["id"]),
+          name: String(player["name"]),
+          position: (player["pos"] as string | null | undefined) ?? null,
+          shirtNumber: (player["number"] as number | null | undefined) ?? null,
+        }));
+
+    const side = (raw: Record<string, unknown>): MatchSheetSide => {
+      const coach = raw["coach"] as { id?: number; name?: string } | undefined;
+      return {
+        formation: (raw["formation"] as string | null | undefined) ?? null,
+        coachProviderId: coach?.id ? String(coach.id) : null,
+        coachName: coach?.name ?? null,
+        lineup: map(raw["startXI"]),
+        bench: map(raw["substitutes"]),
+      };
+    };
+
+    return ok({
+      status: "SCHEDULED" as MatchStatus,
+      home: side(sides[0] as Record<string, unknown>),
+      away: side(sides[1] as Record<string, unknown>),
+    });
   }
 
   async getCompetitions(): Promise<ProviderResult<NormalizedCompetition[]>> {

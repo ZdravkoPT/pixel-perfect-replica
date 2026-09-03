@@ -9,7 +9,7 @@
  */
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { FootballDataProvider } from "./providers/football-data.server";
+import { FootballDataProvider, type MatchSheet } from "./providers/football-data.server";
 import { confidenceScore, fairOdds, marketsFromMatrix, scorelineMatrix } from "./models/poisson";
 import { positionGroup } from "./models/intel";
 
@@ -24,6 +24,91 @@ export interface KickoffSummary {
 }
 
 const BENCH_MINUTES = 12;
+
+interface ImminentMatch {
+  id: string;
+  home_team_id: string;
+  away_team_id: string;
+  kickoff_at: string;
+  status: string;
+  home: { name: string } | null;
+  away: { name: string } | null;
+}
+
+/**
+ * Resolves the real team sheet for one fixture.
+ *
+ * Providers are tried in quality order: api-football publishes confirmed
+ * starting XIs ~60 minutes before kickoff, football-data.org only exposes them
+ * on paid tiers. The first provider that returns 11 named starters wins; when
+ * none does, the caller keeps the projected line-up and says so in the UI.
+ */
+async function fetchTeamSheet(
+  fdProvider: FootballDataProvider,
+  match: ImminentMatch,
+): Promise<{ ok: true; data: MatchSheet; source: string } | { ok: false; error: string }> {
+  const errors: string[] = [];
+
+  if (process.env["API_FOOTBALL_KEY"]) {
+    try {
+      const { ApiFootballProvider } = await import("./providers/api-football.server");
+      const af = new ApiFootballProvider();
+
+      const { data: afSource } = await supabaseAdmin
+        .from("match_sources")
+        .select("provider_match_id")
+        .eq("match_id", match.id)
+        .eq("source_id", "api_football")
+        .maybeSingle();
+
+      const fixtureId =
+        afSource?.provider_match_id ??
+        (await af.findFixtureId(
+          match.kickoff_at,
+          match.home?.name ?? "",
+          match.away?.name ?? "",
+        ));
+
+      if (fixtureId) {
+        const sheet = await af.getMatchSheet(fixtureId);
+        if (sheet.ok && sheet.data.home.lineup.length >= 11) {
+          if (!afSource) {
+            await supabaseAdmin.from("match_sources").insert({
+              match_id: match.id,
+              source_id: "api_football",
+              provider_match_id: fixtureId,
+            });
+          }
+          return { ok: true, data: sheet.data, source: "api_football" };
+        }
+        errors.push(sheet.ok ? "api_football: lineups not published yet" : `api_football: ${sheet.error}`);
+      } else {
+        errors.push("api_football: fixture not found");
+      }
+    } catch (error) {
+      errors.push(`api_football: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  const { data: fdSource } = await supabaseAdmin
+    .from("match_sources")
+    .select("provider_match_id")
+    .eq("match_id", match.id)
+    .eq("source_id", "football_data")
+    .maybeSingle();
+
+  if (fdSource) {
+    const sheet = await fdProvider.getMatchSheet(fdSource.provider_match_id);
+    if (sheet.ok && sheet.data.home.lineup.length >= 11) {
+      return { ok: true, data: sheet.data, source: "football_data" };
+    }
+    errors.push(sheet.ok ? "football_data: no team sheet on this tier" : `football_data: ${sheet.error}`);
+  } else {
+    errors.push("football_data: no source record");
+  }
+
+  return { ok: false, error: errors.join("; ") };
+}
 
 export async function runKickoffRefresh(
   options: { triggeredBy?: string; windowMinutes?: number } = {},
@@ -53,7 +138,9 @@ export async function runKickoffRefresh(
 
   const { data: matches } = await supabaseAdmin
     .from("matches")
-    .select("id, home_team_id, away_team_id, kickoff_at, status")
+    .select(
+      "id, home_team_id, away_team_id, kickoff_at, status, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)",
+    )
     .in("status", ["SCHEDULED", "LIVE", "PAUSED"])
     .gte("kickoff_at", new Date(now.getTime() - 15 * 60_000).toISOString())
     .lte("kickoff_at", until.toISOString())
@@ -62,20 +149,12 @@ export async function runKickoffRefresh(
 
   const provider = new FootballDataProvider();
 
-  for (const match of matches ?? []) {
+  for (const match of (matches ?? []) as unknown as ImminentMatch[]) {
     try {
       processed += 1;
 
-      const { data: source } = await supabaseAdmin
-        .from("match_sources")
-        .select("provider_match_id")
-        .eq("match_id", match.id)
-        .eq("source_id", "football_data")
-        .maybeSingle();
+      const sheet = await fetchTeamSheet(provider, match);
 
-      const sheet = source
-        ? await provider.getMatchSheet(source.provider_match_id)
-        : { ok: false as const, error: "no football_data source" };
 
       const factors: Record<"home" | "away", number> = { home: 1, away: 1 };
 
