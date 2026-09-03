@@ -12,6 +12,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { FootballDataProvider, type MatchSheet } from "./providers/football-data.server";
 import { confidenceScore, fairOdds, marketsFromMatrix, scorelineMatrix } from "./models/poisson";
 import { positionGroup } from "./models/intel";
+import { namesMatch, slugify } from "./providers/normalize";
 
 export interface KickoffSummary {
   jobId: string;
@@ -48,6 +49,43 @@ async function fetchTeamSheet(
   match: ImminentMatch,
 ): Promise<{ ok: true; data: MatchSheet; source: string } | { ok: false; error: string }> {
   const errors: string[] = [];
+
+  // 1. FotMob — free public API, no key, publishes confirmed XIs for every
+  //    league we cover. Tried first because it is the only source that works
+  //    on the free tier.
+  try {
+    const { FotmobProvider } = await import("./providers/fotmob.server");
+    const fotmob = new FotmobProvider();
+
+    const { data: fmSource } = await supabaseAdmin
+      .from("match_sources")
+      .select("provider_match_id")
+      .eq("match_id", match.id)
+      .eq("source_id", "fotmob")
+      .maybeSingle();
+
+    const fmId =
+      fmSource?.provider_match_id ??
+      (await fotmob.findMatchId(match.kickoff_at, match.home?.name ?? "", match.away?.name ?? ""));
+
+    if (fmId) {
+      if (!fmSource) {
+        await supabaseAdmin
+          .from("match_sources")
+          .insert({ match_id: match.id, source_id: "fotmob", provider_match_id: fmId });
+      }
+      const sheet = await fotmob.getMatchSheet(fmId);
+      if (sheet.ok && sheet.data.home.lineup.length >= 11) {
+        return { ok: true, data: sheet.data, source: "fotmob" };
+      }
+      errors.push(sheet.ok ? "fotmob: team sheet not published yet" : `fotmob: ${sheet.error}`);
+    } else {
+      errors.push("fotmob: fixture not found");
+    }
+  } catch (error) {
+    errors.push(`fotmob: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
 
   if (process.env["API_FOOTBALL_KEY"]) {
     try {
@@ -110,6 +148,35 @@ async function fetchTeamSheet(
   return { ok: false, error: errors.join("; ") };
 }
 
+/**
+ * Pulls the live status/score from FotMob so fixtures stop showing as
+ * "SCHEDULED" long after they have actually kicked off.
+ */
+async function syncLiveStatus(matchId: string): Promise<void> {
+  const { data: source } = await supabaseAdmin
+    .from("match_sources")
+    .select("provider_match_id")
+    .eq("match_id", matchId)
+    .eq("source_id", "fotmob")
+    .maybeSingle();
+  if (!source) return;
+
+  const { FotmobProvider } = await import("./providers/fotmob.server");
+  const live = await new FotmobProvider().getLiveStatus(source.provider_match_id);
+  if (!live.ok) return;
+
+  await supabaseAdmin
+    .from("matches")
+    .update({
+      status: live.data.status,
+      home_score: live.data.homeScore,
+      away_score: live.data.awayScore,
+      minute: live.data.minute,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", matchId);
+}
+
 export async function runKickoffRefresh(
   options: { triggeredBy?: string; windowMinutes?: number } = {},
 ): Promise<KickoffSummary> {
@@ -142,7 +209,8 @@ export async function runKickoffRefresh(
       "id, home_team_id, away_team_id, kickoff_at, status, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)",
     )
     .in("status", ["SCHEDULED", "LIVE", "PAUSED"])
-    .gte("kickoff_at", new Date(now.getTime() - 15 * 60_000).toISOString())
+    // Keep in-play fixtures in scope so live status/score stay fresh too.
+    .gte("kickoff_at", new Date(now.getTime() - 150 * 60_000).toISOString())
     .lte("kickoff_at", until.toISOString())
     .order("kickoff_at", { ascending: true })
     .limit(60);
@@ -154,6 +222,7 @@ export async function runKickoffRefresh(
       processed += 1;
 
       const sheet = await fetchTeamSheet(provider, match);
+      await syncLiveStatus(match.id);
 
 
       const factors: Record<"home" | "away", number> = { home: 1, away: 1 };
@@ -164,7 +233,7 @@ export async function runKickoffRefresh(
           const teamSheet = side === "home" ? sheet.data.home : sheet.data.away;
           if (teamSheet.lineup.length < 11) continue;
 
-          const stored = await storeConfirmedLineup(match.id, teamId, teamSheet);
+          const stored = await storeConfirmedLineup(match.id, teamId, teamSheet, sheet.source);
           if (stored === 0) continue;
           confirmedLineups += 1;
           factors[side] = await availabilityFactor(match.id, teamId);
@@ -219,37 +288,77 @@ export async function runKickoffRefresh(
 async function storeConfirmedLineup(
   matchId: string,
   teamId: string,
-  sheet: { formation: string | null; lineup: Array<{ providerId: string; position: string | null }>; bench: Array<{ providerId: string; position: string | null }> },
+  sheet: {
+    formation: string | null;
+    lineup: Array<{ providerId: string; name: string; position: string | null }>;
+    bench: Array<{ providerId: string; name: string; position: string | null }>;
+  },
+  sourceId: string,
 ): Promise<number> {
-  const providerIds = [...sheet.lineup, ...sheet.bench].map((player) => player.providerId);
-  const { data: players } = await supabaseAdmin
-    .from("players")
-    .select("id, canonical_id")
-    .in(
-      "canonical_id",
-      providerIds.map((id) => `player:fd:${id}`),
-    );
-
-  const byProvider = new Map(
-    (players ?? []).map((player) => [player.canonical_id.replace("player:fd:", ""), player.id]),
-  );
-
-  const rows = [
+  const entries = [
     ...sheet.lineup.map((player) => ({ ...player, starter: true })),
     ...sheet.bench.map((player) => ({ ...player, starter: false })),
-  ]
-    .map((player) => {
-      const playerId = byProvider.get(player.providerId);
-      if (!playerId) return null;
-      return {
-        player_id: playerId,
-        position: positionGroup(player.position),
-        is_starter: player.starter,
-        start_probability: player.starter ? 1 : 0.05,
-        expected_minutes: player.starter ? 90 : BENCH_MINUTES,
-      };
-    })
-    .filter((row): row is NonNullable<typeof row> => row !== null);
+  ];
+
+  // Providers use their own player ids, so resolve in three steps:
+  // provider canonical id → squad member by normalized name → create the player.
+  const canonicalIds = entries.map((player) => `player:${sourceId}:${player.providerId}`);
+  const [{ data: byCanonical }, { data: squad }] = await Promise.all([
+    supabaseAdmin.from("players").select("id, canonical_id").in("canonical_id", canonicalIds),
+    supabaseAdmin
+      .from("squad_memberships")
+      .select("player_id, player:players(id, name)")
+      .eq("team_id", teamId)
+      .eq("is_current", true),
+  ]);
+
+  const canonicalMap = new Map((byCanonical ?? []).map((row) => [row.canonical_id, row.id]));
+  const squadByName = new Map<string, string>();
+  for (const row of (squad ?? []) as Array<{ player: { id: string; name: string } | null }>) {
+    if (row.player) squadByName.set(slugify(row.player.name), row.player.id);
+  }
+
+  const resolved: Array<{ player: (typeof entries)[number]; playerId: string }> = [];
+  for (const player of entries) {
+    const canonical = `player:${sourceId}:${player.providerId}`;
+    let playerId = canonicalMap.get(canonical);
+
+    if (!playerId) {
+      const slug = slugify(player.name);
+      playerId =
+        squadByName.get(slug) ??
+        [...squadByName.entries()].find(([name]) => namesMatch(name, slug, 0.88))?.[1];
+    }
+
+    if (!playerId) {
+      const { data: created } = await supabaseAdmin
+        .from("players")
+        .insert({
+          canonical_id: canonical,
+          name: player.name,
+          position: player.position,
+          provider_ids: { [sourceId]: player.providerId },
+        })
+        .select("id")
+        .single();
+      playerId = created?.id;
+      if (playerId) {
+        await supabaseAdmin
+          .from("squad_memberships")
+          .insert({ player_id: playerId, team_id: teamId, is_current: true });
+      }
+    }
+
+    if (playerId) resolved.push({ player, playerId });
+  }
+
+  const rows = resolved.map(({ player, playerId }) => ({
+    player_id: playerId,
+    position: positionGroup(player.position),
+    is_starter: player.starter,
+    start_probability: player.starter ? 1 : 0.05,
+    expected_minutes: player.starter ? 90 : BENCH_MINUTES,
+  }));
 
   if (rows.filter((row) => row.is_starter).length < 11) return 0;
 
@@ -268,7 +377,7 @@ async function storeConfirmedLineup(
       formation: sheet.formation,
       is_predicted: false,
       confidence: 1,
-      source_id: "football_data",
+      source_id: sourceId,
     })
     .select("id")
     .single();
@@ -279,6 +388,7 @@ async function storeConfirmedLineup(
     .insert(rows.map((row) => ({ ...row, lineup_id: lineup.id })));
   return rows.length;
 }
+
 
 /**
  * How much of the projected XI actually starts, weighted by projected minutes.
