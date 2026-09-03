@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { getMatchDetail } from "@/lib/football.functions";
+import { getMatchPrediction } from "@/lib/analytics.functions";
+import { PredictionPanel } from "@/components/PredictionPanel";
 
 const TABS = [
   "Overview",
@@ -24,6 +26,12 @@ const detailQuery = (matchId: string) =>
   queryOptions({
     queryKey: ["match", matchId],
     queryFn: () => getMatchDetail({ data: { matchId } }),
+  });
+
+const predictionQueryOptions = (matchId: string) =>
+  queryOptions({
+    queryKey: ["match-prediction", matchId],
+    queryFn: () => getMatchPrediction({ data: { matchId } }),
   });
 
 export const Route = createFileRoute("/matches/$matchId")({
@@ -47,6 +55,7 @@ export const Route = createFileRoute("/matches/$matchId")({
 function MatchDetail() {
   const { matchId } = Route.useParams();
   const { data } = useSuspenseQuery(detailQuery(matchId));
+  const predictionQuery = useQuery(predictionQueryOptions(matchId));
   const match = data.match as
     | (Record<string, unknown> & {
         kickoff_at: string;
@@ -120,13 +129,25 @@ function MatchDetail() {
           </div>
         </TabsContent>
 
-        {TABS.filter((tab) => tab !== "Overview").map((tab) => (
+        <TabsContent value="AI Prediction" className="mt-4">
+          <PredictionPanel
+            prediction={(predictionQuery.data?.prediction ?? null) as never}
+            markets={(predictionQuery.data?.markets ?? []) as never}
+            explanations={(predictionQuery.data?.explanations ?? []) as never}
+            model={(predictionQuery.data?.model ?? null) as never}
+            homeName={match.home?.name ?? "Home"}
+            awayName={match.away?.name ?? "Away"}
+          />
+        </TabsContent>
+
+        {TABS.filter((tab) => tab !== "Overview" && tab !== "AI Prediction").map((tab) => (
           <TabsContent key={tab} value={tab} className="mt-4">
             <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {tab} arrives in a later phase.
             </div>
           </TabsContent>
         ))}
+
       </Tabs>
     </AppShell>
   );

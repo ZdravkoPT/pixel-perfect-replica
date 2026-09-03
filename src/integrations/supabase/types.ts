@@ -44,6 +44,131 @@ export type Database = {
         }
         Relationships: []
       }
+      backtest_results: {
+        Row: {
+          actual: string
+          backtest_id: string
+          brier: number
+          correct: boolean
+          created_at: string
+          id: string
+          kickoff_at: string | null
+          log_loss: number
+          match_id: string | null
+          p_away: number
+          p_draw: number
+          p_home: number
+          predicted: string
+        }
+        Insert: {
+          actual: string
+          backtest_id: string
+          brier: number
+          correct: boolean
+          created_at?: string
+          id?: string
+          kickoff_at?: string | null
+          log_loss: number
+          match_id?: string | null
+          p_away: number
+          p_draw: number
+          p_home: number
+          predicted: string
+        }
+        Update: {
+          actual?: string
+          backtest_id?: string
+          brier?: number
+          correct?: boolean
+          created_at?: string
+          id?: string
+          kickoff_at?: string | null
+          log_loss?: number
+          match_id?: string | null
+          p_away?: number
+          p_draw?: number
+          p_home?: number
+          predicted?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backtest_results_backtest_id_fkey"
+            columns: ["backtest_id"]
+            isOneToOne: false
+            referencedRelation: "backtests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "backtest_results_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backtests: {
+        Row: {
+          accuracy: number | null
+          brier: number | null
+          calibration: Json
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          log_loss: number | null
+          model_version_id: string | null
+          samples: number
+          started_at: string
+          status: string
+          triggered_by: string
+          window_from: string | null
+          window_to: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          brier?: number | null
+          calibration?: Json
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          log_loss?: number | null
+          model_version_id?: string | null
+          samples?: number
+          started_at?: string
+          status?: string
+          triggered_by?: string
+          window_from?: string | null
+          window_to?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          brier?: number | null
+          calibration?: Json
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          log_loss?: number | null
+          model_version_id?: string | null
+          samples?: number
+          started_at?: string
+          status?: string
+          triggered_by?: string
+          window_from?: string | null
+          window_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backtests_model_version_id_fkey"
+            columns: ["model_version_id"]
+            isOneToOne: false
+            referencedRelation: "model_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_sources: {
         Row: {
           auth_type: string
@@ -280,6 +405,92 @@ export type Database = {
         }
         Relationships: []
       }
+      match_features: {
+        Row: {
+          away_attack: number | null
+          away_defence: number | null
+          away_elo: number | null
+          away_form_points: number | null
+          away_goals_against_avg: number | null
+          away_goals_for_avg: number | null
+          away_rest_days: number | null
+          away_xg_rolling: number | null
+          created_at: string
+          elo_diff: number | null
+          feature_timestamp: string
+          home_attack: number | null
+          home_defence: number | null
+          home_elo: number | null
+          home_form_points: number | null
+          home_goals_against_avg: number | null
+          home_goals_for_avg: number | null
+          home_rest_days: number | null
+          home_xg_rolling: number | null
+          id: string
+          match_id: string
+          payload: Json
+          sample_size: number
+        }
+        Insert: {
+          away_attack?: number | null
+          away_defence?: number | null
+          away_elo?: number | null
+          away_form_points?: number | null
+          away_goals_against_avg?: number | null
+          away_goals_for_avg?: number | null
+          away_rest_days?: number | null
+          away_xg_rolling?: number | null
+          created_at?: string
+          elo_diff?: number | null
+          feature_timestamp?: string
+          home_attack?: number | null
+          home_defence?: number | null
+          home_elo?: number | null
+          home_form_points?: number | null
+          home_goals_against_avg?: number | null
+          home_goals_for_avg?: number | null
+          home_rest_days?: number | null
+          home_xg_rolling?: number | null
+          id?: string
+          match_id: string
+          payload?: Json
+          sample_size?: number
+        }
+        Update: {
+          away_attack?: number | null
+          away_defence?: number | null
+          away_elo?: number | null
+          away_form_points?: number | null
+          away_goals_against_avg?: number | null
+          away_goals_for_avg?: number | null
+          away_rest_days?: number | null
+          away_xg_rolling?: number | null
+          created_at?: string
+          elo_diff?: number | null
+          feature_timestamp?: string
+          home_attack?: number | null
+          home_defence?: number | null
+          home_elo?: number | null
+          home_form_points?: number | null
+          home_goals_against_avg?: number | null
+          home_goals_for_avg?: number | null
+          home_rest_days?: number | null
+          home_xg_rolling?: number | null
+          id?: string
+          match_id?: string
+          payload?: Json
+          sample_size?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_features_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_sources: {
         Row: {
           id: string
@@ -427,6 +638,259 @@ export type Database = {
           },
         ]
       }
+      model_training_runs: {
+        Row: {
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          matches_scored: number
+          metrics: Json
+          model_version_id: string | null
+          samples: number
+          started_at: string
+          status: string
+          triggered_by: string
+        }
+        Insert: {
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          matches_scored?: number
+          metrics?: Json
+          model_version_id?: string | null
+          samples?: number
+          started_at?: string
+          status?: string
+          triggered_by?: string
+        }
+        Update: {
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          matches_scored?: number
+          metrics?: Json
+          model_version_id?: string | null
+          samples?: number
+          started_at?: string
+          status?: string
+          triggered_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_training_runs_model_version_id_fkey"
+            columns: ["model_version_id"]
+            isOneToOne: false
+            referencedRelation: "model_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      model_versions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          metrics: Json
+          name: string
+          params: Json
+          trained_at: string
+          training_samples: number
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind: string
+          metrics?: Json
+          name: string
+          params?: Json
+          trained_at?: string
+          training_samples?: number
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          metrics?: Json
+          name?: string
+          params?: Json
+          trained_at?: string
+          training_samples?: number
+          version?: number
+        }
+        Relationships: []
+      }
+      prediction_explanations: {
+        Row: {
+          contribution: number
+          created_at: string
+          direction: string
+          feature: string
+          id: string
+          label: string
+          prediction_id: string
+          rank: number
+          value: number | null
+        }
+        Insert: {
+          contribution: number
+          created_at?: string
+          direction: string
+          feature: string
+          id?: string
+          label: string
+          prediction_id: string
+          rank: number
+          value?: number | null
+        }
+        Update: {
+          contribution?: number
+          created_at?: string
+          direction?: string
+          feature?: string
+          id?: string
+          label?: string
+          prediction_id?: string
+          rank?: number
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prediction_explanations_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "predictions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prediction_markets: {
+        Row: {
+          created_at: string
+          fair_odds: number
+          id: string
+          market: string
+          prediction_id: string
+          probability: number
+          selection: string
+        }
+        Insert: {
+          created_at?: string
+          fair_odds: number
+          id?: string
+          market: string
+          prediction_id: string
+          probability: number
+          selection: string
+        }
+        Update: {
+          created_at?: string
+          fair_odds?: number
+          id?: string
+          market?: string
+          prediction_id?: string
+          probability?: number
+          selection?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prediction_markets_prediction_id_fkey"
+            columns: ["prediction_id"]
+            isOneToOne: false
+            referencedRelation: "predictions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      predictions: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          expected_goals: number
+          feature_id: string | null
+          id: string
+          lambda_away: number
+          lambda_home: number
+          match_id: string
+          model_version_id: string
+          p_away: number
+          p_btts: number | null
+          p_draw: number
+          p_home: number
+          p_over_25: number | null
+          p_under_25: number | null
+          prediction_timestamp: string
+          top_scoreline: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          expected_goals: number
+          feature_id?: string | null
+          id?: string
+          lambda_away: number
+          lambda_home: number
+          match_id: string
+          model_version_id: string
+          p_away: number
+          p_btts?: number | null
+          p_draw: number
+          p_home: number
+          p_over_25?: number | null
+          p_under_25?: number | null
+          prediction_timestamp?: string
+          top_scoreline?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          expected_goals?: number
+          feature_id?: string | null
+          id?: string
+          lambda_away?: number
+          lambda_home?: number
+          match_id?: string
+          model_version_id?: string
+          p_away?: number
+          p_btts?: number | null
+          p_draw?: number
+          p_home?: number
+          p_over_25?: number | null
+          p_under_25?: number | null
+          prediction_timestamp?: string
+          top_scoreline?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "predictions_feature_id_fkey"
+            columns: ["feature_id"]
+            isOneToOne: false
+            referencedRelation: "match_features"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "predictions_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "predictions_model_version_id_fkey"
+            columns: ["model_version_id"]
+            isOneToOne: false
+            referencedRelation: "model_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -565,6 +1029,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "team_aliases_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_ratings: {
+        Row: {
+          as_of: string
+          attack: number | null
+          created_at: string
+          defence: number | null
+          id: string
+          league_id: string | null
+          matches_played: number
+          rating: number
+          team_id: string
+        }
+        Insert: {
+          as_of?: string
+          attack?: number | null
+          created_at?: string
+          defence?: number | null
+          id?: string
+          league_id?: string | null
+          matches_played?: number
+          rating: number
+          team_id: string
+        }
+        Update: {
+          as_of?: string
+          attack?: number | null
+          created_at?: string
+          defence?: number | null
+          id?: string
+          league_id?: string | null
+          matches_played?: number
+          rating?: number
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_ratings_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_ratings_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"

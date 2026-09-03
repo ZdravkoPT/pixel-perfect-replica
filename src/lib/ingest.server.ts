@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ApiFootballProvider } from "./providers/api-football.server";
-import { FootballDataProvider } from "./providers/football-data.server";
+import { FOOTBALL_DATA_COMPETITIONS, FootballDataProvider } from "./providers/football-data.server";
 import { matchCanonicalId, normalizeTeamName, similarity, slugify } from "./providers/normalize";
 import type { NormalizedMatch, NormalizedTeam, ProviderId } from "./providers/types";
 
@@ -432,4 +432,159 @@ export async function ingestFixtures(options: {
   }
 
   return { jobId, status, processed, inserted, updated, errors: errorCount, durationMs };
+}
+
+/**
+ * Historical bootstrap: pulls complete season match lists (finished results included)
+ * from football-data.org so the analytics models have training data.
+ */
+export async function ingestHistory(options: {
+  seasons?: number[];
+  competitions?: string[];
+  triggeredBy?: string;
+} = {}): Promise<IngestionSummary> {
+  const seasons = options.seasons ?? [new Date().getUTCFullYear() - 1, new Date().getUTCFullYear()];
+  const competitions = options.competitions ?? [...FOOTBALL_DATA_COMPETITIONS];
+  const triggeredBy = options.triggeredBy ?? "manual";
+  const startedAt = Date.now();
+
+  const { data: job } = await supabaseAdmin
+    .from("ingestion_jobs")
+    .insert({
+      job_type: "history",
+      source_id: "football-data-org",
+      status: "running",
+      triggered_by: triggeredBy,
+    })
+    .select("id")
+    .single();
+  const jobId = job?.id ?? "";
+
+  const resolver = new TeamResolver();
+  await resolver.load();
+  const provider = new FootballDataProvider();
+
+  let processed = 0;
+  let inserted = 0;
+  let updated = 0;
+  let errorCount = 0;
+
+  const recordError = async (stage: string, message: string) => {
+    errorCount += 1;
+    await supabaseAdmin.from("ingestion_errors").insert({
+      job_id: jobId || null,
+      source_id: provider.id,
+      stage,
+      message: message.slice(0, 1000),
+    });
+  };
+
+  for (const season of seasons) {
+    for (const competition of competitions) {
+      const result = await provider.getCompetitionMatches(competition, season);
+      if (!result.ok) {
+        await recordError("fetch", `${competition} ${season}: ${result.error}`);
+        continue;
+      }
+      for (const match of result.data) {
+        processed += 1;
+        try {
+          const outcome = await persistMatch(resolver, provider.id, match);
+          if (outcome === "inserted") inserted += 1;
+          else updated += 1;
+        } catch (error) {
+          await recordError("persist", error instanceof Error ? error.message : String(error));
+        }
+      }
+    }
+  }
+
+  const durationMs = Date.now() - startedAt;
+  const status: IngestionSummary["status"] =
+    processed === 0 && errorCount > 0 ? "failed" : errorCount > 0 ? "partial" : "success";
+
+  if (jobId) {
+    await supabaseAdmin
+      .from("ingestion_jobs")
+      .update({
+        status,
+        finished_at: new Date().toISOString(),
+        duration_ms: durationMs,
+        records_processed: processed,
+        records_inserted: inserted,
+        records_updated: updated,
+        error_count: errorCount,
+        details: { seasons, competitions },
+      })
+      .eq("id", jobId);
+  }
+
+  return { jobId, status, processed, inserted, updated, errors: errorCount, durationMs };
+}
+
+async function persistMatch(
+  resolver: TeamResolver,
+  provider: ProviderId,
+  match: NormalizedMatch,
+): Promise<"inserted" | "updated"> {
+  const { leagueId, canonicalId: leagueCanonical, seasonId } = await upsertLeague(provider, match);
+  const homeTeamId = await resolver.resolve(provider, match.homeTeam);
+  const awayTeamId = await resolver.resolve(provider, match.awayTeam);
+  const canonicalId = matchCanonicalId(
+    leagueCanonical,
+    match.kickoffAt,
+    match.homeTeam.name,
+    match.awayTeam.name,
+  );
+
+  const { data: existing } = await supabaseAdmin
+    .from("matches")
+    .select("id, provider_ids")
+    .eq("canonical_id", canonicalId)
+    .maybeSingle();
+
+  const providerIds: Record<string, string> = {
+    ...((existing?.provider_ids as Record<string, string> | null) ?? {}),
+    [provider]: match.providerMatchId,
+  };
+
+  const { data: saved } = await supabaseAdmin
+    .from("matches")
+    .upsert(
+      {
+        canonical_id: canonicalId,
+        league_id: leagueId,
+        season_id: seasonId,
+        home_team_id: homeTeamId,
+        away_team_id: awayTeamId,
+        kickoff_at: match.kickoffAt,
+        status: match.status,
+        matchday: match.matchday,
+        stage: match.stage,
+        home_score: match.homeScore,
+        away_score: match.awayScore,
+        home_score_ht: match.homeScoreHt,
+        away_score_ht: match.awayScoreHt,
+        minute: match.minute,
+        provider_ids: providerIds,
+        last_ingested_at: new Date().toISOString(),
+      },
+      { onConflict: "canonical_id" },
+    )
+    .select("id")
+    .single();
+
+  if (!saved) throw new Error(`Could not persist match ${canonicalId}`);
+
+  await supabaseAdmin.from("match_sources").upsert(
+    {
+      match_id: saved.id,
+      source_id: provider,
+      provider_match_id: match.providerMatchId,
+      payload: match.raw as never,
+    },
+    { onConflict: "source_id,provider_match_id" },
+  );
+
+  return existing ? "updated" : "inserted";
 }

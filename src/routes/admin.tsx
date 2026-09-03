@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { getDiagnostics, triggerIngestion } from "@/lib/football.functions";
+import { startBacktest, syncHistory, trainModels } from "@/lib/analytics.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -28,6 +29,9 @@ function AdminPage() {
   const queryClient = useQueryClient();
   const fetchDiagnostics = useServerFn(getDiagnostics);
   const runIngestion = useServerFn(triggerIngestion);
+  const runHistory = useServerFn(syncHistory);
+  const runTraining = useServerFn(trainModels);
+  const runBacktestFn = useServerFn(startBacktest);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -53,6 +57,20 @@ function AdminPage() {
     );
   }
 
+  const runTask = async (label: string, task: () => Promise<unknown>) => {
+    setBusy(true);
+    setStatus(`${label}…`);
+    try {
+      const result = (await task()) as Record<string, unknown>;
+      setStatus(`${label}: ${JSON.stringify(result)}`);
+      await queryClient.invalidateQueries();
+    } catch (error) {
+      setStatus(`${label} failed: ${error instanceof Error ? error.message : "unknown error"}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const sync = async () => {
     setBusy(true);
     setStatus(null);
@@ -76,8 +94,29 @@ function AdminPage() {
           <Button onClick={sync} disabled={busy}>
             {busy ? "Syncing…" : "Sync fixtures (today + 7 days)"}
           </Button>
-          {status ? <span className="text-xs text-muted-foreground">{status}</span> : null}
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Historical sync", () => runHistory({ data: {} }))}
+          >
+            Sync historical seasons
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Model training", () => runTraining())}
+          >
+            Train models &amp; predict
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Backtest", () => runBacktestFn())}
+          >
+            Run walk-forward backtest
+          </Button>
         </div>
+        {status ? <p className="mt-3 break-all text-xs text-muted-foreground">{status}</p> : null}
       </div>
 
       {diagnostics.data && !diagnostics.data.isAdmin ? (

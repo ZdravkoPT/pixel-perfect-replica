@@ -11,10 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ProvidersRouteImport } from './routes/providers'
 import { Route as MatchesMatchIdRouteImport } from './routes/matches.$matchId'
 import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/public/hooks/ingest-fixtures'
+import { Route as ApiPublicHooksTrainModelsRouteImport } from './routes/api/public/hooks/train-models'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -24,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -47,66 +54,86 @@ const ApiPublicHooksIngestFixturesRoute =
     path: '/api/public/hooks/ingest-fixtures',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksTrainModelsRoute =
+  ApiPublicHooksTrainModelsRouteImport.update({
+    id: '/api/public/hooks/train-models',
+    path: '/api/public/hooks/train-models',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/providers': typeof ProvidersRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
+  '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/providers': typeof ProvidersRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
+  '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/providers': typeof ProvidersRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
+  '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
+    | '/analytics'
     | '/auth'
     | '/providers'
     | '/matches/$matchId'
     | '/api/public/hooks/ingest-fixtures'
+    | '/api/public/hooks/train-models'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
+    | '/analytics'
     | '/auth'
     | '/providers'
     | '/matches/$matchId'
     | '/api/public/hooks/ingest-fixtures'
+    | '/api/public/hooks/train-models'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/analytics'
     | '/auth'
     | '/providers'
     | '/matches/$matchId'
     | '/api/public/hooks/ingest-fixtures'
+    | '/api/public/hooks/train-models'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
   ProvidersRoute: typeof ProvidersRoute
   MatchesMatchIdRoute: typeof MatchesMatchIdRoute
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
+  ApiPublicHooksTrainModelsRoute: typeof ApiPublicHooksTrainModelsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -123,6 +150,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -153,16 +187,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksIngestFixturesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/train-models': {
+      id: '/api/public/hooks/train-models'
+      path: '/api/public/hooks/train-models'
+      fullPath: '/api/public/hooks/train-models'
+      preLoaderRoute: typeof ApiPublicHooksTrainModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
   ProvidersRoute: ProvidersRoute,
   MatchesMatchIdRoute: MatchesMatchIdRoute,
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
+  ApiPublicHooksTrainModelsRoute: ApiPublicHooksTrainModelsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
