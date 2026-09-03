@@ -82,12 +82,10 @@ class TeamResolver {
       candidate.provider_ids = providerIds;
       this.byProvider.set(providerKey, candidate);
       this.byAlias.set(normalized, candidate);
-      await supabaseAdmin.from("team_aliases").insert({
-        team_id: candidate.id,
-        alias: team.name,
-        normalized_alias: normalized,
-        source: provider,
-      });
+      await supabaseAdmin.from("team_aliases").upsert(
+        { team_id: candidate.id, alias: team.name, normalized_alias: normalized, source: provider },
+        { onConflict: "team_id,normalized_alias", ignoreDuplicates: true },
+      );
       return candidate.id;
     }
 
@@ -121,12 +119,10 @@ class TeamResolver {
     this.all.push(row);
     this.byProvider.set(providerKey, row);
     this.byAlias.set(normalized, row);
-    await supabaseAdmin.from("team_aliases").insert({
-      team_id: row.id,
-      alias: team.name,
-      normalized_alias: normalized,
-      source: provider,
-    });
+    await supabaseAdmin.from("team_aliases").upsert(
+      { team_id: row.id, alias: team.name, normalized_alias: normalized, source: provider },
+      { onConflict: "team_id,normalized_alias", ignoreDuplicates: true },
+    );
     return row.id;
   }
 }
@@ -285,7 +281,7 @@ export async function ingestFixtures(options: {
       ...((existing?.provider_ids as Record<string, string> | null) ?? {}),
       [provider]: match.providerMatchId,
     };
-    if (counterpart) providerIds[counterpart ? "api-football" : provider] = counterpart.providerMatchId;
+    if (counterpart) providerIds["api-football"] = counterpart.providerMatchId;
 
     const payload = {
       canonical_id: canonicalId,
@@ -323,7 +319,7 @@ export async function ingestFixtures(options: {
         provider_match_id: match.providerMatchId,
         payload: match.raw as never,
       },
-      { onConflict: "match_id,source_id" },
+      { onConflict: "source_id,provider_match_id" },
     );
 
     if (counterpart) {
@@ -334,7 +330,7 @@ export async function ingestFixtures(options: {
           provider_match_id: counterpart.providerMatchId,
           payload: counterpart.raw as never,
         },
-        { onConflict: "match_id,source_id" },
+        { onConflict: "source_id,provider_match_id" },
       );
 
       const driftMs = Math.abs(
