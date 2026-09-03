@@ -16,7 +16,9 @@ import {
   derivedTeamMarkets,
   playerProps,
   projectLineup,
+  positionGroup,
   FORMATION_LABEL,
+  type ProjectedPlayer,
   type SquadCandidate,
 } from "./models/intel";
 
@@ -528,4 +530,37 @@ async function refereeCardRate(matchId: string): Promise<number | null> {
     .maybeSingle();
 
   return stats?.yellow_per_game ? Number(stats.yellow_per_game) : null;
+}
+
+/**
+ * Reads a confirmed team sheet back as a projection, so player props can be
+ * priced off the real XI once the T-60 refresh has stored one.
+ */
+async function confirmedProjection(
+  matchId: string,
+  teamId: string,
+): Promise<ProjectedPlayer[] | null> {
+  const { data: lineup } = await supabaseAdmin
+    .from("lineups")
+    .select(
+      "id, players:lineup_players(player_id, position, is_starter, start_probability, expected_minutes, player:players(id, name, position))",
+    )
+    .eq("match_id", matchId)
+    .eq("team_id", teamId)
+    .eq("is_predicted", false)
+    .maybeSingle();
+
+  if (!lineup || lineup.players.length < 11) return null;
+
+  return lineup.players.map((row) => {
+    const player = row.player as { id: string; name: string; position: string | null } | null;
+    return {
+      playerId: row.player_id,
+      name: player?.name ?? "Unknown",
+      group: positionGroup(row.position ?? player?.position),
+      isStarter: row.is_starter,
+      startProbability: Number(row.start_probability ?? (row.is_starter ? 1 : 0.05)),
+      expectedMinutes: Number(row.expected_minutes ?? (row.is_starter ? 90 : 12)),
+    } satisfies ProjectedPlayer;
+  });
 }
