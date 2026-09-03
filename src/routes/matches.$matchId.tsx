@@ -106,6 +106,14 @@ function MatchDetail() {
   }
 
   const kickoff = new Date(match.kickoff_at);
+  const started = Date.now() >= kickoff.getTime();
+  const finished = ["FINISHED", "CANCELLED", "POSTPONED"].includes(match.status);
+  const inPlay = ["LIVE", "PAUSED"].includes(match.status) || (started && !finished);
+  const statusLabel = ["LIVE", "PAUSED"].includes(match.status)
+    ? "LIVE"
+    : started && !finished
+      ? "Kick-off passed · awaiting provider update"
+      : match.status;
   const homeName = match.home?.name ?? "Home";
   const awayName = match.away?.name ?? "Away";
 
