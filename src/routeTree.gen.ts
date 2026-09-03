@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AiBetsRouteImport } from './routes/ai-bets'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CoachesRouteImport } from './routes/coaches'
@@ -34,6 +35,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiBetsRoute = AiBetsRouteImport.update({
+  id: '/ai-bets',
+  path: '/ai-bets',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -114,6 +120,7 @@ const ApiPublicHooksTrainModelsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/ai-bets': typeof AiBetsRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/coaches': typeof CoachesRouteWithChildren
@@ -132,6 +139,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/ai-bets': typeof AiBetsRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/coaches': typeof CoachesRouteWithChildren
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/ai-bets': typeof AiBetsRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/coaches': typeof CoachesRouteWithChildren
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/ai-bets'
     | '/analytics'
     | '/auth'
     | '/coaches'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/ai-bets'
     | '/analytics'
     | '/auth'
     | '/coaches'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/ai-bets'
     | '/analytics'
     | '/auth'
     | '/coaches'
@@ -226,6 +238,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AiBetsRoute: typeof AiBetsRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
   CoachesRoute: typeof CoachesRouteWithChildren
@@ -254,6 +267,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-bets': {
+      id: '/ai-bets'
+      path: '/ai-bets'
+      fullPath: '/ai-bets'
+      preLoaderRoute: typeof AiBetsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -382,6 +402,7 @@ const PlayersRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AiBetsRoute: AiBetsRoute,
   AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
   CoachesRoute: CoachesRouteWithChildren,
