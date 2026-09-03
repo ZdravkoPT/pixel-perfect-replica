@@ -25,6 +25,7 @@ import { Route as PlayersPlayerIdRouteImport } from './routes/players.$playerId'
 import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/public/hooks/ingest-fixtures'
 import { Route as ApiPublicHooksKickoffRefreshRouteImport } from './routes/api/public/hooks/kickoff-refresh'
 import { Route as ApiPublicHooksRefreshIntelRouteImport } from './routes/api/public/hooks/refresh-intel'
+import { Route as ApiPublicHooksTmpKickoffRouteImport } from './routes/api/public/hooks/tmp-kickoff'
 import { Route as ApiPublicHooksTrainModelsRouteImport } from './routes/api/public/hooks/train-models'
 
 const IndexRoute = IndexRouteImport.update({
@@ -110,6 +111,12 @@ const ApiPublicHooksRefreshIntelRoute =
     path: '/api/public/hooks/refresh-intel',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksTmpKickoffRoute =
+  ApiPublicHooksTmpKickoffRouteImport.update({
+    id: '/api/public/hooks/tmp-kickoff',
+    path: '/api/public/hooks/tmp-kickoff',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksTrainModelsRoute =
   ApiPublicHooksTrainModelsRouteImport.update({
     id: '/api/public/hooks/train-models',
@@ -134,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
+  '/api/public/hooks/tmp-kickoff': typeof ApiPublicHooksTmpKickoffRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
 export interface FileRoutesByTo {
@@ -153,6 +161,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
+  '/api/public/hooks/tmp-kickoff': typeof ApiPublicHooksTmpKickoffRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
 export interface FileRoutesById {
@@ -173,6 +182,7 @@ export interface FileRoutesById {
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
+  '/api/public/hooks/tmp-kickoff': typeof ApiPublicHooksTmpKickoffRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
 export interface FileRouteTypes {
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/refresh-intel'
+    | '/api/public/hooks/tmp-kickoff'
     | '/api/public/hooks/train-models'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -213,6 +224,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/refresh-intel'
+    | '/api/public/hooks/tmp-kickoff'
     | '/api/public/hooks/train-models'
   id:
     | '__root__'
@@ -232,6 +244,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/refresh-intel'
+    | '/api/public/hooks/tmp-kickoff'
     | '/api/public/hooks/train-models'
   fileRoutesById: FileRoutesById
 }
@@ -250,6 +263,7 @@ export interface RootRouteChildren {
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
   ApiPublicHooksKickoffRefreshRoute: typeof ApiPublicHooksKickoffRefreshRoute
   ApiPublicHooksRefreshIntelRoute: typeof ApiPublicHooksRefreshIntelRoute
+  ApiPublicHooksTmpKickoffRoute: typeof ApiPublicHooksTmpKickoffRoute
   ApiPublicHooksTrainModelsRoute: typeof ApiPublicHooksTrainModelsRoute
 }
 
@@ -367,6 +381,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRefreshIntelRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/tmp-kickoff': {
+      id: '/api/public/hooks/tmp-kickoff'
+      path: '/api/public/hooks/tmp-kickoff'
+      fullPath: '/api/public/hooks/tmp-kickoff'
+      preLoaderRoute: typeof ApiPublicHooksTmpKickoffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/train-models': {
       id: '/api/public/hooks/train-models'
       path: '/api/public/hooks/train-models'
@@ -414,6 +435,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
   ApiPublicHooksKickoffRefreshRoute: ApiPublicHooksKickoffRefreshRoute,
   ApiPublicHooksRefreshIntelRoute: ApiPublicHooksRefreshIntelRoute,
+  ApiPublicHooksTmpKickoffRoute: ApiPublicHooksTmpKickoffRoute,
   ApiPublicHooksTrainModelsRoute: ApiPublicHooksTrainModelsRoute,
 }
 export const routeTree = rootRouteImport
