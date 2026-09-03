@@ -146,20 +146,40 @@ export const getValueBoard = createServerFn({ method: "GET" })
                 : null,
             ].filter(Boolean) as Array<{ key: string; label: string; p: number; p0: number }>);
 
+      const lineup = lineupByMatch.get(match.id) ?? null;
+      const lineupStatus = lineup === null ? "none" : lineup.confirmed ? "confirmed" : "projected";
+
       const propRows = (propsByMatch.get(match.id) ?? [])
         .slice()
+        // Only price players who are actually on the latest team sheet, and prefer
+        // starters — a projection for someone outside the XI is not real value.
+        .filter((row) => {
+          if (lineup === null || !row.player?.id) return lineup === null;
+          const entry = lineup.players.get(row.player.id);
+          return Boolean(entry?.isStarter);
+        })
         .sort((a, b) => Number(b.probability) - Number(a.probability))
         .slice(0, 6)
-        .map((row) => ({
-          player: row.player?.name ?? "Unknown",
-          position: row.player?.position ?? null,
-          team: row.team_id === match.home_team_id ? (match.home?.name ?? "Home") : (match.away?.name ?? "Away"),
-          market: row.market,
-          selection: row.selection,
-          probability: Number(row.probability),
-          fairOdds: Number(row.fair_odds),
-          expectedMinutes: row.expected_minutes === null ? null : Number(row.expected_minutes),
-        }));
+        .map((row) => {
+          const entry = row.player?.id ? (lineup?.players.get(row.player.id) ?? null) : null;
+          return {
+            player: row.player?.name ?? "Unknown",
+            position: row.player?.position ?? null,
+            team:
+              row.team_id === match.home_team_id
+                ? (match.home?.name ?? "Home")
+                : (match.away?.name ?? "Away"),
+            market: row.market,
+            selection: row.selection,
+            probability: Number(row.probability),
+            fairOdds: Number(row.fair_odds),
+            expectedMinutes:
+              entry?.expectedMinutes ??
+              (row.expected_minutes === null ? null : Number(row.expected_minutes)),
+            startProbability: entry?.startProbability ?? null,
+            lineupStatus,
+          };
+        });
 
       return {
         matchId: match.id,
@@ -171,6 +191,8 @@ export const getValueBoard = createServerFn({ method: "GET" })
         firstPricedAt: first?.prediction_timestamp ?? null,
         lastPricedAt: latest?.prediction_timestamp ?? null,
         confidence: latest?.confidence === null || latest === null ? null : Number(latest.confidence),
+        lineupStatus,
+        lineupUpdatedAt: lineup?.updatedAt ?? null,
         selections: selections.map((row) => ({
           key: row.key,
           label: row.label,
