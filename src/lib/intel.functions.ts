@@ -243,7 +243,7 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
           .limit(200),
         supabase
           .from("player_prop_predictions")
-          .select("id, market, selection, line, probability, fair_odds, expected_minutes, match:matches(id, kickoff_at, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name))")
+          .select("id, market, selection, line, probability, fair_odds, expected_minutes, match:matches(id, kickoff_at, home_team_id, away_team_id)")
           .eq("player_id", data.playerId)
           .order("probability", { ascending: false })
           .limit(12),
