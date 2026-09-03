@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Input } from "@/components/ui/input";
@@ -69,7 +69,12 @@ function PlayersPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((row) => (
-              <div key={row.id} className="rounded-lg border border-border bg-card p-4">
+              <Link
+                key={row.id}
+                to="/players/$playerId"
+                params={{ playerId: row.player?.id ?? "" }}
+                className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-medium">{row.player?.name ?? "Unknown"}</p>
                   <Badge variant="secondary">{row.shirt_number ?? "—"}</Badge>
@@ -80,7 +85,7 @@ function PlayersPage() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {row.player?.nationality ?? "Unknown nationality"}
                 </p>
-              </div>
+              </Link>
             ))}
           </div>
         )}
