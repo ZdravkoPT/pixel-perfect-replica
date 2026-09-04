@@ -263,15 +263,56 @@ type Candidate = {
   fixture: string;
   league: string;
   kickoffAt: string;
+  market: string;
   selection: string;
   probability: number;
+  adjustedProbability: number;
   fairOdds: number;
   confidence: number | null;
   kind: "match" | "player";
+  lineupStatus: "confirmed" | "projected" | "none";
+  score: number;
 };
 
+/** Latest completed 10-week review, used both for display and for calibration. */
+async function loadCalibration(supabase: ReturnType<typeof publicClient>) {
+  const { data } = await supabase
+    .from("bet_history_runs")
+    .select(
+      "id, weeks, threshold, window_from, window_to, matches, picks, wins, hit_rate, expected_hit_rate, roi_fair, roi_market, log_loss, brier, by_market, weekly, calibration, finished_at",
+    )
+    .eq("status", "success")
+    .order("finished_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return { run: null, multipliers: new Map<string, number>() };
+
+  const multipliers = new Map<string, number>();
+  for (const row of (data.by_market ?? []) as Array<{ market: string; multiplier: number }>) {
+    if (row?.market && Number.isFinite(row.multiplier)) multipliers.set(row.market, Number(row.multiplier));
+  }
+  return { run: data, multipliers };
+}
+
+/** Public read of the past-N-week bet-builder scorecard. */
+export const getBetHistory = createServerFn({ method: "GET" }).handler(async () => {
+  const supabase = publicClient();
+  const { run } = await loadCalibration(supabase);
+  if (!run) return { run: null, recent: [] };
+
+  const { data: recent } = await supabase
+    .from("bet_history_picks")
+    .select("kickoff_at, fixture, market, selection, probability, fair_odds, won, result")
+    .eq("run_id", run.id)
+    .order("kickoff_at", { ascending: false })
+    .limit(40);
+
+  return { run, recent: recent ?? [] };
+});
+
 /**
- * Today's strongest model signals plus an AI-written betting / bet-builder brief.
+ * Today's strongest model signals, calibrated against the last 10 weeks of
+ * graded bets, plus a programmatically built accumulator and an AI brief.
  * Every number handed to the model comes from stored immutable predictions.
  */
 export const getAiBets = createServerFn({ method: "GET" })
@@ -282,6 +323,8 @@ export const getAiBets = createServerFn({ method: "GET" })
     const now = new Date();
     const end = new Date(now);
     end.setUTCHours(23, 59, 59, 999);
+
+    const { run: historyRun, multipliers } = await loadCalibration(supabase);
 
     const { data: matches } = await supabase
       .from("matches")
@@ -295,11 +338,18 @@ export const getAiBets = createServerFn({ method: "GET" })
 
     const rows = (matches ?? []) as unknown as Array<MatchRow & { home_team_id: string }>;
     if (rows.length === 0) {
-      return { candidates: [], brief: null, generatedAt: now.toISOString(), reason: "no-fixtures" as const };
+      return {
+        candidates: [],
+        builder: null,
+        history: historyRun,
+        brief: null,
+        generatedAt: now.toISOString(),
+        reason: "no-fixtures" as const,
+      };
     }
 
     const ids = rows.map((row) => row.id);
-    const [{ data: predictions }, { data: props }] = await Promise.all([
+    const [{ data: predictions }, { data: props }, { data: lineupRows }] = await Promise.all([
       supabase
         .from("predictions")
         .select("match_id, prediction_timestamp, p_home, p_draw, p_away, p_over_25, p_under_25, p_btts, confidence")
@@ -312,36 +362,58 @@ export const getAiBets = createServerFn({ method: "GET" })
         .gte("probability", min)
         .order("probability", { ascending: false })
         .limit(60),
+      supabase.from("lineups").select("match_id, is_predicted").in("match_id", ids),
     ]);
+
+    const lineupStatusByMatch = new Map<string, "confirmed" | "projected">();
+    for (const row of lineupRows ?? []) {
+      if (!row.is_predicted) lineupStatusByMatch.set(row.match_id, "confirmed");
+      else if (!lineupStatusByMatch.has(row.match_id)) lineupStatusByMatch.set(row.match_id, "projected");
+    }
 
     const latest = new Map<string, NonNullable<typeof predictions>[number]>();
     for (const row of predictions ?? []) if (!latest.has(row.match_id)) latest.set(row.match_id, row);
+
+    const adjust = (market: string, probability: number) =>
+      Math.min(0.97, Math.max(0.02, probability * (multipliers.get(market) ?? 1)));
 
     const candidates: Candidate[] = [];
     for (const match of rows) {
       const prediction = latest.get(match.id);
       if (!prediction) continue;
       const fixture = `${match.home?.name ?? "Home"} vs ${match.away?.name ?? "Away"}`;
-      const options: Array<[string, number | null]> = [
-        [`${match.home?.name ?? "Home"} to win`, Number(prediction.p_home)],
-        ["Draw", Number(prediction.p_draw)],
-        [`${match.away?.name ?? "Away"} to win`, Number(prediction.p_away)],
-        ["Over 2.5 goals", prediction.p_over_25 === null ? null : Number(prediction.p_over_25)],
-        ["Under 2.5 goals", prediction.p_under_25 === null ? null : Number(prediction.p_under_25)],
-        ["Both teams to score", prediction.p_btts === null ? null : Number(prediction.p_btts)],
+      const lineupStatus = lineupStatusByMatch.get(match.id) ?? "none";
+      const confidence = prediction.confidence === null ? null : Number(prediction.confidence);
+      const options: Array<[string, string, number | null]> = [
+        ["home", `${match.home?.name ?? "Home"} to win`, Number(prediction.p_home)],
+        ["draw", "Draw", Number(prediction.p_draw)],
+        ["away", `${match.away?.name ?? "Away"} to win`, Number(prediction.p_away)],
+        ["over25", "Over 2.5 goals", prediction.p_over_25 === null ? null : Number(prediction.p_over_25)],
+        ["under25", "Under 2.5 goals", prediction.p_under_25 === null ? null : Number(prediction.p_under_25)],
+        ["btts", "Both teams to score", prediction.p_btts === null ? null : Number(prediction.p_btts)],
       ];
-      for (const [selection, probability] of options) {
+      for (const [market, selection, probability] of options) {
         if (probability === null || probability < min) continue;
+        const adjusted = adjust(market, probability);
         candidates.push({
           matchId: match.id,
           fixture,
           league: match.league?.name ?? "Unknown league",
           kickoffAt: match.kickoff_at,
+          market,
           selection,
           probability,
-          fairOdds: odds(probability),
-          confidence: prediction.confidence === null ? null : Number(prediction.confidence),
+          adjustedProbability: adjusted,
+          fairOdds: odds(adjusted),
+          confidence,
           kind: "match",
+          lineupStatus,
+          // Rank on the calibrated probability, nudged by model confidence and
+          // by whether a real team sheet is already known.
+          score:
+            adjusted *
+            (1 + 0.15 * (confidence ?? 0.5)) *
+            (lineupStatus === "confirmed" ? 1.06 : lineupStatus === "projected" ? 1 : 0.98),
         });
       }
     }
@@ -349,53 +421,120 @@ export const getAiBets = createServerFn({ method: "GET" })
     for (const row of props ?? []) {
       const match = rows.find((item) => item.id === row.match_id);
       if (!match) continue;
+      const lineupStatus = lineupStatusByMatch.get(row.match_id) ?? "none";
+      const probability = Number(row.probability);
+      const adjusted = adjust(row.market, probability);
       candidates.push({
         matchId: row.match_id,
         fixture: `${match.home?.name ?? "Home"} vs ${match.away?.name ?? "Away"}`,
         league: match.league?.name ?? "Unknown league",
         kickoffAt: match.kickoff_at,
+        market: row.market,
         selection: `${row.player?.name ?? "Player"} · ${row.selection.replace(/_/g, " ")}`,
-        probability: Number(row.probability),
-        fairOdds: Number(row.fair_odds),
+        probability,
+        adjustedProbability: adjusted,
+        fairOdds: odds(adjusted),
         confidence: null,
         kind: "player",
+        lineupStatus,
+        // Player props without a confirmed sheet carry line-up risk on top of
+        // model risk, so they are discounted relative to match markets.
+        score: adjusted * (lineupStatus === "confirmed" ? 1 : 0.85),
       });
     }
 
-    candidates.sort((a, b) => b.probability - a.probability);
+    candidates.sort((a, b) => b.score - a.score);
     const shortlist = candidates.slice(0, 24);
 
     if (shortlist.length === 0) {
-      return { candidates: [], brief: null, generatedAt: now.toISOString(), reason: "no-signals" as const };
+      return {
+        candidates: [],
+        builder: null,
+        history: historyRun,
+        brief: null,
+        generatedAt: now.toISOString(),
+        reason: "no-signals" as const,
+      };
     }
+
+    // Programmatic accumulator: strongest calibrated leg per fixture, at most
+    // one leg per match so the legs stay statistically independent.
+    const usedMatches = new Set<string>();
+    const legs = shortlist
+      .filter((row) => {
+        if (usedMatches.has(row.matchId)) return false;
+        usedMatches.add(row.matchId);
+        return true;
+      })
+      .slice(0, 4);
+    const combined = legs.reduce((acc, leg) => acc * leg.adjustedProbability, 1);
+    const builder =
+      legs.length >= 2
+        ? {
+            legs: legs.map((leg) => ({
+              matchId: leg.matchId,
+              fixture: leg.fixture,
+              selection: leg.selection,
+              probability: leg.adjustedProbability,
+              fairOdds: leg.fairOdds,
+            })),
+            probability: combined,
+            fairOdds: odds(combined),
+          }
+        : null;
 
     let brief: string | null = null;
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (apiKey) {
+      const historyLine = historyRun
+        ? `Graded record over the last ${historyRun.weeks} weeks: ${historyRun.wins}/${historyRun.picks} bets won (${((Number(historyRun.hit_rate) || 0) * 100).toFixed(1)}% hit rate vs ${((Number(historyRun.expected_hit_rate) || 0) * 100).toFixed(1)}% expected, return per unit at a typical bookmaker price ${((Number(historyRun.roi_market) || 0) * 100).toFixed(1)}%). Per market: ${(
+            (historyRun.by_market ?? []) as Array<{
+              market: string;
+              picks: number;
+              hitRate: number;
+              expectedHitRate: number;
+              roiMarket: number;
+            }>
+          )
+            .map(
+              (row) =>
+                `${row.market} ${row.picks} bets, ${(row.hitRate * 100).toFixed(0)}% actual vs ${(row.expectedHitRate * 100).toFixed(0)}% expected, ROI ${(row.roiMarket * 100).toFixed(0)}%`,
+            )
+            .join("; ")}.`
+        : "No graded history is available yet.";
+
       try {
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: "google/gemini-3.7-flash",
             messages: [
               {
                 role: "system",
                 content:
-                  "You are a disciplined football betting analyst. You only use the model probabilities supplied. " +
-                  "No bookmaker prices are available, so never claim a price is above or below the market. " +
-                  "Answer in markdown with three short sections: 'Top singles' (max 4 bullets, each with the model probability and fair odds), " +
-                  "'Bet builder' (one same-game or cross-game combination, list the legs, multiply the fair odds and state the combined probability, note correlation risk), " +
+                  "You are a disciplined football betting analyst. Use ONLY the supplied model probabilities and the supplied graded track record. " +
+                  "The probabilities are already calibrated against that record. No bookmaker prices are available, so never claim a price beats the market. " +
+                  "Lean into markets whose historical actual hit rate beat expectation and stay away from markets that underperformed — say so explicitly. " +
+                  "Answer in markdown with four short sections: 'Track record read' (2 bullets on what the past weeks say about which markets to trust), " +
+                  "'Top singles' (max 4 bullets, each with the calibrated probability and fair odds), " +
+                  "'Bet builder' (comment on the pre-built accumulator, state the combined probability and fair odds, and flag correlation or line-up risk), " +
                   "and 'Avoid' (1-2 bullets on the weakest or most volatile signals). Be concise and never promise profit.",
               },
               {
                 role: "user",
-                content: `Today's model signals (probability, fair odds):\n${shortlist
-                  .map(
-                    (row) =>
-                      `- ${row.fixture} (${row.league}, ${new Date(row.kickoffAt).toISOString().slice(11, 16)} UTC): ${row.selection} — ${(row.probability * 100).toFixed(1)}% @ ${row.fairOdds.toFixed(2)}${row.confidence ? `, model confidence ${(row.confidence * 100).toFixed(0)}%` : ""}`,
-                  )
-                  .join("\n")}`,
+                content:
+                  `${historyLine}\n\nToday's calibrated signals:\n${shortlist
+                    .map(
+                      (row) =>
+                        `- ${row.fixture} (${row.league}, ${new Date(row.kickoffAt).toISOString().slice(11, 16)} UTC): ${row.selection} — ${(row.adjustedProbability * 100).toFixed(1)}% @ ${row.fairOdds.toFixed(2)} [raw ${(row.probability * 100).toFixed(1)}%, market ${row.market}, line-up ${row.lineupStatus}]${row.confidence ? `, model confidence ${(row.confidence * 100).toFixed(0)}%` : ""}`,
+                    )
+                    .join("\n")}` +
+                  (builder
+                    ? `\n\nPre-built accumulator (one leg per match, independent): ${builder.legs
+                        .map((leg) => `${leg.selection} (${(leg.probability * 100).toFixed(1)}%)`)
+                        .join(" + ")} = ${(builder.probability * 100).toFixed(1)}% @ ${builder.fairOdds.toFixed(2)}`
+                    : ""),
               },
             ],
           }),
@@ -403,13 +542,18 @@ export const getAiBets = createServerFn({ method: "GET" })
         if (response.ok) {
           const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
           brief = payload.choices?.[0]?.message?.content ?? null;
-        } else if (response.status === 429) {
-          brief = null;
         }
       } catch {
         brief = null;
       }
     }
 
-    return { candidates: shortlist, brief, generatedAt: now.toISOString(), reason: "ok" as const };
+    return {
+      candidates: shortlist,
+      builder,
+      history: historyRun,
+      brief,
+      generatedAt: now.toISOString(),
+      reason: "ok" as const,
+    };
   });
