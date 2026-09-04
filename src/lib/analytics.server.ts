@@ -31,7 +31,7 @@ export interface BacktestSummary {
   error?: string;
 }
 
-interface FinishedMatch {
+export interface FinishedMatch {
   id: string;
   league_id: string | null;
   home_team_id: string;
@@ -54,7 +54,7 @@ interface UpcomingMatch {
  * 1000 rows, so we page through the archive (newest TRAINING_LIMIT matches)
  * and return them oldest-first for the sequential Elo / form walk.
  */
-async function loadFinished(limit = TRAINING_LIMIT): Promise<FinishedMatch[]> {
+export async function loadFinished(limit = TRAINING_LIMIT): Promise<FinishedMatch[]> {
   const page = 1000;
   const rows: FinishedMatch[] = [];
 
@@ -88,7 +88,7 @@ async function loadFinished(limit = TRAINING_LIMIT): Promise<FinishedMatch[]> {
 
 }
 
-interface TeamState {
+export interface TeamState {
   elo: number;
   matches: number;
   lastKickoff: string | null;
@@ -100,7 +100,7 @@ function emptyState(): TeamState {
   return { elo: ELO_CONFIG.base, matches: 0, lastKickoff: null, leagueId: null, results: [] };
 }
 
-function buildStates(matches: FinishedMatch[]): Map<string, TeamState> {
+export function buildStates(matches: FinishedMatch[]): Map<string, TeamState> {
   const states = new Map<string, TeamState>();
   const get = (id: string): TeamState => {
     let state = states.get(id);
@@ -111,7 +111,23 @@ function buildStates(matches: FinishedMatch[]): Map<string, TeamState> {
     return state;
   };
 
-  for (const match of matches) {
+  for (const match of matches) applyMatch(states, match);
+
+  return states;
+}
+
+/** Applies one finished match to the running Elo / rolling-form state. */
+export function applyMatch(states: Map<string, TeamState>, match: FinishedMatch): void {
+  const get = (id: string): TeamState => {
+    let state = states.get(id);
+    if (!state) {
+      state = emptyState();
+      states.set(id, state);
+    }
+    return state;
+  };
+
+  {
     const home = get(match.home_team_id);
     const away = get(match.away_team_id);
     const kickoff = new Date(match.kickoff_at).getTime();
@@ -144,8 +160,6 @@ function buildStates(matches: FinishedMatch[]): Map<string, TeamState> {
     home.leagueId = match.league_id;
     away.leagueId = match.league_id;
   }
-
-  return states;
 }
 
 function rolling(state: TeamState | undefined, window = ROLLING_WINDOW) {
@@ -169,7 +183,7 @@ function rolling(state: TeamState | undefined, window = ROLLING_WINDOW) {
   };
 }
 
-function toDcMatches(matches: FinishedMatch[], reference: number): DcMatch[] {
+export function toDcMatches(matches: FinishedMatch[], reference: number): DcMatch[] {
   return matches.map((match) => ({
     homeTeamId: match.home_team_id,
     awayTeamId: match.away_team_id,
@@ -179,7 +193,7 @@ function toDcMatches(matches: FinishedMatch[], reference: number): DcMatch[] {
   }));
 }
 
-function blendedLambdas(
+export function blendedLambdas(
   params: DcParams,
   homeTeamId: string,
   awayTeamId: string,

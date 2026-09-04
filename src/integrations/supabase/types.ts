@@ -169,6 +169,144 @@ export type Database = {
           },
         ]
       }
+      bet_history_picks: {
+        Row: {
+          created_at: string
+          fair_odds: number
+          fixture: string
+          id: string
+          kickoff_at: string
+          market: string
+          match_id: string | null
+          probability: number
+          result: string | null
+          run_id: string
+          selection: string
+          won: boolean
+        }
+        Insert: {
+          created_at?: string
+          fair_odds: number
+          fixture: string
+          id?: string
+          kickoff_at: string
+          market: string
+          match_id?: string | null
+          probability: number
+          result?: string | null
+          run_id: string
+          selection: string
+          won: boolean
+        }
+        Update: {
+          created_at?: string
+          fair_odds?: number
+          fixture?: string
+          id?: string
+          kickoff_at?: string
+          market?: string
+          match_id?: string | null
+          probability?: number
+          result?: string | null
+          run_id?: string
+          selection?: string
+          won?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bet_history_picks_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bet_history_picks_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "bet_history_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bet_history_runs: {
+        Row: {
+          brier: number | null
+          by_market: Json
+          calibration: Json
+          duration_ms: number | null
+          error: string | null
+          expected_hit_rate: number | null
+          finished_at: string | null
+          hit_rate: number | null
+          id: string
+          log_loss: number | null
+          matches: number
+          picks: number
+          roi_fair: number | null
+          roi_market: number | null
+          started_at: string
+          status: string
+          threshold: number
+          triggered_by: string | null
+          weekly: Json
+          weeks: number
+          window_from: string | null
+          window_to: string | null
+          wins: number
+        }
+        Insert: {
+          brier?: number | null
+          by_market?: Json
+          calibration?: Json
+          duration_ms?: number | null
+          error?: string | null
+          expected_hit_rate?: number | null
+          finished_at?: string | null
+          hit_rate?: number | null
+          id?: string
+          log_loss?: number | null
+          matches?: number
+          picks?: number
+          roi_fair?: number | null
+          roi_market?: number | null
+          started_at?: string
+          status?: string
+          threshold?: number
+          triggered_by?: string | null
+          weekly?: Json
+          weeks?: number
+          window_from?: string | null
+          window_to?: string | null
+          wins?: number
+        }
+        Update: {
+          brier?: number | null
+          by_market?: Json
+          calibration?: Json
+          duration_ms?: number | null
+          error?: string | null
+          expected_hit_rate?: number | null
+          finished_at?: string | null
+          hit_rate?: number | null
+          id?: string
+          log_loss?: number | null
+          matches?: number
+          picks?: number
+          roi_fair?: number | null
+          roi_market?: number | null
+          started_at?: string
+          status?: string
+          threshold?: number
+          triggered_by?: string | null
+          weekly?: Json
+          weeks?: number
+          window_from?: string | null
+          window_to?: string | null
+          wins?: number
+        }
+        Relationships: []
+      }
       coach_spells: {
         Row: {
           coach_id: string
