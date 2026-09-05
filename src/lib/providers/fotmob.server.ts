@@ -183,4 +183,112 @@ export class FotmobProvider {
       minute,
     });
   }
+
+  /** Resolves a FotMob team id from a club name (free search endpoint). */
+  async findTeamId(name: string): Promise<string | null> {
+    const result = await this.request<
+      Array<{ suggestions?: Array<{ type?: string; id?: string; name?: string }> }>
+    >(`/search/suggest?term=${encodeURIComponent(name)}&lang=en`);
+    if (!result.ok) return null;
+
+    for (const group of result.data ?? []) {
+      for (const suggestion of group.suggestions ?? []) {
+        if (suggestion.type !== "team" || !suggestion.id || !suggestion.name) continue;
+        if (/\(W\)|women/i.test(suggestion.name)) continue;
+        if (namesMatch(suggestion.name, name, 0.72)) return String(suggestion.id);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Squad with season form: rating, goals, assists, cards, injury flag, market
+   * value, age. Used as the baseline for each player's skill profile.
+   */
+  async getSquad(teamId: string): Promise<ProviderResult<SquadMember[]>> {
+    const result = await this.request<{
+      squad?: { squad?: Array<{ title?: string; members?: RawSquadMember[] }> };
+    }>(`/teams?id=${teamId}&tab=squad`);
+    if (!result.ok) return result;
+
+    const members: SquadMember[] = [];
+    for (const group of result.data.squad?.squad ?? []) {
+      if (group.title === "coach") continue;
+      for (const member of group.members ?? []) {
+        if (!member.id || !member.name) continue;
+        members.push({
+          providerId: String(member.id),
+          name: String(member.name),
+          positionGroup: group.title ?? null,
+          shirtNumber: member.shirtNumber ?? null,
+          age: member.age ?? null,
+          rating: member.rating ?? null,
+          goals: member.goals ?? 0,
+          assists: member.assists ?? 0,
+          yellowCards: member.ycards ?? 0,
+          redCards: member.rcards ?? 0,
+          injured: Boolean(member.injured),
+          marketValue: member.transferValue ?? null,
+        });
+      }
+    }
+    return ok(members);
+  }
+
+  /**
+   * Percentile skill profile for one player, compared with peers in the same
+   * position. Values are 0..1 percentiles published by FotMob.
+   */
+  async getPlayerTraits(providerPlayerId: string): Promise<
+    ProviderResult<{ items: Array<{ key: string; title: string; value: number }>; minutes: number | null }>
+  > {
+    const result = await this.request<{
+      traits?: { items?: Array<{ key?: string; title?: string; value?: number }> };
+      mainLeague?: { stats?: Array<{ localizedTitleId?: string; value?: number }> };
+    }>(`/playerData?id=${providerPlayerId}`);
+    if (!result.ok) return result;
+
+    const items = (result.data.traits?.items ?? [])
+      .filter((item) => item.key && typeof item.value === "number")
+      .map((item) => ({
+        key: String(item.key),
+        title: item.title ?? String(item.key),
+        value: Number(item.value),
+      }));
+
+    const minutesStat = (result.data.mainLeague?.stats ?? []).find((stat) =>
+      String(stat.localizedTitleId ?? "").startsWith("minutes"),
+    );
+
+    return ok({ items, minutes: typeof minutesStat?.value === "number" ? minutesStat.value : null });
+  }
+}
+
+interface RawSquadMember {
+  id?: number;
+  name?: string;
+  shirtNumber?: number | null;
+  age?: number | null;
+  rating?: number | null;
+  goals?: number | null;
+  assists?: number | null;
+  ycards?: number | null;
+  rcards?: number | null;
+  injured?: boolean;
+  transferValue?: number | null;
+}
+
+export interface SquadMember {
+  providerId: string;
+  name: string;
+  positionGroup: string | null;
+  shirtNumber: number | null;
+  age: number | null;
+  rating: number | null;
+  goals: number;
+  assists: number;
+  yellowCards: number;
+  redCards: number;
+  injured: boolean;
+  marketValue: number | null;
 }
