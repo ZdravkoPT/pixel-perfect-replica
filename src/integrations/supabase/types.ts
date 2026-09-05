@@ -1219,6 +1219,83 @@ export type Database = {
           },
         ]
       }
+      player_attributes: {
+        Row: {
+          age: number | null
+          attacking: number | null
+          created_at: string
+          creativity: number | null
+          defending: number | null
+          id: string
+          market_value: number | null
+          minutes: number | null
+          overall: number | null
+          physical: number | null
+          player_id: string
+          position_group: string | null
+          provider_player_id: string | null
+          rating: number | null
+          source_id: string | null
+          strengths: Json
+          technical: number | null
+          traits: Json
+          updated_at: string
+          weaknesses: Json
+        }
+        Insert: {
+          age?: number | null
+          attacking?: number | null
+          created_at?: string
+          creativity?: number | null
+          defending?: number | null
+          id?: string
+          market_value?: number | null
+          minutes?: number | null
+          overall?: number | null
+          physical?: number | null
+          player_id: string
+          position_group?: string | null
+          provider_player_id?: string | null
+          rating?: number | null
+          source_id?: string | null
+          strengths?: Json
+          technical?: number | null
+          traits?: Json
+          updated_at?: string
+          weaknesses?: Json
+        }
+        Update: {
+          age?: number | null
+          attacking?: number | null
+          created_at?: string
+          creativity?: number | null
+          defending?: number | null
+          id?: string
+          market_value?: number | null
+          minutes?: number | null
+          overall?: number | null
+          physical?: number | null
+          player_id?: string
+          position_group?: string | null
+          provider_player_id?: string | null
+          rating?: number | null
+          source_id?: string | null
+          strengths?: Json
+          technical?: number | null
+          traits?: Json
+          updated_at?: string
+          weaknesses?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_attributes_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: true
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_match_stats: {
         Row: {
           assists: number
