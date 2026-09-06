@@ -217,7 +217,14 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const supabase = publicClient();
 
-    const [{ data: player }, { data: memberships }, { data: injuries }, { data: stats }, { data: props }] =
+    const [
+      { data: player },
+      { data: memberships },
+      { data: injuries },
+      { data: stats },
+      { data: props },
+      { data: attributes },
+    ] =
       await Promise.all([
         supabase
           .from("players")
