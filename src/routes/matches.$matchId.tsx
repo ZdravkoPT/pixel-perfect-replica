@@ -16,6 +16,7 @@ import {
   type IntelData,
 } from "@/components/IntelPanels";
 import { SquadProfilePanel } from "@/components/SquadProfilePanel";
+import { HeadToHeadPanel } from "@/components/HeadToHeadPanel";
 
 const TABS = [
   "Overview",
@@ -245,7 +246,11 @@ function MatchDetail() {
           <RefereePanel intel={intel} />
         </TabsContent>
 
-        {(["Odds", "News", "H2H"] as const).map((tab) => (
+        <TabsContent value="H2H" className="mt-4">
+          <HeadToHeadPanel matchId={matchId} />
+        </TabsContent>
+
+        {(["Odds", "News"] as const).map((tab) => (
           <TabsContent key={tab} value={tab} className="mt-4">
             <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {tab} arrives in a later phase.

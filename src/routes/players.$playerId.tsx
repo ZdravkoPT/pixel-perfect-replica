@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { getPlayerProfile } from "@/lib/intel.functions";
+import { PlayerSkillCard } from "@/components/PlayerSkillCard";
 
 const profileQuery = (playerId: string) =>
   queryOptions({
@@ -67,6 +68,8 @@ function PlayerProfile() {
             value={`${data.sample.matches} matches · ${data.sample.minutes}′`}
           />
         </div>
+
+        <PlayerSkillCard attributes={(data.attributes ?? null) as never} />
 
         <section>
           <h2 className="text-sm font-semibold">Per-90 averages</h2>

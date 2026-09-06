@@ -217,7 +217,14 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const supabase = publicClient();
 
-    const [{ data: player }, { data: memberships }, { data: injuries }, { data: stats }, { data: props }] =
+    const [
+      { data: player },
+      { data: memberships },
+      { data: injuries },
+      { data: stats },
+      { data: props },
+      { data: attributes },
+    ] =
       await Promise.all([
         supabase
           .from("players")
@@ -247,6 +254,15 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
           .eq("player_id", data.playerId)
           .order("probability", { ascending: false })
           .limit(12),
+        supabase
+          .from("player_attributes")
+          .select(
+            "overall, attacking, technical, creativity, defending, physical, rating, market_value, age, minutes, position_group, strengths, weaknesses, updated_at",
+          )
+          .eq("player_id", data.playerId)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
     const rows = stats ?? [];
@@ -314,6 +330,7 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
       passAccuracy,
       strengths,
       weaknesses,
+      attributes: attributes ?? null,
     };
   });
 
@@ -436,4 +453,114 @@ export const refreshKickoff = createServerFn({ method: "POST" })
     await assertAdmin(context.supabase as never, context.userId);
     const { runKickoffRefresh } = await import("./kickoff.server");
     return runKickoffRefresh({ triggeredBy: "manual", windowMinutes: 70 });
+  });
+
+/** Refresh FIFA-style player attribute cards for clubs with upcoming fixtures. */
+export const refreshAttributes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase as never, context.userId);
+    const { ingestPlayerAttributes } = await import("./attributes.server");
+    return ingestPlayerAttributes({ triggeredBy: "manual" });
+  });
+
+/** Re-run the past-10-week bet-builder review so the calibration stays current. */
+export const runBetHistoryReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase as never, context.userId);
+    const { runBetHistory } = await import("./bet-history.server");
+    return runBetHistory({ weeks: 10, triggeredBy: "manual" });
+  });
+
+/* ------------------------------------------------------------------ */
+/* Head to head                                                        */
+/* ------------------------------------------------------------------ */
+
+/** Previous meetings between the two clubs of a fixture, from our own archive. */
+export const getHeadToHead = createServerFn({ method: "GET" })
+  .inputValidator((input: { matchId: string }) => input)
+  .handler(async ({ data }) => {
+    const supabase = publicClient();
+    const { data: match } = await supabase
+      .from("matches")
+      .select(
+        "home_team_id, away_team_id, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)",
+      )
+      .eq("id", data.matchId)
+      .maybeSingle();
+
+    if (!match) return { meetings: [], summary: null, homeName: "Home", awayName: "Away" };
+
+    const homeId = match.home_team_id;
+    const awayId = match.away_team_id;
+    const homeName = (match.home as { name: string } | null)?.name ?? "Home";
+    const awayName = (match.away as { name: string } | null)?.name ?? "Away";
+
+    const { data: rows } = await supabase
+      .from("matches")
+      .select(
+        "id, kickoff_at, status, home_team_id, away_team_id, home_score, away_score, league:leagues(name)",
+      )
+      .neq("id", data.matchId)
+      .in("home_team_id", [homeId, awayId])
+      .in("away_team_id", [homeId, awayId])
+      .eq("status", "FINISHED")
+      .order("kickoff_at", { ascending: false })
+      .limit(20);
+
+    const meetings = (rows ?? []).filter(
+      (row) =>
+        (row.home_team_id === homeId && row.away_team_id === awayId) ||
+        (row.home_team_id === awayId && row.away_team_id === homeId),
+    );
+
+    let homeWins = 0;
+    let awayWins = 0;
+    let draws = 0;
+    let goalsHome = 0;
+    let goalsAway = 0;
+    let over25 = 0;
+    let btts = 0;
+    for (const row of meetings) {
+      const hs = row.home_score ?? 0;
+      const as = row.away_score ?? 0;
+      const isHomeTeamHome = row.home_team_id === homeId;
+      const forHome = isHomeTeamHome ? hs : as;
+      const forAway = isHomeTeamHome ? as : hs;
+      goalsHome += forHome;
+      goalsAway += forAway;
+      if (forHome > forAway) homeWins += 1;
+      else if (forAway > forHome) awayWins += 1;
+      else draws += 1;
+      if (hs + as > 2.5) over25 += 1;
+      if (hs > 0 && as > 0) btts += 1;
+    }
+
+    const played = meetings.length;
+    return {
+      homeName,
+      awayName,
+      meetings: meetings.map((row) => ({
+        id: row.id,
+        kickoffAt: row.kickoff_at,
+        league: (row.league as { name: string } | null)?.name ?? "Unknown league",
+        homeTeam: row.home_team_id === homeId ? homeName : awayName,
+        awayTeam: row.away_team_id === homeId ? homeName : awayName,
+        homeScore: row.home_score,
+        awayScore: row.away_score,
+      })),
+      summary: played
+        ? {
+            played,
+            homeWins,
+            draws,
+            awayWins,
+            goalsHome,
+            goalsAway,
+            over25Rate: over25 / played,
+            bttsRate: btts / played,
+          }
+        : null,
+    };
   });

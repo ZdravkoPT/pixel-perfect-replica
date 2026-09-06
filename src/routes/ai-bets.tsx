@@ -80,6 +80,71 @@ function AiBetsPage() {
               </p>
             )}
 
+            {data.history ? (
+              <section className="rounded-lg border border-border bg-card p-5">
+                <h2 className="text-sm font-semibold">
+                  Past {data.history.weeks} weeks — graded record
+                </h2>
+                <div className="mt-3 grid gap-3 sm:grid-cols-4">
+                  <Fact
+                    label="Bets settled"
+                    value={`${data.history.wins}/${data.history.picks}`}
+                  />
+                  <Fact
+                    label="Hit rate"
+                    value={`${((Number(data.history.hit_rate) || 0) * 100).toFixed(1)}%`}
+                  />
+                  <Fact
+                    label="Model expected"
+                    value={`${((Number(data.history.expected_hit_rate) || 0) * 100).toFixed(1)}%`}
+                  />
+                  <Fact
+                    label="Return per unit"
+                    value={`${((Number(data.history.roi_market) || 0) * 100).toFixed(1)}%`}
+                  />
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Today's percentages below are adjusted with this record, so markets that have been
+                  over-optimistic are toned down automatically.
+                </p>
+              </section>
+            ) : (
+              <p className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">
+                No graded 10-week review has been run yet, so today's percentages are the raw model
+                output.
+              </p>
+            )}
+
+            {data.builder ? (
+              <section className="rounded-lg border border-primary/40 bg-card p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold">Bet builder</h2>
+                  <span className="font-mono text-sm tabular-nums">
+                    {(data.builder.probability * 100).toFixed(1)}% ·{" "}
+                    {data.builder.fairOdds.toFixed(2)}
+                  </span>
+                </div>
+                <ul className="mt-3 space-y-1 text-xs">
+                  {data.builder.legs.map((leg, index) => (
+                    <li key={`${leg.matchId}-${index}`} className="flex justify-between gap-3">
+                      <span>
+                        {leg.selection}
+                        <span className="ml-2 text-muted-foreground">{leg.fixture}</span>
+                      </span>
+                      <span className="font-mono tabular-nums text-muted-foreground">
+                        {(leg.probability * 100).toFixed(1)}%
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <StakeCalculator
+                  probability={data.builder.probability}
+                  fairOdds={data.builder.fairOdds}
+                  settings={settings}
+                />
+              </section>
+            ) : null}
+
             <StakeSettings value={settings} onChange={setSettings} />
 
             <section>
