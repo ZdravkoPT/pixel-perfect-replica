@@ -44,6 +44,8 @@ function AdminPage() {
   const runOfficials = useServerFn(syncOfficials);
   const runIntelFn = useServerFn(refreshIntel);
   const runKickoffFn = useServerFn(refreshKickoff);
+  const runAttributesFn = useServerFn(refreshAttributes);
+  const runBetHistoryFn = useServerFn(runBetHistoryReview);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -154,6 +156,20 @@ function AdminPage() {
             onClick={() => runTask("Kickoff refresh", () => runKickoffFn())}
           >
             Run T-60 kickoff refresh
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Player skill cards", () => runAttributesFn())}
+          >
+            Refresh player skill cards
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Bet review", () => runBetHistoryFn())}
+          >
+            Review last 10 weeks of bets
           </Button>
 
         </div>
