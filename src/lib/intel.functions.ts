@@ -254,6 +254,15 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
           .eq("player_id", data.playerId)
           .order("probability", { ascending: false })
           .limit(12),
+        supabase
+          .from("player_attributes")
+          .select(
+            "overall, attacking, technical, creativity, defending, physical, rating, market_value, age, minutes, position_group, strengths, weaknesses, updated_at",
+          )
+          .eq("player_id", data.playerId)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
     const rows = stats ?? [];
