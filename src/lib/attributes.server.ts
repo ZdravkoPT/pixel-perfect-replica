@@ -234,7 +234,7 @@ export async function ingestPlayerAttributes(
 
     // Our players for this club, so provider members can be matched by name.
     const { data: memberships } = await supabaseAdmin
-      .from("player_team_memberships")
+      .from("squad_memberships")
       .select("player_id, player:players(id, name, provider_ids)")
       .eq("team_id", team.id)
       .eq("is_current", true)
@@ -314,7 +314,7 @@ export async function teamStrengthIndex(teamIds: string[]): Promise<Map<string, 
   if (teamIds.length === 0) return strength;
 
   const { data } = await supabaseAdmin
-    .from("player_team_memberships")
+    .from("squad_memberships")
     .select("team_id, player:players(player_attributes(overall))")
     .in("team_id", teamIds)
     .eq("is_current", true);
