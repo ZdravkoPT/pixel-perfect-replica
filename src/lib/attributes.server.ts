@@ -71,7 +71,32 @@ const BUCKETS: Record<string, keyof Buckets> = {
   ground_duels_won: "physical",
   fouls_won: "physical",
   possession_won: "physical",
+
+  // Keys observed live on FotMob's public profiles.
+  shot_attempts_: "attacking",
+  clean_sheet: "defending",
+  goals_conceded: "defending",
+  keeper_high_claim: "defending",
+  keeper_sweeper_actions: "defending",
+  long_ball_succeeeded_accuracy: "technical",
 };
+
+/** Keyword fallback so new provider metric names still land in a bucket. */
+const KEYWORDS: Array<[RegExp, keyof Buckets]> = [
+  [/goal_?conceded|save|clean_?sheet|keeper|tackle|interception|block|clearance|defensive|recover/, "defending"],
+  [/assist|chance|cross|through_?ball|key_?pass|final_?third/, "creativity"],
+  [/goal|shot|xg|conversion|penalt|header/, "attacking"],
+  [/pass|touch|dribbl|ball|carry|possession_?won?_?final/, "technical"],
+  [/aerial|duel|foul|physical|distance|sprint|recovery/, "physical"],
+];
+
+function bucketFor(key: string): keyof Buckets | null {
+  const direct = BUCKETS[key];
+  if (direct) return direct;
+  for (const [pattern, bucket] of KEYWORDS) if (pattern.test(key)) return bucket;
+  return null;
+}
+
 
 interface Buckets {
   attacking: number[];
@@ -109,7 +134,7 @@ export function buildAttributeCard(
   };
 
   for (const trait of traits) {
-    const bucket = BUCKETS[trait.key];
+    const bucket = bucketFor(trait.key);
     if (bucket) buckets[bucket].push(trait.value);
   }
 
@@ -234,7 +259,7 @@ export async function ingestPlayerAttributes(
 
     // Our players for this club, so provider members can be matched by name.
     const { data: memberships } = await supabaseAdmin
-      .from("player_team_memberships")
+      .from("squad_memberships")
       .select("player_id, player:players(id, name, provider_ids)")
       .eq("team_id", team.id)
       .eq("is_current", true)
@@ -314,7 +339,7 @@ export async function teamStrengthIndex(teamIds: string[]): Promise<Map<string, 
   if (teamIds.length === 0) return strength;
 
   const { data } = await supabaseAdmin
-    .from("player_team_memberships")
+    .from("squad_memberships")
     .select("team_id, player:players(player_attributes(overall))")
     .in("team_id", teamIds)
     .eq("is_current", true);
