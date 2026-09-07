@@ -352,7 +352,9 @@ export const getAiBets = createServerFn({ method: "GET" })
     const [{ data: predictions }, { data: props }, { data: lineupRows }] = await Promise.all([
       supabase
         .from("predictions")
-        .select("match_id, prediction_timestamp, p_home, p_draw, p_away, p_over_25, p_under_25, p_btts, confidence")
+        .select(
+          "match_id, prediction_timestamp, p_home, p_draw, p_away, p_over_25, p_under_25, p_btts, confidence, lambda_home, lambda_away, expected_goals, top_scoreline",
+        )
         .in("match_id", ids)
         .order("prediction_timestamp", { ascending: false }),
       supabase
@@ -364,6 +366,7 @@ export const getAiBets = createServerFn({ method: "GET" })
         .limit(60),
       supabase.from("lineups").select("match_id, is_predicted").in("match_id", ids),
     ]);
+
 
     const lineupStatusByMatch = new Map<string, "confirmed" | "projected">();
     for (const row of lineupRows ?? []) {
