@@ -134,7 +134,7 @@ export function buildAttributeCard(
   };
 
   for (const trait of traits) {
-    const bucket = BUCKETS[trait.key];
+    const bucket = bucketFor(trait.key);
     if (bucket) buckets[bucket].push(trait.value);
   }
 
