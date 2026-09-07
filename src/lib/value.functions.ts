@@ -449,16 +449,124 @@ export const getAiBets = createServerFn({ method: "GET" })
     candidates.sort((a, b) => b.score - a.score);
     const shortlist = candidates.slice(0, 24);
 
+    // ---- Mega slip: one leg for every fixture today, up to 20 -------------
+    // Each match gets the strongest 1X2 call when the model is confident there;
+    // otherwise it falls back to Over 0.5 goals, which is derived from the
+    // stored Poisson goal rates (1 - probability of a 0-0).
+    type MegaLeg = {
+      matchId: string;
+      fixture: string;
+      league: string;
+      kickoffAt: string;
+      market: "1x2" | "over05";
+      selection: string;
+      probability: number;
+      fairOdds: number;
+      confidence: number | null;
+      lineupStatus: "confirmed" | "projected" | "none";
+      facts: string[];
+      opinion?: string;
+    };
+
+    const oneX2Floor = 0.5;
+    const megaLegs: MegaLeg[] = [];
+    for (const match of rows) {
+      const prediction = latest.get(match.id);
+      if (!prediction) continue;
+      const homeName = match.home?.name ?? "Home";
+      const awayName = match.away?.name ?? "Away";
+      const fixture = `${homeName} vs ${awayName}`;
+      const lineupStatus = lineupStatusByMatch.get(match.id) ?? "none";
+      const confidence = prediction.confidence === null ? null : Number(prediction.confidence);
+      const lh = Number(prediction.lambda_home ?? 0);
+      const la = Number(prediction.lambda_away ?? 0);
+      const total = lh + la;
+
+      const oneX2 = [
+        { selection: `${homeName} to win`, p: Number(prediction.p_home) },
+        { selection: "Draw", p: Number(prediction.p_draw) },
+        { selection: `${awayName} to win`, p: Number(prediction.p_away) },
+      ].reduce((a, b) => (b.p > a.p ? b : a));
+      const oneX2Adjusted = adjust(
+        oneX2.selection === "Draw" ? "draw" : oneX2.selection.startsWith(homeName) ? "home" : "away",
+        oneX2.p,
+      );
+
+      const pOver05 = total > 0 ? 1 - Math.exp(-total) : null;
+      const facts = [
+        `Goal rates ${lh.toFixed(2)} – ${la.toFixed(2)} (${Number(prediction.expected_goals ?? total).toFixed(2)} total)`,
+        `1X2 ${(Number(prediction.p_home) * 100).toFixed(0)}/${(Number(prediction.p_draw) * 100).toFixed(0)}/${(Number(prediction.p_away) * 100).toFixed(0)}`,
+        prediction.p_over_25 === null
+          ? null
+          : `Over 2.5 ${(Number(prediction.p_over_25) * 100).toFixed(0)}%`,
+        prediction.p_btts === null ? null : `Both score ${(Number(prediction.p_btts) * 100).toFixed(0)}%`,
+        prediction.top_scoreline ? `Most likely score ${prediction.top_scoreline}` : null,
+        lineupStatus === "confirmed"
+          ? "Confirmed team sheet"
+          : lineupStatus === "projected"
+            ? "Projected line-up only"
+            : "No line-up published yet",
+      ].filter((value): value is string => Boolean(value));
+
+      if (oneX2Adjusted >= oneX2Floor) {
+        megaLegs.push({
+          matchId: match.id,
+          fixture,
+          league: match.league?.name ?? "Unknown league",
+          kickoffAt: match.kickoff_at,
+          market: "1x2",
+          selection: oneX2.selection,
+          probability: oneX2Adjusted,
+          fairOdds: odds(oneX2Adjusted),
+          confidence,
+          lineupStatus,
+          facts,
+        });
+      } else if (pOver05 !== null) {
+        const adjusted = Math.min(0.985, adjust("over05", pOver05));
+        megaLegs.push({
+          matchId: match.id,
+          fixture,
+          league: match.league?.name ?? "Unknown league",
+          kickoffAt: match.kickoff_at,
+          market: "over05",
+          selection: "Over 0.5 goals",
+          probability: adjusted,
+          fairOdds: odds(adjusted),
+          confidence,
+          lineupStatus,
+          facts: [...facts, `No 1X2 call clears ${(oneX2Floor * 100).toFixed(0)}%`],
+        });
+      }
+    }
+    megaLegs.sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
+    const slipLegs = megaLegs.slice(0, 20);
+    const slipProbability = slipLegs.reduce((acc, leg) => acc * leg.probability, 1);
+    const megaSlip =
+      slipLegs.length >= 2
+        ? {
+            legs: slipLegs,
+            probability: slipProbability,
+            fairOdds: odds(slipProbability),
+            oneX2Legs: slipLegs.filter((leg) => leg.market === "1x2").length,
+            over05Legs: slipLegs.filter((leg) => leg.market === "over05").length,
+            averageProbability:
+              slipLegs.reduce((acc, leg) => acc + leg.probability, 0) / slipLegs.length,
+          }
+        : null;
+
     if (shortlist.length === 0) {
       return {
         candidates: [],
         builder: null,
+        megaSlip,
         history: historyRun,
         brief: null,
         generatedAt: now.toISOString(),
         reason: "no-signals" as const,
       };
     }
+
 
     // Programmatic accumulator: strongest calibrated leg per fixture, at most
     // one leg per match so the legs stay statistically independent.
