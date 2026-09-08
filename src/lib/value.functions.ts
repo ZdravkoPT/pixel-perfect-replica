@@ -645,6 +645,11 @@ export const getAiBets = createServerFn({ method: "GET" })
                     ? `\n\nPre-built accumulator (one leg per match, independent): ${builder.legs
                         .map((leg) => `${leg.selection} (${(leg.probability * 100).toFixed(1)}%)`)
                         .join(" + ")} = ${(builder.probability * 100).toFixed(1)}% @ ${builder.fairOdds.toFixed(2)}`
+                    : "") +
+                  (megaSlip
+                    ? `\n\nMega slip of ${megaSlip.legs.length} matches (${megaSlip.oneX2Legs} match-result legs, ${megaSlip.over05Legs} over 0.5 goals legs), combined ${(megaSlip.probability * 100).toFixed(2)}% @ ${megaSlip.fairOdds.toFixed(2)}: ${megaSlip.legs
+                        .map((leg) => `${leg.fixture} ${leg.selection} (${(leg.probability * 100).toFixed(1)}%)`)
+                        .join("; ")}`
                     : ""),
               },
             ],
@@ -657,11 +662,66 @@ export const getAiBets = createServerFn({ method: "GET" })
       } catch {
         brief = null;
       }
+
+      // Per-match opinions for the mega slip, one short verdict each.
+      if (megaSlip) {
+        try {
+          const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "google/gemini-3.7-flash",
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You write one-sentence betting verdicts per match using ONLY the supplied model numbers. " +
+                    "Return JSON only: an object with key \"opinions\", an array of {\"matchId\":string,\"opinion\":string}. " +
+                    "Each opinion is max 25 words, mentions the key number, and flags line-up or volatility risk when relevant. Never promise profit.",
+                },
+                {
+                  role: "user",
+                  content: megaSlip.legs
+                    .map(
+                      (leg) =>
+                        `matchId ${leg.matchId}: ${leg.fixture} (${leg.league}) — pick ${leg.selection} at ${(leg.probability * 100).toFixed(1)}%. Facts: ${leg.facts.join("; ")}`,
+                    )
+                    .join("\n"),
+                },
+              ],
+              response_format: { type: "json_object" },
+            }),
+          });
+          if (response.ok) {
+            const payload = (await response.json()) as {
+              choices?: Array<{ message?: { content?: string } }>;
+            };
+            const raw = payload.choices?.[0]?.message?.content;
+            if (raw) {
+              const parsed = JSON.parse(raw) as {
+                opinions?: Array<{ matchId?: string; opinion?: string }>;
+              };
+              const byId = new Map(
+                (parsed.opinions ?? [])
+                  .filter((row) => row.matchId && row.opinion)
+                  .map((row) => [row.matchId as string, row.opinion as string]),
+              );
+              for (const leg of megaSlip.legs) {
+                const opinion = byId.get(leg.matchId);
+                if (opinion) leg.opinion = opinion;
+              }
+            }
+          }
+        } catch {
+          // opinions are optional; the slip stands without them
+        }
+      }
     }
 
     return {
       candidates: shortlist,
       builder,
+      megaSlip,
       history: historyRun,
       brief,
       generatedAt: now.toISOString(),
