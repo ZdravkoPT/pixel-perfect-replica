@@ -450,17 +450,20 @@ export const getAiBets = createServerFn({ method: "GET" })
     const shortlist = candidates.slice(0, 24);
 
     // ---- Mega slip: one leg for every fixture today, up to 20 -------------
-    // Each match gets the strongest 1X2 call when the model is confident there;
-    // otherwise it falls back to Over 0.5 goals, which is derived from the
-    // stored Poisson goal rates (1 - probability of a 0-0).
+    // For every fixture we build a full market menu out of the stored model
+    // output (1X2, double chance, Poisson goal lines, both-teams-to-score) and
+    // pick the leg with the best mix of safety and price after calibration and
+    // a reliability discount for stale predictions / unknown line-ups.
     type MegaLeg = {
       matchId: string;
       fixture: string;
       league: string;
       kickoffAt: string;
-      market: "1x2" | "over05";
+      market: "1x2" | "double_chance" | "goals" | "btts" | "over05";
+      marketLabel: string;
       selection: string;
       probability: number;
+      modelProbability: number;
       fairOdds: number;
       confidence: number | null;
       lineupStatus: "confirmed" | "projected" | "none";
@@ -468,7 +471,35 @@ export const getAiBets = createServerFn({ method: "GET" })
       opinion?: string;
     };
 
-    const oneX2Floor = 0.5;
+    // Independent-Poisson scoreline grid from the stored goal rates.
+    const poissonGrid = (lh: number, la: number) => {
+      const pmf = (lambda: number, k: number) => {
+        let p = Math.exp(-lambda);
+        for (let i = 1; i <= k; i += 1) p = (p * lambda) / i;
+        return p;
+      };
+      const max = 9;
+      const grid: number[][] = [];
+      for (let h = 0; h <= max; h += 1) {
+        grid[h] = [];
+        for (let a = 0; a <= max; a += 1) grid[h][a] = pmf(lh, h) * pmf(la, a);
+      }
+      const totalAtMost = (line: number) => {
+        let acc = 0;
+        for (let h = 0; h <= max; h += 1)
+          for (let a = 0; a <= max; a += 1) if (h + a <= line) acc += grid[h][a];
+        return acc;
+      };
+      let bttsNo = 0;
+      for (let h = 0; h <= max; h += 1)
+        for (let a = 0; a <= max; a += 1) if (h === 0 || a === 0) bttsNo += grid[h][a];
+      return {
+        over: (line: number) => Math.max(0, Math.min(1, 1 - totalAtMost(Math.floor(line)))),
+        under: (line: number) => Math.max(0, Math.min(1, totalAtMost(Math.floor(line)))),
+        bttsNo: Math.max(0, Math.min(1, bttsNo)),
+      };
+    };
+
     const megaLegs: MegaLeg[] = [];
     for (const match of rows) {
       const prediction = latest.get(match.id);
@@ -478,29 +509,87 @@ export const getAiBets = createServerFn({ method: "GET" })
       const fixture = `${homeName} vs ${awayName}`;
       const lineupStatus = lineupStatusByMatch.get(match.id) ?? "none";
       const confidence = prediction.confidence === null ? null : Number(prediction.confidence);
+      const pHome = Number(prediction.p_home);
+      const pDraw = Number(prediction.p_draw);
+      const pAway = Number(prediction.p_away);
       const lh = Number(prediction.lambda_home ?? 0);
       const la = Number(prediction.lambda_away ?? 0);
       const total = lh + la;
+      const grid = total > 0 ? poissonGrid(lh, la) : null;
 
-      const oneX2 = [
-        { selection: `${homeName} to win`, p: Number(prediction.p_home) },
-        { selection: "Draw", p: Number(prediction.p_draw) },
-        { selection: `${awayName} to win`, p: Number(prediction.p_away) },
-      ].reduce((a, b) => (b.p > a.p ? b : a));
-      const oneX2Adjusted = adjust(
-        oneX2.selection === "Draw" ? "draw" : oneX2.selection.startsWith(homeName) ? "home" : "away",
-        oneX2.p,
-      );
+      // Reliability: how much we trust the stored numbers for this fixture.
+      const ageHours =
+        (now.getTime() - new Date(prediction.prediction_timestamp).getTime()) / 3_600_000;
+      const reliability =
+        (lineupStatus === "confirmed" ? 1 : lineupStatus === "projected" ? 0.985 : 0.97) *
+        (ageHours > 48 ? 0.96 : ageHours > 12 ? 0.985 : 1) *
+        (0.97 + 0.03 * (confidence ?? 0.5));
+      // Shrink every probability towards a neutral 0.5 by the reliability gap so
+      // over-confident model calls cannot dominate the slip.
+      const temper = (p: number) => 0.5 + (p - 0.5) * reliability;
 
-      const pOver05 = total > 0 ? 1 - Math.exp(-total) : null;
+      type Option = {
+        market: MegaLeg["market"];
+        marketLabel: string;
+        selection: string;
+        calibrationKey: string;
+        p: number;
+      };
+      const options: Option[] = [
+        { market: "1x2", marketLabel: "Match result", selection: `${homeName} to win`, calibrationKey: "home", p: pHome },
+        { market: "1x2", marketLabel: "Match result", selection: "Draw", calibrationKey: "draw", p: pDraw },
+        { market: "1x2", marketLabel: "Match result", selection: `${awayName} to win`, calibrationKey: "away", p: pAway },
+        { market: "double_chance", marketLabel: "Double chance", selection: `${homeName} or draw`, calibrationKey: "dc_home", p: pHome + pDraw },
+        { market: "double_chance", marketLabel: "Double chance", selection: `${awayName} or draw`, calibrationKey: "dc_away", p: pAway + pDraw },
+        { market: "double_chance", marketLabel: "Double chance", selection: "Home or away (no draw)", calibrationKey: "dc_nodraw", p: pHome + pAway },
+      ];
+      if (grid) {
+        options.push(
+          { market: "over05", marketLabel: "Goals", selection: "Over 0.5 goals", calibrationKey: "over05", p: grid.over(0.5) },
+          { market: "goals", marketLabel: "Goals", selection: "Over 1.5 goals", calibrationKey: "over15", p: grid.over(1.5) },
+          { market: "goals", marketLabel: "Goals", selection: "Under 4.5 goals", calibrationKey: "under45", p: grid.under(4.5) },
+          { market: "goals", marketLabel: "Goals", selection: "Under 3.5 goals", calibrationKey: "under35", p: grid.under(3.5) },
+        );
+      }
+      if (prediction.p_over_25 !== null)
+        options.push({ market: "goals", marketLabel: "Goals", selection: "Over 2.5 goals", calibrationKey: "over25", p: Number(prediction.p_over_25) });
+      if (prediction.p_btts !== null) {
+        const btts = Number(prediction.p_btts);
+        options.push({ market: "btts", marketLabel: "Both teams to score", selection: "Both teams to score", calibrationKey: "btts", p: btts });
+        options.push({ market: "btts", marketLabel: "Both teams to score", selection: "Both teams to score — no", calibrationKey: "btts_no", p: grid ? grid.bttsNo : 1 - btts });
+      }
+
+      const priced = options
+        .filter((option) => Number.isFinite(option.p) && option.p > 0)
+        .map((option) => {
+          const calibrated = Math.min(0.985, Math.max(0.02, adjust(option.calibrationKey, option.p)));
+          const probability = Math.min(0.985, Math.max(0.02, temper(calibrated)));
+          return { ...option, probability };
+        });
+      if (priced.length === 0) continue;
+
+      // Safety floor first, then take the best price among the safe options so
+      // the slip is not made of near-certain 1.02 legs that add no value.
+      const safeFloor = 0.72;
+      const safe = priced.filter((option) => option.probability >= safeFloor);
+      const pool = safe.length > 0 ? safe : priced;
+      const pick = pool.reduce((best, option) => {
+        const score = (candidate: typeof option) =>
+          safe.length > 0
+            ? // among safe options prefer the longest price, lightly weighted by safety
+              (1 / candidate.probability) * Math.pow(candidate.probability, 0.35)
+            : candidate.probability;
+        return score(option) > score(best) ? option : best;
+      });
+
       const facts = [
         `Goal rates ${lh.toFixed(2)} – ${la.toFixed(2)} (${Number(prediction.expected_goals ?? total).toFixed(2)} total)`,
-        `1X2 ${(Number(prediction.p_home) * 100).toFixed(0)}/${(Number(prediction.p_draw) * 100).toFixed(0)}/${(Number(prediction.p_away) * 100).toFixed(0)}`,
-        prediction.p_over_25 === null
-          ? null
-          : `Over 2.5 ${(Number(prediction.p_over_25) * 100).toFixed(0)}%`,
+        `1X2 ${(pHome * 100).toFixed(0)}/${(pDraw * 100).toFixed(0)}/${(pAway * 100).toFixed(0)}`,
+        grid ? `Over 1.5 ${(grid.over(1.5) * 100).toFixed(0)}% · Under 4.5 ${(grid.under(4.5) * 100).toFixed(0)}%` : null,
+        prediction.p_over_25 === null ? null : `Over 2.5 ${(Number(prediction.p_over_25) * 100).toFixed(0)}%`,
         prediction.p_btts === null ? null : `Both score ${(Number(prediction.p_btts) * 100).toFixed(0)}%`,
         prediction.top_scoreline ? `Most likely score ${prediction.top_scoreline}` : null,
+        `Model call ${(pick.p * 100).toFixed(0)}% → calibrated ${(pick.probability * 100).toFixed(0)}%`,
         lineupStatus === "confirmed"
           ? "Confirmed team sheet"
           : lineupStatus === "projected"
@@ -508,39 +597,28 @@ export const getAiBets = createServerFn({ method: "GET" })
             : "No line-up published yet",
       ].filter((value): value is string => Boolean(value));
 
-      if (oneX2Adjusted >= oneX2Floor) {
-        megaLegs.push({
-          matchId: match.id,
-          fixture,
-          league: match.league?.name ?? "Unknown league",
-          kickoffAt: match.kickoff_at,
-          market: "1x2",
-          selection: oneX2.selection,
-          probability: oneX2Adjusted,
-          fairOdds: odds(oneX2Adjusted),
-          confidence,
-          lineupStatus,
-          facts,
-        });
-      } else if (pOver05 !== null) {
-        const adjusted = Math.min(0.985, adjust("over05", pOver05));
-        megaLegs.push({
-          matchId: match.id,
-          fixture,
-          league: match.league?.name ?? "Unknown league",
-          kickoffAt: match.kickoff_at,
-          market: "over05",
-          selection: "Over 0.5 goals",
-          probability: adjusted,
-          fairOdds: odds(adjusted),
-          confidence,
-          lineupStatus,
-          facts: [...facts, `No 1X2 call clears ${(oneX2Floor * 100).toFixed(0)}%`],
-        });
-      }
+      megaLegs.push({
+        matchId: match.id,
+        fixture,
+        league: match.league?.name ?? "Unknown league",
+        kickoffAt: match.kickoff_at,
+        market: pick.market,
+        marketLabel: pick.marketLabel,
+        selection: pick.selection,
+        probability: pick.probability,
+        modelProbability: pick.p,
+        fairOdds: odds(pick.probability),
+        confidence,
+        lineupStatus,
+        facts,
+      });
     }
-    megaLegs.sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
-    const slipLegs = megaLegs.slice(0, 20);
+    // Keep the twenty most reliable legs, then present them by kick-off time.
+    const slipLegs = megaLegs
+      .slice()
+      .sort((a, b) => b.probability - a.probability)
+      .slice(0, 20)
+      .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
     const slipProbability = slipLegs.reduce((acc, leg) => acc * leg.probability, 1);
     const megaSlip =
       slipLegs.length >= 2
@@ -552,8 +630,15 @@ export const getAiBets = createServerFn({ method: "GET" })
             over05Legs: slipLegs.filter((leg) => leg.market === "over05").length,
             averageProbability:
               slipLegs.reduce((acc, leg) => acc + leg.probability, 0) / slipLegs.length,
+            marketMix: Array.from(
+              slipLegs.reduce((map, leg) => {
+                map.set(leg.marketLabel, (map.get(leg.marketLabel) ?? 0) + 1);
+                return map;
+              }, new Map<string, number>()),
+            ).map(([label, count]) => ({ label, count })),
           }
         : null;
+
 
     if (shortlist.length === 0) {
       return {

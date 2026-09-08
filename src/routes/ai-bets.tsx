@@ -159,11 +159,13 @@ function AiBetsPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {data.megaSlip.oneX2Legs} match-result picks · {data.megaSlip.over05Legs} over 0.5
-                  goals picks · average leg {(data.megaSlip.averageProbability * 100).toFixed(1)}%.
+                  {data.megaSlip.marketMix.map((entry) => `${entry.count} ${entry.label.toLowerCase()}`).join(" · ")} ·
+                  average leg {(data.megaSlip.averageProbability * 100).toFixed(1)}%. Every pick is
+                  the best-priced call that still clears the safety floor after calibration.
                   A slip this long is very unlikely to land in full — most people play the legs
                   singly or in small combinations.
                 </p>
+
                 <div className="mt-4 space-y-2">
                   {data.megaSlip.legs.map((leg, index) => (
                     <div key={`${leg.matchId}-${index}`} className="rounded border border-border bg-background p-3">
@@ -184,8 +186,9 @@ function AiBetsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant={leg.market === "1x2" ? "outline" : "secondary"}>
-                            {leg.market === "1x2" ? "Match result" : "Over 0.5"}
+                            {leg.marketLabel}
                           </Badge>
+
                           <span className="font-mono text-sm tabular-nums">
                             {(leg.probability * 100).toFixed(1)}% · {leg.fairOdds.toFixed(2)}
                           </span>
