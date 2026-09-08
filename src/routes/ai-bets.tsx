@@ -147,6 +147,75 @@ function AiBetsPage() {
 
             <StakeSettings value={settings} onChange={setSettings} />
 
+            {data.megaSlip ? (
+              <section className="rounded-lg border border-border bg-card p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold">
+                    Mega slip — {data.megaSlip.legs.length} matches
+                  </h2>
+                  <span className="font-mono text-sm tabular-nums">
+                    {(data.megaSlip.probability * 100).toFixed(2)}% ·{" "}
+                    {data.megaSlip.fairOdds.toFixed(2)}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {data.megaSlip.oneX2Legs} match-result picks · {data.megaSlip.over05Legs} over 0.5
+                  goals picks · average leg {(data.megaSlip.averageProbability * 100).toFixed(1)}%.
+                  A slip this long is very unlikely to land in full — most people play the legs
+                  singly or in small combinations.
+                </p>
+                <div className="mt-4 space-y-2">
+                  {data.megaSlip.legs.map((leg, index) => (
+                    <div key={`${leg.matchId}-${index}`} className="rounded border border-border bg-background p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium">{leg.selection}</p>
+                          <Link
+                            to="/matches/$matchId"
+                            params={{ matchId: leg.matchId }}
+                            className="text-xs text-muted-foreground hover:text-primary"
+                          >
+                            {leg.fixture} · {leg.league} ·{" "}
+                            {new Date(leg.kickoffAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </Link>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={leg.market === "1x2" ? "outline" : "secondary"}>
+                            {leg.market === "1x2" ? "Match result" : "Over 0.5"}
+                          </Badge>
+                          <span className="font-mono text-sm tabular-nums">
+                            {(leg.probability * 100).toFixed(1)}% · {leg.fairOdds.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                      {leg.opinion ? (
+                        <p className="mt-2 text-xs text-muted-foreground">{leg.opinion}</p>
+                      ) : null}
+                      <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                        {leg.facts.map((fact, factIndex) => (
+                          <li key={factIndex}>{fact}</li>
+                        ))}
+                      </ul>
+                      <StakeCalculator
+                        probability={leg.probability}
+                        fairOdds={leg.fairOdds}
+                        settings={settings}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <StakeCalculator
+                  probability={data.megaSlip.probability}
+                  fairOdds={data.megaSlip.fairOdds}
+                  settings={settings}
+                />
+              </section>
+            ) : null}
+
+
             <section>
               <h2 className="text-sm font-semibold">Ranked signals</h2>
               <div className="mt-3 space-y-2">
