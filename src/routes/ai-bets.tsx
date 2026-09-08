@@ -186,8 +186,9 @@ function AiBetsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant={leg.market === "1x2" ? "outline" : "secondary"}>
-                            {leg.market === "1x2" ? "Match result" : "Over 0.5"}
+                            {leg.marketLabel}
                           </Badge>
+
                           <span className="font-mono text-sm tabular-nums">
                             {(leg.probability * 100).toFixed(1)}% · {leg.fairOdds.toFixed(2)}
                           </span>
