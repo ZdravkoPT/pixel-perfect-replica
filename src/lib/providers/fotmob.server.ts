@@ -184,6 +184,87 @@ export class FotmobProvider {
     });
   }
 
+  /**
+   * Rich match facts: referee/stadium info, team form, head-to-head summary,
+   * live match stats and the timeline of goals, cards and substitutions.
+   */
+  async getMatchFacts(providerMatchId: string): Promise<ProviderResult<MatchFacts>> {
+    const result = await this.request<Record<string, any>>(
+      `/matchDetails?matchId=${providerMatchId}`,
+    );
+    if (!result.ok) return result;
+
+    const content = (result.data["content"] ?? {}) as Record<string, any>;
+    const matchFacts = (content["matchFacts"] ?? {}) as Record<string, any>;
+    const infoBox = (matchFacts["infoBox"] ?? {}) as Record<string, any>;
+
+    const info: Array<{ label: string; value: string }> = [];
+    const pushInfo = (label: string, value: unknown) => {
+      if (typeof value === "string" && value.trim()) info.push({ label, value: value.trim() });
+    };
+    pushInfo("Referee", infoBox["Referee"]?.text ?? infoBox["Referee"]?.name);
+    pushInfo("Stadium", infoBox["Stadium"]?.name ?? infoBox["Stadium"]?.text);
+    pushInfo("Attendance", infoBox["Attendance"] ? String(infoBox["Attendance"]) : undefined);
+    pushInfo("Tournament", infoBox["Tournament"]?.text ?? infoBox["Tournament"]?.leagueName);
+    pushInfo("Kick off", infoBox["Match Date"]?.utcTime);
+
+    const statGroups: MatchFacts["statGroups"] = [];
+    const periods = (content["stats"] ?? {})["Periods"] ?? {};
+    const all = periods["All"] ?? {};
+    for (const group of (all["stats"] ?? []) as any[]) {
+      const items: Array<{ title: string; home: string; away: string }> = [];
+      for (const stat of (group?.stats ?? []) as any[]) {
+        const values = stat?.stats ?? stat?.value;
+        if (!Array.isArray(values) || values.length < 2) continue;
+        items.push({
+          title: String(stat?.title ?? ""),
+          home: String(values[0] ?? ""),
+          away: String(values[1] ?? ""),
+        });
+      }
+      if (items.length > 0) statGroups.push({ title: String(group?.title ?? "Stats"), items });
+    }
+
+    const events: MatchFacts["events"] = [];
+    for (const event of ((matchFacts["events"] ?? {})["events"] ?? []) as any[]) {
+      const type = String(event?.type ?? "");
+      if (!type) continue;
+      events.push({
+        minute: typeof event?.time === "number" ? event.time : null,
+        type,
+        team: event?.isHome === true ? "home" : event?.isHome === false ? "away" : null,
+        player: event?.player?.name ?? event?.nameStr ?? null,
+        detail:
+          event?.swap?.[0]?.name ??
+          event?.assistStr ??
+          (typeof event?.card === "string" ? event.card : null),
+      });
+    }
+
+    const form: MatchFacts["form"] = [];
+    for (const side of (matchFacts["teamForm"] ?? []) as any[]) {
+      const results: string[] = [];
+      for (const entry of (side ?? []) as any[]) {
+        const outcome = String(entry?.resultString ?? entry?.result ?? "").trim();
+        if (outcome) results.push(outcome);
+      }
+      form.push(results);
+    }
+
+    const h2h: MatchFacts["h2h"] = [];
+    for (const match of ((content["h2h"] ?? {})["matches"] ?? []) as any[]) {
+      h2h.push({
+        date: String(match?.status?.utcTime ?? match?.time ?? ""),
+        home: String(match?.home?.name ?? ""),
+        away: String(match?.away?.name ?? ""),
+        score: String(match?.status?.scoreStr ?? ""),
+        league: String(match?.league?.name ?? match?.tournament?.name ?? ""),
+      });
+    }
+
+    return ok({ info, statGroups, events, form, h2h });
+  }
+
   /** Resolves a FotMob team id from a club name (free search endpoint). */
   async findTeamId(name: string): Promise<string | null> {
     const result = await this.request<
@@ -291,4 +372,18 @@ export interface SquadMember {
   redCards: number;
   injured: boolean;
   marketValue: number | null;
+}
+
+export interface MatchFacts {
+  info: Array<{ label: string; value: string }>;
+  statGroups: Array<{ title: string; items: Array<{ title: string; home: string; away: string }> }>;
+  events: Array<{
+    minute: number | null;
+    type: string;
+    team: "home" | "away" | null;
+    player: string | null;
+    detail: string | null;
+  }>;
+  form: string[][];
+  h2h: Array<{ date: string; home: string; away: string; score: string; league: string }>;
 }

@@ -460,6 +460,7 @@ export const getAiBets = createServerFn({ method: "GET" })
       league: string;
       kickoffAt: string;
       market: "1x2" | "double_chance" | "goals" | "btts" | "over05";
+      pickCode: string;
       marketLabel: string;
       selection: string;
       probability: number;
@@ -481,18 +482,21 @@ export const getAiBets = createServerFn({ method: "GET" })
       const max = 9;
       const grid: number[][] = [];
       for (let h = 0; h <= max; h += 1) {
-        grid[h] = [];
-        for (let a = 0; a <= max; a += 1) grid[h][a] = pmf(lh, h) * pmf(la, a);
+        const row: number[] = [];
+        for (let a = 0; a <= max; a += 1) row.push(pmf(lh, h) * pmf(la, a));
+        grid.push(row);
       }
+      const cell = (h: number, a: number) => grid[h]?.[a] ?? 0;
       const totalAtMost = (line: number) => {
         let acc = 0;
         for (let h = 0; h <= max; h += 1)
-          for (let a = 0; a <= max; a += 1) if (h + a <= line) acc += grid[h][a];
+          for (let a = 0; a <= max; a += 1) if (h + a <= line) acc += cell(h, a);
         return acc;
       };
       let bttsNo = 0;
       for (let h = 0; h <= max; h += 1)
-        for (let a = 0; a <= max; a += 1) if (h === 0 || a === 0) bttsNo += grid[h][a];
+        for (let a = 0; a <= max; a += 1) if (h === 0 || a === 0) bttsNo += cell(h, a);
+
       return {
         over: (line: number) => Math.max(0, Math.min(1, 1 - totalAtMost(Math.floor(line)))),
         under: (line: number) => Math.max(0, Math.min(1, totalAtMost(Math.floor(line)))),
@@ -603,6 +607,7 @@ export const getAiBets = createServerFn({ method: "GET" })
         league: match.league?.name ?? "Unknown league",
         kickoffAt: match.kickoff_at,
         market: pick.market,
+        pickCode: pick.calibrationKey,
         marketLabel: pick.marketLabel,
         selection: pick.selection,
         probability: pick.probability,
@@ -645,6 +650,7 @@ export const getAiBets = createServerFn({ method: "GET" })
         candidates: [],
         builder: null,
         megaSlip,
+        record: { today: [], recent: [], summary: null } as Awaited<ReturnType<typeof loadBetLog>>,
         history: historyRun,
         brief: null,
         generatedAt: now.toISOString(),
@@ -803,13 +809,119 @@ export const getAiBets = createServerFn({ method: "GET" })
       }
     }
 
+    // Record today's slip so every pick can be graded hit / miss later, and
+    // settle anything already played out.
+    let record: Awaited<ReturnType<typeof loadBetLog>> = { today: [], recent: [], summary: null };
+    try {
+      const { logDailyPicks, settlePendingPicks } = await import("./bet-log.server");
+      if (megaSlip) {
+        await logDailyPicks(
+          megaSlip.legs.map((leg) => ({
+            matchId: leg.matchId,
+            fixture: leg.fixture,
+            league: leg.league,
+            kickoffAt: leg.kickoffAt,
+            slipType: "mega" as const,
+            market: leg.marketLabel,
+            pickCode: leg.pickCode,
+            selection: leg.selection,
+            probability: leg.probability,
+            fairOdds: leg.fairOdds,
+            facts: leg.facts,
+            opinion: leg.opinion ?? null,
+          })),
+        );
+      }
+      await settlePendingPicks();
+      record = await loadBetLog();
+    } catch {
+      // the log is a bonus; the page still renders without it
+    }
+
     return {
       candidates: shortlist,
       builder,
       megaSlip,
+      record,
       history: historyRun,
       brief,
       generatedAt: now.toISOString(),
       reason: "ok" as const,
     };
   });
+
+export type BetLogRow = {
+  id: string;
+  betDate: string;
+  fixture: string;
+  league: string | null;
+  kickoffAt: string;
+  selection: string;
+  market: string;
+  probability: number;
+  fairOdds: number;
+  result: "pending" | "hit" | "miss" | "void";
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
+/** Today's saved picks plus the graded record of everything settled so far. */
+async function loadBetLog(): Promise<{
+  today: BetLogRow[];
+  recent: BetLogRow[];
+  summary: { settled: number; hits: number; misses: number; hitRate: number; profitPerUnit: number } | null;
+}> {
+  const supabase = publicClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const [{ data: todayRows }, { data: settledRows }] = await Promise.all([
+    supabase
+      .from("ai_bet_log")
+      .select("id, bet_date, fixture, league, kickoff_at, selection, market, probability, fair_odds, result, home_score, away_score")
+      .eq("bet_date", today)
+      .order("kickoff_at", { ascending: true }),
+    supabase
+      .from("ai_bet_log")
+      .select("id, bet_date, fixture, league, kickoff_at, selection, market, probability, fair_odds, result, home_score, away_score")
+      .in("result", ["hit", "miss"])
+      .order("kickoff_at", { ascending: false })
+      .limit(200),
+  ]);
+
+  const map = (row: NonNullable<typeof todayRows>[number]): BetLogRow => ({
+    id: row.id,
+    betDate: row.bet_date,
+    fixture: row.fixture,
+    league: row.league,
+    kickoffAt: row.kickoff_at,
+    selection: row.selection,
+    market: row.market,
+    probability: Number(row.probability),
+    fairOdds: Number(row.fair_odds),
+    result: row.result as BetLogRow["result"],
+    homeScore: row.home_score === null ? null : Number(row.home_score),
+    awayScore: row.away_score === null ? null : Number(row.away_score),
+  });
+
+  const settled = (settledRows ?? []).map(map);
+  const hits = settled.filter((row) => row.result === "hit").length;
+  const misses = settled.length - hits;
+  const profit = settled.reduce(
+    (acc, row) => acc + (row.result === "hit" ? row.fairOdds - 1 : -1),
+    0,
+  );
+
+  return {
+    today: (todayRows ?? []).map(map),
+    recent: settled.slice(0, 40),
+    summary:
+      settled.length > 0
+        ? {
+            settled: settled.length,
+            hits,
+            misses,
+            hitRate: hits / settled.length,
+            profitPerUnit: profit / settled.length,
+          }
+        : null,
+  };
+}

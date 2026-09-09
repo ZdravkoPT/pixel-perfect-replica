@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_bet_log: {
+        Row: {
+          away_score: number | null
+          bet_date: string
+          created_at: string
+          facts: Json | null
+          fair_odds: number
+          fixture: string
+          home_score: number | null
+          id: string
+          kickoff_at: string
+          league: string | null
+          market: string
+          match_id: string
+          opinion: string | null
+          pick_code: string
+          probability: number
+          result: string
+          selection: string
+          settled_at: string | null
+          slip_type: string
+          updated_at: string
+        }
+        Insert: {
+          away_score?: number | null
+          bet_date: string
+          created_at?: string
+          facts?: Json | null
+          fair_odds: number
+          fixture: string
+          home_score?: number | null
+          id?: string
+          kickoff_at: string
+          league?: string | null
+          market: string
+          match_id: string
+          opinion?: string | null
+          pick_code: string
+          probability: number
+          result?: string
+          selection: string
+          settled_at?: string | null
+          slip_type: string
+          updated_at?: string
+        }
+        Update: {
+          away_score?: number | null
+          bet_date?: string
+          created_at?: string
+          facts?: Json | null
+          fair_odds?: number
+          fixture?: string
+          home_score?: number | null
+          id?: string
+          kickoff_at?: string
+          league?: string | null
+          market?: string
+          match_id?: string
+          opinion?: string | null
+          pick_code?: string
+          probability?: number
+          result?: string
+          selection?: string
+          settled_at?: string | null
+          slip_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_bet_log_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
