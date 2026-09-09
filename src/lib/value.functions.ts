@@ -460,6 +460,7 @@ export const getAiBets = createServerFn({ method: "GET" })
       league: string;
       kickoffAt: string;
       market: "1x2" | "double_chance" | "goals" | "btts" | "over05";
+      pickCode: string;
       marketLabel: string;
       selection: string;
       probability: number;
@@ -606,6 +607,7 @@ export const getAiBets = createServerFn({ method: "GET" })
         league: match.league?.name ?? "Unknown league",
         kickoffAt: match.kickoff_at,
         market: pick.market,
+        pickCode: pick.calibrationKey,
         marketLabel: pick.marketLabel,
         selection: pick.selection,
         probability: pick.probability,
@@ -648,6 +650,7 @@ export const getAiBets = createServerFn({ method: "GET" })
         candidates: [],
         builder: null,
         megaSlip,
+        record: { today: [], recent: [], summary: null } as Awaited<ReturnType<typeof loadBetLog>>,
         history: historyRun,
         brief: null,
         generatedAt: now.toISOString(),
@@ -806,10 +809,40 @@ export const getAiBets = createServerFn({ method: "GET" })
       }
     }
 
+    // Record today's slip so every pick can be graded hit / miss later, and
+    // settle anything already played out.
+    let record: Awaited<ReturnType<typeof loadBetLog>> = { today: [], recent: [], summary: null };
+    try {
+      const { logDailyPicks, settlePendingPicks } = await import("./bet-log.server");
+      if (megaSlip) {
+        await logDailyPicks(
+          megaSlip.legs.map((leg) => ({
+            matchId: leg.matchId,
+            fixture: leg.fixture,
+            league: leg.league,
+            kickoffAt: leg.kickoffAt,
+            slipType: "mega" as const,
+            market: leg.marketLabel,
+            pickCode: leg.pickCode,
+            selection: leg.selection,
+            probability: leg.probability,
+            fairOdds: leg.fairOdds,
+            facts: leg.facts,
+            opinion: leg.opinion ?? null,
+          })),
+        );
+      }
+      await settlePendingPicks();
+      record = await loadBetLog();
+    } catch {
+      // the log is a bonus; the page still renders without it
+    }
+
     return {
       candidates: shortlist,
       builder,
       megaSlip,
+      record,
       history: historyRun,
       brief,
       generatedAt: now.toISOString(),
