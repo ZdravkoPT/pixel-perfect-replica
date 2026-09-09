@@ -481,18 +481,21 @@ export const getAiBets = createServerFn({ method: "GET" })
       const max = 9;
       const grid: number[][] = [];
       for (let h = 0; h <= max; h += 1) {
-        grid[h] = [];
-        for (let a = 0; a <= max; a += 1) grid[h][a] = pmf(lh, h) * pmf(la, a);
+        const row: number[] = [];
+        for (let a = 0; a <= max; a += 1) row.push(pmf(lh, h) * pmf(la, a));
+        grid.push(row);
       }
+      const cell = (h: number, a: number) => grid[h]?.[a] ?? 0;
       const totalAtMost = (line: number) => {
         let acc = 0;
         for (let h = 0; h <= max; h += 1)
-          for (let a = 0; a <= max; a += 1) if (h + a <= line) acc += grid[h][a];
+          for (let a = 0; a <= max; a += 1) if (h + a <= line) acc += cell(h, a);
         return acc;
       };
       let bttsNo = 0;
       for (let h = 0; h <= max; h += 1)
-        for (let a = 0; a <= max; a += 1) if (h === 0 || a === 0) bttsNo += grid[h][a];
+        for (let a = 0; a <= max; a += 1) if (h === 0 || a === 0) bttsNo += cell(h, a);
+
       return {
         over: (line: number) => Math.max(0, Math.min(1, 1 - totalAtMost(Math.floor(line)))),
         under: (line: number) => Math.max(0, Math.min(1, totalAtMost(Math.floor(line)))),
