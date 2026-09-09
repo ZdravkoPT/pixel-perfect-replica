@@ -849,3 +849,79 @@ export const getAiBets = createServerFn({ method: "GET" })
       reason: "ok" as const,
     };
   });
+
+export type BetLogRow = {
+  id: string;
+  betDate: string;
+  fixture: string;
+  league: string | null;
+  kickoffAt: string;
+  selection: string;
+  market: string;
+  probability: number;
+  fairOdds: number;
+  result: "pending" | "hit" | "miss" | "void";
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
+/** Today's saved picks plus the graded record of everything settled so far. */
+async function loadBetLog(): Promise<{
+  today: BetLogRow[];
+  recent: BetLogRow[];
+  summary: { settled: number; hits: number; misses: number; hitRate: number; profitPerUnit: number } | null;
+}> {
+  const supabase = publicClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const [{ data: todayRows }, { data: settledRows }] = await Promise.all([
+    supabase
+      .from("ai_bet_log")
+      .select("id, bet_date, fixture, league, kickoff_at, selection, market, probability, fair_odds, result, home_score, away_score")
+      .eq("bet_date", today)
+      .order("kickoff_at", { ascending: true }),
+    supabase
+      .from("ai_bet_log")
+      .select("id, bet_date, fixture, league, kickoff_at, selection, market, probability, fair_odds, result, home_score, away_score")
+      .in("result", ["hit", "miss"])
+      .order("kickoff_at", { ascending: false })
+      .limit(200),
+  ]);
+
+  const map = (row: NonNullable<typeof todayRows>[number]): BetLogRow => ({
+    id: row.id,
+    betDate: row.bet_date,
+    fixture: row.fixture,
+    league: row.league,
+    kickoffAt: row.kickoff_at,
+    selection: row.selection,
+    market: row.market,
+    probability: Number(row.probability),
+    fairOdds: Number(row.fair_odds),
+    result: row.result as BetLogRow["result"],
+    homeScore: row.home_score === null ? null : Number(row.home_score),
+    awayScore: row.away_score === null ? null : Number(row.away_score),
+  });
+
+  const settled = (settledRows ?? []).map(map);
+  const hits = settled.filter((row) => row.result === "hit").length;
+  const misses = settled.length - hits;
+  const profit = settled.reduce(
+    (acc, row) => acc + (row.result === "hit" ? row.fairOdds - 1 : -1),
+    0,
+  );
+
+  return {
+    today: (todayRows ?? []).map(map),
+    recent: settled.slice(0, 40),
+    summary:
+      settled.length > 0
+        ? {
+            settled: settled.length,
+            hits,
+            misses,
+            hitRate: hits / settled.length,
+            profitPerUnit: profit / settled.length,
+          }
+        : null,
+  };
+}
