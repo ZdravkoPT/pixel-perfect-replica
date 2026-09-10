@@ -248,6 +248,10 @@ function MatchDetail() {
           <RefereePanel intel={intel} />
         </TabsContent>
 
+        <TabsContent value="Facts" className="mt-4">
+          <MatchFactsPanel matchId={matchId} homeName={homeName} awayName={awayName} />
+        </TabsContent>
+
         <TabsContent value="H2H" className="mt-4">
           <HeadToHeadPanel matchId={matchId} />
         </TabsContent>
