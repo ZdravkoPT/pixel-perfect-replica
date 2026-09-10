@@ -17,6 +17,7 @@ import {
 } from "@/components/IntelPanels";
 import { SquadProfilePanel } from "@/components/SquadProfilePanel";
 import { HeadToHeadPanel } from "@/components/HeadToHeadPanel";
+import { MatchFactsPanel } from "@/components/MatchFactsPanel";
 
 const TABS = [
   "Overview",
@@ -27,6 +28,7 @@ const TABS = [
   "Corners",
   "Cards",
   "Referee",
+  "Facts",
   "Odds",
   "News",
   "H2H",
@@ -244,6 +246,10 @@ function MatchDetail() {
 
         <TabsContent value="Referee" className="mt-4">
           <RefereePanel intel={intel} />
+        </TabsContent>
+
+        <TabsContent value="Facts" className="mt-4">
+          <MatchFactsPanel matchId={matchId} homeName={homeName} awayName={awayName} />
         </TabsContent>
 
         <TabsContent value="H2H" className="mt-4">
