@@ -342,6 +342,21 @@ function AiBetsPage() {
   );
 }
 
+function ResultBadge({
+  row,
+}: {
+  row: { result: string; homeScore: number | null; awayScore: number | null };
+}) {
+  const score =
+    row.homeScore === null || row.awayScore === null ? null : `${row.homeScore}–${row.awayScore}`;
+  if (row.result === "hit")
+    return <Badge className="bg-primary text-primary-foreground">Hit{score ? ` · ${score}` : ""}</Badge>;
+  if (row.result === "miss")
+    return <Badge variant="destructive">Miss{score ? ` · ${score}` : ""}</Badge>;
+  if (row.result === "void") return <Badge variant="secondary">Void</Badge>;
+  return <Badge variant="outline">Pending</Badge>;
+}
+
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded border border-border bg-background p-3">
