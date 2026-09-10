@@ -115,6 +115,77 @@ function AiBetsPage() {
               </p>
             )}
 
+            {data.record && (data.record.today.length > 0 || data.record.summary) ? (
+              <section className="rounded-lg border border-border bg-card p-5">
+                <h2 className="text-sm font-semibold">Saved picks & graded record</h2>
+                {data.record.summary ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
+                    <Fact label="Settled" value={`${data.record.summary.settled}`} />
+                    <Fact label="Hits" value={`${data.record.summary.hits}`} />
+                    <Fact label="Misses" value={`${data.record.summary.misses}`} />
+                    <Fact
+                      label="Hit rate"
+                      value={`${(data.record.summary.hitRate * 100).toFixed(1)}%`}
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Nothing has finished yet — today's picks are saved and will be graded
+                    automatically once the final scores arrive.
+                  </p>
+                )}
+
+                {data.record.today.length > 0 ? (
+                  <div className="mt-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Today
+                    </h3>
+                    <ul className="mt-2 space-y-1 text-xs">
+                      {data.record.today.map((row) => (
+                        <li
+                          key={row.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded border border-border bg-background p-2"
+                        >
+                          <span>
+                            {row.selection}
+                            <span className="ml-2 text-muted-foreground">{row.fixture}</span>
+                          </span>
+                          <span className="flex items-center gap-2">
+                            <span className="font-mono tabular-nums text-muted-foreground">
+                              {(row.probability * 100).toFixed(1)}%
+                            </span>
+                            <ResultBadge row={row} />
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {data.record.recent.length > 0 ? (
+                  <div className="mt-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Recently graded
+                    </h3>
+                    <ul className="mt-2 space-y-1 text-xs">
+                      {data.record.recent.slice(0, 12).map((row) => (
+                        <li
+                          key={row.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded border border-border bg-background p-2"
+                        >
+                          <span>
+                            {row.selection}
+                            <span className="ml-2 text-muted-foreground">{row.fixture}</span>
+                          </span>
+                          <ResultBadge row={row} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
             {data.builder ? (
               <section className="rounded-lg border border-primary/40 bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
