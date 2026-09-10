@@ -17,6 +17,7 @@ import {
 } from "@/components/IntelPanels";
 import { SquadProfilePanel } from "@/components/SquadProfilePanel";
 import { HeadToHeadPanel } from "@/components/HeadToHeadPanel";
+import { MatchFactsPanel } from "@/components/MatchFactsPanel";
 
 const TABS = [
   "Overview",
@@ -27,6 +28,7 @@ const TABS = [
   "Corners",
   "Cards",
   "Referee",
+  "Facts",
   "Odds",
   "News",
   "H2H",
