@@ -4,16 +4,36 @@ import { Activity, BarChart3, Brain, ClipboardList, LayoutGrid, LogOut, ShieldCh
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 
-const NAV = [
-  { to: "/", label: "Matches", icon: LayoutGrid },
-  { to: "/watchlist", label: "My watchlist", icon: Star },
-  { to: "/value", label: "Value board", icon: TrendingUp },
-  { to: "/ai-bets", label: "AI bet builder", icon: Sparkles },
-  { to: "/analytics", label: "Model analytics", icon: Brain },
-  { to: "/players", label: "Players", icon: Users },
-  { to: "/coaches", label: "Coaches", icon: ClipboardList },
-  { to: "/providers", label: "Provider health", icon: Activity },
-  { to: "/admin", label: "Diagnostics", icon: ShieldCheck },
+const NAV_GROUPS = [
+  {
+    label: "Matches",
+    items: [
+      { to: "/", label: "Fixtures", icon: LayoutGrid },
+      { to: "/watchlist", label: "Watchlist", icon: Star },
+    ],
+  },
+  {
+    label: "Betting",
+    items: [
+      { to: "/value", label: "Value board", icon: TrendingUp },
+      { to: "/ai-bets", label: "AI bet builder", icon: Sparkles },
+      { to: "/analytics", label: "Model analytics", icon: Brain },
+    ],
+  },
+  {
+    label: "People",
+    items: [
+      { to: "/players", label: "Players", icon: Users },
+      { to: "/coaches", label: "Coaches", icon: ClipboardList },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { to: "/providers", label: "Provider health", icon: Activity },
+      { to: "/admin", label: "Diagnostics", icon: ShieldCheck },
+    ],
+  },
 ] as const;
 
 export function AppShell({
@@ -29,32 +49,45 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex max-w-7xl flex-col lg:flex-row">
-        <aside className="border-b border-border bg-sidebar px-4 py-5 lg:min-h-screen lg:w-60 lg:border-r lg:border-b-0">
-          <div className="flex items-center gap-2">
+      <div className="flex flex-col lg:flex-row">
+        <aside className="border-b border-border bg-sidebar lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-b-0">
+          <div className="flex items-center gap-2 border-b border-border/60 px-4 py-4">
             <BarChart3 className="h-5 w-5 text-primary" />
-            <span className="text-sm font-semibold tracking-tight">Football Intel</span>
+            <span className="font-mono text-sm font-semibold uppercase tracking-widest">
+              Football Intel
+            </span>
           </div>
 
-          <nav className="mt-6 flex gap-1 lg:flex-col">
-            {NAV.map(({ to, label, icon: Icon }) => (
-              <Link
-                key={to}
-                to={to}
-                activeOptions={{ exact: to === "/" }}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-                activeProps={{ className: "bg-sidebar-accent text-foreground font-medium" }}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </Link>
+          <nav className="flex gap-4 overflow-x-auto px-4 py-3 lg:flex-col lg:gap-5 lg:overflow-visible lg:py-4">
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label} className="shrink-0">
+                <p className="mb-1.5 hidden font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground lg:block">
+                  {group.label}
+                </p>
+                <div className="flex gap-1 lg:flex-col">
+                  {group.items.map(({ to, label, icon: Icon }) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      activeOptions={{ exact: to === "/" }}
+                      className="flex shrink-0 items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+                      activeProps={{
+                        className: "bg-sidebar-accent text-foreground font-medium",
+                      }}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">{label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
           </nav>
 
-          <div className="mt-6 border-t border-border pt-4">
+          <div className="border-t border-border/60 px-4 py-4">
             {user ? (
               <div className="space-y-2">
-                <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                <p className="truncate font-mono text-[11px] text-muted-foreground">{user.email}</p>
                 <Button variant="outline" size="sm" className="w-full" onClick={() => signOut()}>
                   <LogOut className="mr-2 h-3.5 w-3.5" />
                   Sign out
@@ -63,7 +96,7 @@ export function AppShell({
             ) : (
               <Link
                 to="/auth"
-                className="block rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground"
+                className="block rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
               >
                 Sign in
               </Link>
@@ -71,12 +104,16 @@ export function AppShell({
           </div>
         </aside>
 
-        <main className="flex-1 px-4 py-6 lg:px-8">
-          <header className="mb-6">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-            {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
+        <main className="min-w-0 flex-1">
+          <header className="sticky top-0 z-10 border-b border-border bg-background/85 px-4 py-4 backdrop-blur lg:px-8">
+            <h1 className="font-mono text-xl font-semibold uppercase tracking-wide lg:text-2xl">
+              {title}
+            </h1>
+            {subtitle ? (
+              <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+            ) : null}
           </header>
-          {children}
+          <div className="px-4 py-6 lg:px-8">{children}</div>
         </main>
       </div>
     </div>
