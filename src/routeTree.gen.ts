@@ -22,6 +22,7 @@ import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as CoachesCoachIdRouteImport } from './routes/coaches.$coachId'
 import { Route as MatchesMatchIdRouteImport } from './routes/matches.$matchId'
 import { Route as PlayersPlayerIdRouteImport } from './routes/players.$playerId'
+import { Route as ApiPublicHooksBetReviewRouteImport } from './routes/api/public/hooks/bet-review'
 import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/public/hooks/ingest-fixtures'
 import { Route as ApiPublicHooksKickoffRefreshRouteImport } from './routes/api/public/hooks/kickoff-refresh'
 import { Route as ApiPublicHooksRefreshIntelRouteImport } from './routes/api/public/hooks/refresh-intel'
@@ -92,6 +93,11 @@ const PlayersPlayerIdRoute = PlayersPlayerIdRouteImport.update({
   path: '/$playerId',
   getParentRoute: () => PlayersRoute,
 } as any)
+const ApiPublicHooksBetReviewRoute = ApiPublicHooksBetReviewRouteImport.update({
+  id: '/api/public/hooks/bet-review',
+  path: '/api/public/hooks/bet-review',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksIngestFixturesRoute =
   ApiPublicHooksIngestFixturesRouteImport.update({
     id: '/api/public/hooks/ingest-fixtures',
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/coaches/$coachId': typeof CoachesCoachIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
+  '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/coaches/$coachId': typeof CoachesCoachIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
+  '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
@@ -170,6 +178,7 @@ export interface FileRoutesById {
   '/coaches/$coachId': typeof CoachesCoachIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
+  '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
     | '/coaches/$coachId'
     | '/matches/$matchId'
     | '/players/$playerId'
+    | '/api/public/hooks/bet-review'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/refresh-intel'
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/coaches/$coachId'
     | '/matches/$matchId'
     | '/players/$playerId'
+    | '/api/public/hooks/bet-review'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/refresh-intel'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/coaches/$coachId'
     | '/matches/$matchId'
     | '/players/$playerId'
+    | '/api/public/hooks/bet-review'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/refresh-intel'
@@ -247,6 +259,7 @@ export interface RootRouteChildren {
   ValueRoute: typeof ValueRoute
   WatchlistRoute: typeof WatchlistRoute
   MatchesMatchIdRoute: typeof MatchesMatchIdRoute
+  ApiPublicHooksBetReviewRoute: typeof ApiPublicHooksBetReviewRoute
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
   ApiPublicHooksKickoffRefreshRoute: typeof ApiPublicHooksKickoffRefreshRoute
   ApiPublicHooksRefreshIntelRoute: typeof ApiPublicHooksRefreshIntelRoute
@@ -346,6 +359,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayersPlayerIdRouteImport
       parentRoute: typeof PlayersRoute
     }
+    '/api/public/hooks/bet-review': {
+      id: '/api/public/hooks/bet-review'
+      path: '/api/public/hooks/bet-review'
+      fullPath: '/api/public/hooks/bet-review'
+      preLoaderRoute: typeof ApiPublicHooksBetReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/ingest-fixtures': {
       id: '/api/public/hooks/ingest-fixtures'
       path: '/api/public/hooks/ingest-fixtures'
@@ -411,6 +431,7 @@ const rootRouteChildren: RootRouteChildren = {
   ValueRoute: ValueRoute,
   WatchlistRoute: WatchlistRoute,
   MatchesMatchIdRoute: MatchesMatchIdRoute,
+  ApiPublicHooksBetReviewRoute: ApiPublicHooksBetReviewRoute,
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
   ApiPublicHooksKickoffRefreshRoute: ApiPublicHooksKickoffRefreshRoute,
   ApiPublicHooksRefreshIntelRoute: ApiPublicHooksRefreshIntelRoute,
