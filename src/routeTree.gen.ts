@@ -15,6 +15,7 @@ import { Route as AiBetsRouteImport } from './routes/ai-bets'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CoachesRouteImport } from './routes/coaches'
+import { Route as LiveRouteImport } from './routes/live'
 import { Route as PlayersRouteImport } from './routes/players'
 import { Route as ProvidersRouteImport } from './routes/providers'
 import { Route as ValueRouteImport } from './routes/value'
@@ -56,6 +57,11 @@ const AuthRoute = AuthRouteImport.update({
 const CoachesRoute = CoachesRouteImport.update({
   id: '/coaches',
   path: '/coaches',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LiveRoute = LiveRouteImport.update({
+  id: '/live',
+  path: '/live',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayersRoute = PlayersRouteImport.update({
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/coaches': typeof CoachesRouteWithChildren
+  '/live': typeof LiveRoute
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
   '/value': typeof ValueRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/coaches': typeof CoachesRouteWithChildren
+  '/live': typeof LiveRoute
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
   '/value': typeof ValueRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/coaches': typeof CoachesRouteWithChildren
+  '/live': typeof LiveRoute
   '/players': typeof PlayersRouteWithChildren
   '/providers': typeof ProvidersRoute
   '/value': typeof ValueRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/auth'
     | '/coaches'
+    | '/live'
     | '/players'
     | '/providers'
     | '/value'
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/auth'
     | '/coaches'
+    | '/live'
     | '/players'
     | '/providers'
     | '/value'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/auth'
     | '/coaches'
+    | '/live'
     | '/players'
     | '/providers'
     | '/value'
@@ -254,6 +266,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
   CoachesRoute: typeof CoachesRouteWithChildren
+  LiveRoute: typeof LiveRoute
   PlayersRoute: typeof PlayersRouteWithChildren
   ProvidersRoute: typeof ProvidersRoute
   ValueRoute: typeof ValueRoute
@@ -308,6 +321,13 @@ declare module '@tanstack/react-router' {
       path: '/coaches'
       fullPath: '/coaches'
       preLoaderRoute: typeof CoachesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live': {
+      id: '/live'
+      path: '/live'
+      fullPath: '/live'
+      preLoaderRoute: typeof LiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/players': {
@@ -426,6 +446,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
   CoachesRoute: CoachesRouteWithChildren,
+  LiveRoute: LiveRoute,
   PlayersRoute: PlayersRouteWithChildren,
   ProvidersRoute: ProvidersRoute,
   ValueRoute: ValueRoute,
