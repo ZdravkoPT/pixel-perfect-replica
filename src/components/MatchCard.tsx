@@ -24,75 +24,76 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
 export function MatchCard({ match }: { match: MatchCardData }) {
   const kickoff = new Date(match.kickoff_at);
   const time = kickoff.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const date = kickoff.toLocaleDateString([], { day: "2-digit", month: "short" });
   const hasScore = match.home_score !== null && match.away_score !== null;
+  const isLive = match.status === "LIVE" || match.status === "PAUSED";
 
   return (
     <Link
       to="/matches/$matchId"
       params={{ matchId: match.id }}
-      className="block rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50"
+      className="group relative block overflow-hidden rounded-lg border border-border/70 bg-card transition-colors hover:border-primary/60"
     >
-      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span className="truncate">
+      <span
+        className={`absolute inset-y-0 left-0 w-0.5 ${isLive ? "bg-destructive" : "bg-primary/40 opacity-0 transition-opacity group-hover:opacity-100"}`}
+      />
+
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
+        <span className="truncate font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
           {match.league?.name ?? "Unknown league"}
-          {match.league?.country ? ` · ${match.league.country}` : ""}
         </span>
-        <span className="flex shrink-0 items-center gap-1">
-          <Badge variant={statusVariant(match.status)}>
-            {match.status === "LIVE" && match.minute !== null ? `${match.minute}'` : match.status}
+        <span className="flex shrink-0 items-center gap-1.5">
+          <Badge variant={statusVariant(match.status)} className="font-mono text-[10px] tracking-wide">
+            {isLive && match.minute !== null ? `${match.minute}'` : match.status}
           </Badge>
           {match.home?.id ? (
-            <FavoriteButton
-              entityType="team"
-              entityId={match.home.id}
-              label={match.home.name}
-            />
+            <FavoriteButton entityType="team" entityId={match.home.id} label={match.home.name} />
           ) : null}
         </span>
       </div>
 
-      <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <TeamSide name={match.home?.name ?? "TBD"} crest={match.home?.crest_url ?? null} />
-        <div className="text-center">
-          {hasScore ? (
-            <div className="font-mono text-lg font-semibold tabular-nums">
-              {match.home_score} – {match.away_score}
-            </div>
-          ) : (
-            <div className="font-mono text-sm font-medium tabular-nums">{time}</div>
-          )}
-          <div className="text-[11px] text-muted-foreground">{date}</div>
-        </div>
-        <TeamSide
+      <div className="px-3 py-2.5">
+        <TeamRow
+          name={match.home?.name ?? "TBD"}
+          crest={match.home?.crest_url ?? null}
+          score={hasScore ? match.home_score : null}
+        />
+        <TeamRow
           name={match.away?.name ?? "TBD"}
           crest={match.away?.crest_url ?? null}
-          align="right"
+          score={hasScore ? match.away_score : null}
         />
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border/60 px-3 py-1.5 font-mono text-[11px] text-muted-foreground">
+        <span>
+          {kickoff.toLocaleDateString([], { day: "2-digit", month: "short" })} · {time}
+        </span>
+        {match.league?.country ? <span className="truncate">{match.league.country}</span> : null}
       </div>
     </Link>
   );
 }
 
-function TeamSide({
+function TeamRow({
   name,
   crest,
-  align = "left",
+  score,
 }: {
   name: string;
   crest: string | null;
-  align?: "left" | "right";
+  score: number | null;
 }) {
   return (
-    <div
-      className={`flex items-center gap-2 ${align === "right" ? "flex-row-reverse text-right" : ""}`}
-    >
+    <div className="flex items-center gap-2 py-1">
       {crest ? (
-        <img src={crest} alt="" loading="lazy" className="h-6 w-6 shrink-0 object-contain" />
+        <img src={crest} alt="" loading="lazy" className="h-5 w-5 shrink-0 object-contain" />
       ) : (
-        <div className="h-6 w-6 shrink-0 rounded-full bg-muted" />
+        <div className="h-5 w-5 shrink-0 rounded-full bg-muted" />
       )}
-      <span className="truncate text-sm font-medium">{name}</span>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{name}</span>
+      {score !== null ? (
+        <span className="font-mono text-base font-semibold tabular-nums">{score}</span>
+      ) : null}
     </div>
   );
 }
