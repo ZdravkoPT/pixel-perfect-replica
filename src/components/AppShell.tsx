@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Activity, BarChart3, Brain, ClipboardList, LayoutGrid, LogOut, ShieldCheck, Sparkles, Star, TrendingUp, Users } from "lucide-react";
+import { Activity, BarChart3, Brain, ClipboardList, LayoutGrid, LogOut, Radio, ShieldCheck, Sparkles, Star, TrendingUp, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,7 @@ const NAV_GROUPS = [
     label: "Matches",
     items: [
       { to: "/", label: "Fixtures", icon: LayoutGrid },
+      { to: "/live", label: "Live", icon: Radio },
       { to: "/watchlist", label: "Watchlist", icon: Star },
     ],
   },
