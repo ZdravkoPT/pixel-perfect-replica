@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { getMatchFacts } from "@/lib/facts.functions";
 import { Badge } from "@/components/ui/badge";
 
-/** Live match facts (stats, timeline, form, head-to-head) from the public feed. */
+type Facts = NonNullable<Awaited<ReturnType<typeof getMatchFacts>>["local"]>;
+
+/** Live match facts (stats, timeline, form, head-to-head) plus archive facts. */
 export function MatchFactsPanel({
   matchId,
   homeName,
@@ -22,8 +24,10 @@ export function MatchFactsPanel({
     return <p className="text-sm text-muted-foreground">Loading match facts…</p>;
   }
 
-  const facts = query.data?.facts;
-  if (!facts) {
+  const facts = (query.data?.facts ?? null) as Facts | null;
+  const local = (query.data?.local ?? null) as Facts | null;
+
+  if (!facts && !local) {
     return (
       <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
         {query.data?.error ?? "No match facts published for this fixture yet."}
@@ -31,6 +35,40 @@ export function MatchFactsPanel({
     );
   }
 
+  return (
+    <div className="space-y-4">
+      {facts ? (
+        <FactsBlock facts={facts} homeName={homeName} awayName={awayName} />
+      ) : (
+        <p className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">
+          {query.data?.error ?? "No live feed covers this fixture yet"} — the numbers below come from
+          our own match archive.
+        </p>
+      )}
+
+      {local ? (
+        <section className="space-y-4">
+          <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Form &amp; archive facts
+          </h3>
+          <FactsBlock facts={local} homeName={homeName} awayName={awayName} showForm />
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function FactsBlock({
+  facts,
+  homeName,
+  awayName,
+  showForm = false,
+}: {
+  facts: Facts;
+  homeName: string;
+  awayName: string;
+  showForm?: boolean;
+}) {
   return (
     <div className="space-y-4">
       {facts.info.length > 0 ? (
@@ -42,6 +80,20 @@ export function MatchFactsPanel({
             </div>
           ))}
         </div>
+      ) : null}
+
+      {showForm && facts.form.length === 2 && (facts.form[0]?.length ?? 0) > 0 ? (
+        <section className="rounded-lg border border-border bg-card p-5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{homeName}</span>
+            <span className="text-sm font-semibold text-foreground">Last five</span>
+            <span>{awayName}</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <FormRow results={facts.form[0] ?? []} />
+            <FormRow results={facts.form[1] ?? []} />
+          </div>
+        </section>
       ) : null}
 
       {facts.events.length > 0 ? (
@@ -103,5 +155,26 @@ export function MatchFactsPanel({
         </section>
       ) : null}
     </div>
+  );
+}
+
+function FormRow({ results }: { results: string[] }) {
+  return (
+    <span className="flex gap-1">
+      {results.map((result, index) => (
+        <span
+          key={index}
+          className={`flex h-6 w-6 items-center justify-center rounded font-mono text-[11px] ${
+            result === "W"
+              ? "bg-primary text-primary-foreground"
+              : result === "D"
+                ? "bg-muted text-muted-foreground"
+                : "bg-destructive/80 text-destructive-foreground"
+          }`}
+        >
+          {result}
+        </span>
+      ))}
+    </span>
   );
 }
