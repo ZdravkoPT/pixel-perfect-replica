@@ -208,14 +208,29 @@ export function blendedLambdas(
   homeTeamId: string,
   awayTeamId: string,
   eloDiff: number,
+  extra: { homeLog?: number; awayLog?: number } = {},
 ): { lambdaHome: number; lambdaAway: number } {
   const base = expectedGoals(params, homeTeamId, awayTeamId);
   const adj = Math.exp((ELO_LAMBDA_WEIGHT * eloDiff) / 400);
+  const homeCtx = Math.exp(extra.homeLog ?? 0);
+  const awayCtx = Math.exp(extra.awayLog ?? 0);
   return {
-    lambdaHome: Math.min(Math.max(base.lambdaHome * adj, 0.08), 6),
-    lambdaAway: Math.min(Math.max(base.lambdaAway / adj, 0.08), 6),
+    lambdaHome: Math.min(Math.max(base.lambdaHome * adj * homeCtx, 0.08), 6),
+    lambdaAway: Math.min(Math.max((base.lambdaAway / adj) * awayCtx, 0.08), 6),
   };
 }
+
+/** Venue-effect training rows built from the archive. */
+function toVenueMatches(matches: FinishedMatch[]) {
+  return matches.map((match) => ({
+    leagueId: match.league_id,
+    homeTeamId: match.home_team_id,
+    awayTeamId: match.away_team_id,
+    homeScore: match.home_score,
+    awayScore: match.away_score,
+  }));
+}
+
 
 /**
  * Fits Elo + Dixon-Coles on all finished matches, stores a new immutable model version,
