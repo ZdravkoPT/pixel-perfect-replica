@@ -341,7 +341,11 @@ export async function runAnalytics(
       .limit(500);
 
     const upcoming = (upcomingRaw ?? []) as UpcomingMatch[];
-    const scored = await scoreMatches(upcoming, states, params, modelVersion.id);
+    const squads = await loadSquadContexts(
+      upcoming.flatMap((match) => [match.home_team_id, match.away_team_id]),
+    );
+    const scored = await scoreMatches(upcoming, states, params, modelVersion.id, venue, squads);
+
 
 
     const durationMs = Date.now() - startedAt;
