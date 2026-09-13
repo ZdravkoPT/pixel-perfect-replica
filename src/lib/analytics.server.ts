@@ -3,12 +3,22 @@ import type { Database } from "@/integrations/supabase/types";
 import { ELO_CONFIG, expectedScore, regressToMean, updateElo } from "./models/elo";
 import { expectedGoals, fitDixonColes, type DcMatch, type DcParams } from "./models/dixon-coles";
 import { confidenceScore, fairOdds, marketsFromMatrix, scorelineMatrix } from "./models/poisson";
+import {
+  contextAdjustment,
+  emptySquadContext,
+  emptyVenueFactors,
+  fitVenueFactors,
+  type SquadContext,
+  type VenueFactors,
+} from "./models/context";
+import { loadSquadContexts } from "./context.server";
 
 const MODEL_NAME = "dixon-coles-elo";
 const ROLLING_WINDOW = 6;
 const ELO_LAMBDA_WEIGHT = 0.15;
 /** Maximum number of finished matches used to fit the model. */
 const TRAINING_LIMIT = 8000;
+
 
 export interface AnalyticsSummary {
   runId: string;
