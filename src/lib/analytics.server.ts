@@ -269,6 +269,8 @@ export async function runAnalytics(
     const states = buildStates(finished);
     const dcMatches = toDcMatches(finished, now.getTime());
     const params = fitDixonColes(dcMatches);
+    const venue = fitVenueFactors(toVenueMatches(finished));
+
 
     // ---- model version -------------------------------------------------
     const { data: latest } = await supabaseAdmin
