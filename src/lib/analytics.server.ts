@@ -301,7 +301,9 @@ export async function runAnalytics(
           rollingWindow: ROLLING_WINDOW,
           attack: params.attack,
           defence: params.defence,
+          venue,
         },
+
         metrics: { logLikelihood: params.logLikelihood, teams: Object.keys(params.attack).length },
         is_active: true,
       })
