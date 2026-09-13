@@ -440,17 +440,27 @@ export async function runBacktest(
       const reference = new Date(test[0]!.kickoff_at).getTime();
       const params = fitDixonColes(toDcMatches(train, reference), { iterations: 250 });
       const states = buildStates(train);
+      const venue = fitVenueFactors(toVenueMatches(train));
 
       for (const match of test) {
         const homeElo = states.get(match.home_team_id)?.elo ?? ELO_CONFIG.base;
         const awayElo = states.get(match.away_team_id)?.elo ?? ELO_CONFIG.base;
         const eloDiff = homeElo + ELO_CONFIG.homeAdvantage - awayElo;
+        const context = contextAdjustment({
+          leagueId: match.league_id,
+          homeTeamId: match.home_team_id,
+          awayTeamId: match.away_team_id,
+          venue,
+          homeSquad: emptySquadContext(),
+          awaySquad: emptySquadContext(),
+        });
         const { lambdaHome, lambdaAway } = blendedLambdas(
           params,
           match.home_team_id,
           match.away_team_id,
           eloDiff,
-        );
+          { homeLog: context.homeLog, awayLog: context.awayLog },
+
         const markets = marketsFromMatrix(scorelineMatrix(lambdaHome, lambdaAway, params.rho));
 
         const actual =
