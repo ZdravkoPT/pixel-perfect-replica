@@ -3,12 +3,22 @@ import type { Database } from "@/integrations/supabase/types";
 import { ELO_CONFIG, expectedScore, regressToMean, updateElo } from "./models/elo";
 import { expectedGoals, fitDixonColes, type DcMatch, type DcParams } from "./models/dixon-coles";
 import { confidenceScore, fairOdds, marketsFromMatrix, scorelineMatrix } from "./models/poisson";
+import {
+  contextAdjustment,
+  emptySquadContext,
+  emptyVenueFactors,
+  fitVenueFactors,
+  type SquadContext,
+  type VenueFactors,
+} from "./models/context";
+import { loadSquadContexts } from "./context.server";
 
 const MODEL_NAME = "dixon-coles-elo";
 const ROLLING_WINDOW = 6;
 const ELO_LAMBDA_WEIGHT = 0.15;
 /** Maximum number of finished matches used to fit the model. */
 const TRAINING_LIMIT = 8000;
+
 
 export interface AnalyticsSummary {
   runId: string;
@@ -198,14 +208,29 @@ export function blendedLambdas(
   homeTeamId: string,
   awayTeamId: string,
   eloDiff: number,
+  extra: { homeLog?: number; awayLog?: number } = {},
 ): { lambdaHome: number; lambdaAway: number } {
   const base = expectedGoals(params, homeTeamId, awayTeamId);
   const adj = Math.exp((ELO_LAMBDA_WEIGHT * eloDiff) / 400);
+  const homeCtx = Math.exp(extra.homeLog ?? 0);
+  const awayCtx = Math.exp(extra.awayLog ?? 0);
   return {
-    lambdaHome: Math.min(Math.max(base.lambdaHome * adj, 0.08), 6),
-    lambdaAway: Math.min(Math.max(base.lambdaAway / adj, 0.08), 6),
+    lambdaHome: Math.min(Math.max(base.lambdaHome * adj * homeCtx, 0.08), 6),
+    lambdaAway: Math.min(Math.max((base.lambdaAway / adj) * awayCtx, 0.08), 6),
   };
 }
+
+/** Venue-effect training rows built from the archive. */
+function toVenueMatches(matches: FinishedMatch[]) {
+  return matches.map((match) => ({
+    leagueId: match.league_id,
+    homeTeamId: match.home_team_id,
+    awayTeamId: match.away_team_id,
+    homeScore: match.home_score,
+    awayScore: match.away_score,
+  }));
+}
+
 
 /**
  * Fits Elo + Dixon-Coles on all finished matches, stores a new immutable model version,
@@ -244,6 +269,8 @@ export async function runAnalytics(
     const states = buildStates(finished);
     const dcMatches = toDcMatches(finished, now.getTime());
     const params = fitDixonColes(dcMatches);
+    const venue = fitVenueFactors(toVenueMatches(finished));
+
 
     // ---- model version -------------------------------------------------
     const { data: latest } = await supabaseAdmin
@@ -274,7 +301,9 @@ export async function runAnalytics(
           rollingWindow: ROLLING_WINDOW,
           attack: params.attack,
           defence: params.defence,
+          venue,
         },
+
         metrics: { logLikelihood: params.logLikelihood, teams: Object.keys(params.attack).length },
         is_active: true,
       })
@@ -312,7 +341,11 @@ export async function runAnalytics(
       .limit(500);
 
     const upcoming = (upcomingRaw ?? []) as UpcomingMatch[];
-    const scored = await scoreMatches(upcoming, states, params, modelVersion.id);
+    const squads = await loadSquadContexts(
+      upcoming.flatMap((match) => [match.home_team_id, match.away_team_id]),
+    );
+    const scored = await scoreMatches(upcoming, states, params, modelVersion.id, venue, squads);
+
 
 
     const durationMs = Date.now() - startedAt;
@@ -407,17 +440,27 @@ export async function runBacktest(
       const reference = new Date(test[0]!.kickoff_at).getTime();
       const params = fitDixonColes(toDcMatches(train, reference), { iterations: 250 });
       const states = buildStates(train);
+      const venue = fitVenueFactors(toVenueMatches(train));
 
       for (const match of test) {
         const homeElo = states.get(match.home_team_id)?.elo ?? ELO_CONFIG.base;
         const awayElo = states.get(match.away_team_id)?.elo ?? ELO_CONFIG.base;
         const eloDiff = homeElo + ELO_CONFIG.homeAdvantage - awayElo;
+        const context = contextAdjustment({
+          leagueId: match.league_id,
+          homeTeamId: match.home_team_id,
+          awayTeamId: match.away_team_id,
+          venue,
+          homeSquad: emptySquadContext(),
+          awaySquad: emptySquadContext(),
+        });
         const { lambdaHome, lambdaAway } = blendedLambdas(
           params,
           match.home_team_id,
           match.away_team_id,
           eloDiff,
-        );
+          { homeLog: context.homeLog, awayLog: context.awayLog },
+
         const markets = marketsFromMatrix(scorelineMatrix(lambdaHome, lambdaAway, params.rho));
 
         const actual =
