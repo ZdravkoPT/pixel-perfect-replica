@@ -588,6 +588,8 @@ async function scoreMatches(
   states: Map<string, TeamState>,
   params: DcParams,
   modelVersionId: string,
+  venue: VenueFactors = emptyVenueFactors(),
+  squads: Map<string, SquadContext> = new Map(),
 ): Promise<number> {
   let scored = 0;
 
@@ -608,11 +610,21 @@ async function scoreMatches(
         ? (kickoffMs - new Date(awayState.lastKickoff).getTime()) / 86_400_000
         : null;
 
+      const context = contextAdjustment({
+        leagueId: match.league_id,
+        homeTeamId: match.home_team_id,
+        awayTeamId: match.away_team_id,
+        venue,
+        homeSquad: squads.get(match.home_team_id) ?? emptySquadContext(),
+        awaySquad: squads.get(match.away_team_id) ?? emptySquadContext(),
+      });
+
       const { lambdaHome, lambdaAway } = blendedLambdas(
         params,
         match.home_team_id,
         match.away_team_id,
         eloDiff,
+        { homeLog: context.homeLog, awayLog: context.awayLog },
       );
       const markets = marketsFromMatrix(scorelineMatrix(lambdaHome, lambdaAway, params.rho));
       const featureTimestamp = new Date().toISOString();
