@@ -652,7 +652,10 @@ async function scoreMatches(
           home_rest_days: restHome === null ? null : Number(restHome.toFixed(2)),
           away_rest_days: restAway === null ? null : Number(restAway.toFixed(2)),
           sample_size: Math.min(homeRoll.sample, awayRoll.sample),
-          payload: { rollingWindow: ROLLING_WINDOW },
+          payload: {
+            rollingWindow: ROLLING_WINDOW,
+            context: { homeLog: context.homeLog, awayLog: context.awayLog, notes: context.notes },
+          },
         })
         .select("id")
         .single();
@@ -751,6 +754,7 @@ async function scoreMatches(
           value: params.homeAdvantage,
           contribution: params.homeAdvantage,
         },
+        ...context.notes,
       ];
 
       const ranked = explanations
