@@ -551,3 +551,74 @@ export interface MatchFacts {
   form: string[][];
   h2h: Array<{ date: string; home: string; away: string; score: string; league: string }>;
 }
+
+export interface InPlayFeed {
+  status: MatchStatus;
+  homeScore: number | null;
+  awayScore: number | null;
+  minute: number | null;
+  homeRed: number;
+  awayRed: number;
+  substitutions: Array<{
+    minute: number | null;
+    side: "home" | "away";
+    off: string | null;
+    on: string | null;
+  }>;
+}
+
+export interface PlayerCareer {
+  name: string | null;
+  country: string | null;
+  height: string | null;
+  preferredFoot: string | null;
+  shirt: string | null;
+  contractEnd: string | null;
+  marketValueLabel: string | null;
+  positionDescription: string | null;
+  currentSeason: {
+    league: string;
+    season: string;
+    matches: number | null;
+    started: number | null;
+    minutes: number | null;
+    goals: number | null;
+    assists: number | null;
+    rating: number | null;
+    yellowCards: number | null;
+    redCards: number | null;
+  } | null;
+  seasons: Array<{
+    season: string;
+    team: string | null;
+    appearances: number;
+    goals: number;
+    assists: number;
+    rating: number | null;
+    competitions: Array<{
+      name: string;
+      appearances: number;
+      goals: number;
+      assists: number;
+      rating: number | null;
+    }>;
+  }>;
+  clubs: Array<{
+    team: string;
+    from: string | null;
+    to: string | null;
+    active: boolean;
+    appearances: number;
+    goals: number;
+    assists: number;
+  }>;
+  national: Array<{
+    team: string;
+    from: string | null;
+    to: string | null;
+    active: boolean;
+    caps: number;
+    goals: number;
+  }>;
+  injury: string | null;
+}
