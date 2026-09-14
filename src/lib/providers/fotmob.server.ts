@@ -185,6 +185,170 @@ export class FotmobProvider {
   }
 
   /**
+   * Everything the in-play model needs from one request: status, score, clock,
+   * red cards per side and the substitutions made so far.
+   */
+  async getInPlay(providerMatchId: string): Promise<ProviderResult<InPlayFeed>> {
+    const result = await this.request<Record<string, any>>(
+      `/matchDetails?matchId=${providerMatchId}`,
+    );
+    if (!result.ok) return result;
+
+    const s = (result.data["header"] ?? {})["status"] ?? {};
+    const status: MatchStatus = s.cancelled
+      ? "CANCELLED"
+      : s.finished
+        ? "FINISHED"
+        : s.started
+          ? "LIVE"
+          : "SCHEDULED";
+    const parts = String(s.scoreStr ?? "")
+      .split("-")
+      .map((value: string) => Number(value.trim()));
+    const minute = Number(String(s.liveTime?.short ?? "").replace(/\D/g, "")) || null;
+
+    const events = ((result.data["content"] ?? {})["matchFacts"] ?? {})["events"]?.["events"] ?? [];
+    let homeRed = 0;
+    let awayRed = 0;
+    const substitutions: InPlayFeed["substitutions"] = [];
+
+    for (const event of events as any[]) {
+      const isHome = event?.isHome === true;
+      const card = String(event?.card ?? "").toLowerCase();
+      const type = String(event?.type ?? "").toLowerCase();
+      if (card.includes("red")) {
+        if (isHome) homeRed += 1;
+        else awayRed += 1;
+      }
+      if (type.includes("substitution")) {
+        substitutions.push({
+          minute: typeof event?.time === "number" ? event.time : null,
+          side: isHome ? "home" : "away",
+          off: event?.swap?.[0]?.name ?? event?.player?.name ?? null,
+          on: event?.swap?.[1]?.name ?? event?.nameStr ?? null,
+        });
+      }
+    }
+
+    return ok({
+      status,
+      homeScore: Number.isFinite(parts[0]) ? (parts[0] as number) : null,
+      awayScore: Number.isFinite(parts[1]) ? (parts[1] as number) : null,
+      minute,
+      homeRed,
+      awayRed,
+      substitutions,
+    });
+  }
+
+  /**
+   * Season-by-season record, club history and national-team caps for one
+   * player. All of it comes from FotMob's free player endpoint.
+   */
+  async getPlayerCareer(providerPlayerId: string): Promise<ProviderResult<PlayerCareer>> {
+    const result = await this.request<Record<string, any>>(`/playerData?id=${providerPlayerId}`);
+    if (!result.ok) return result;
+    const data = result.data;
+
+    const info: Record<string, string> = {};
+    for (const item of (data["playerInformation"] ?? []) as any[]) {
+      const title = String(item?.title ?? "");
+      const value = item?.value?.fallback ?? item?.value?.numberValue;
+      if (title && value !== undefined && value !== null && typeof value !== "object") {
+        info[title] = String(value);
+      }
+    }
+
+    const num = (value: unknown): number | null => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const main = data["mainLeague"] ?? null;
+    const mainStats: Record<string, number> = {};
+    for (const stat of (main?.stats ?? []) as any[]) {
+      const key = String(stat?.localizedTitleId ?? "");
+      if (key && typeof stat?.value === "number") mainStats[key] = stat.value;
+    }
+
+    const seasons: PlayerCareer["seasons"] = [];
+    for (const entry of (data["careerHistory"]?.careerItems?.senior?.seasonEntries ?? []) as any[]) {
+      seasons.push({
+        season: String(entry?.seasonName ?? ""),
+        team: entry?.team ? String(entry.team) : null,
+        appearances: num(entry?.appearances) ?? 0,
+        goals: num(entry?.goals) ?? 0,
+        assists: num(entry?.assists) ?? 0,
+        rating: num(entry?.rating?.rating),
+        competitions: ((entry?.tournamentStats ?? []) as any[]).map((t) => ({
+          name: String(t?.leagueName ?? ""),
+          appearances: num(t?.appearances) ?? 0,
+          goals: num(t?.goals) ?? 0,
+          assists: num(t?.assists) ?? 0,
+          rating: num(t?.rating?.rating),
+        })),
+      });
+    }
+
+    const clubs: PlayerCareer["clubs"] = [];
+    for (const entry of (data["careerHistory"]?.careerItems?.senior?.teamEntries ?? []) as any[]) {
+      clubs.push({
+        team: String(entry?.team ?? ""),
+        from: entry?.startDate ? String(entry.startDate).slice(0, 10) : null,
+        to: entry?.endDate ? String(entry.endDate).slice(0, 10) : null,
+        active: Boolean(entry?.active),
+        appearances: num(entry?.appearances) ?? 0,
+        goals: num(entry?.goals) ?? 0,
+        assists: num(entry?.assists) ?? 0,
+      });
+    }
+
+    const national: PlayerCareer["national"] = [];
+    for (const entry of (data["careerHistory"]?.careerItems?.["national team"]?.teamEntries ??
+      []) as any[]) {
+      national.push({
+        team: String(entry?.team ?? ""),
+        from: entry?.startDate ? String(entry.startDate).slice(0, 10) : null,
+        to: entry?.endDate ? String(entry.endDate).slice(0, 10) : null,
+        active: Boolean(entry?.active),
+        caps: num(entry?.appearances) ?? 0,
+        goals: num(entry?.goals) ?? 0,
+      });
+    }
+
+    const injury = data["injuryInformation"];
+
+    return ok({
+      name: data["name"] ? String(data["name"]) : null,
+      country: info["Country"] ?? null,
+      height: info["Height"] ?? null,
+      preferredFoot: info["Preferred foot"] ?? null,
+      shirt: info["Shirt"] ?? null,
+      contractEnd: info["Contract end"] ?? null,
+      marketValueLabel: info["Market value"] ?? null,
+      positionDescription: data["positionDescription"]?.primaryPosition?.label ?? null,
+      currentSeason: main
+        ? {
+            league: String(main.leagueName ?? ""),
+            season: String(main.season ?? ""),
+            matches: mainStats["matches_uppercase"] ?? null,
+            started: mainStats["started"] ?? null,
+            minutes: mainStats["minutes_played"] ?? null,
+            goals: mainStats["goals"] ?? null,
+            assists: mainStats["assists"] ?? null,
+            rating: mainStats["rating"] ?? null,
+            yellowCards: mainStats["yellow_cards"] ?? null,
+            redCards: mainStats["red_cards"] ?? null,
+          }
+        : null,
+      seasons,
+      clubs,
+      national,
+      injury: injury ? JSON.stringify(injury).slice(0, 400) : null,
+    });
+  }
+
+  /**
    * Rich match facts: referee/stadium info, team form, head-to-head summary,
    * live match stats and the timeline of goals, cards and substitutions.
    */
@@ -386,4 +550,75 @@ export interface MatchFacts {
   }>;
   form: string[][];
   h2h: Array<{ date: string; home: string; away: string; score: string; league: string }>;
+}
+
+export interface InPlayFeed {
+  status: MatchStatus;
+  homeScore: number | null;
+  awayScore: number | null;
+  minute: number | null;
+  homeRed: number;
+  awayRed: number;
+  substitutions: Array<{
+    minute: number | null;
+    side: "home" | "away";
+    off: string | null;
+    on: string | null;
+  }>;
+}
+
+export interface PlayerCareer {
+  name: string | null;
+  country: string | null;
+  height: string | null;
+  preferredFoot: string | null;
+  shirt: string | null;
+  contractEnd: string | null;
+  marketValueLabel: string | null;
+  positionDescription: string | null;
+  currentSeason: {
+    league: string;
+    season: string;
+    matches: number | null;
+    started: number | null;
+    minutes: number | null;
+    goals: number | null;
+    assists: number | null;
+    rating: number | null;
+    yellowCards: number | null;
+    redCards: number | null;
+  } | null;
+  seasons: Array<{
+    season: string;
+    team: string | null;
+    appearances: number;
+    goals: number;
+    assists: number;
+    rating: number | null;
+    competitions: Array<{
+      name: string;
+      appearances: number;
+      goals: number;
+      assists: number;
+      rating: number | null;
+    }>;
+  }>;
+  clubs: Array<{
+    team: string;
+    from: string | null;
+    to: string | null;
+    active: boolean;
+    appearances: number;
+    goals: number;
+    assists: number;
+  }>;
+  national: Array<{
+    team: string;
+    from: string | null;
+    to: string | null;
+    active: boolean;
+    caps: number;
+    goals: number;
+  }>;
+  injury: string | null;
 }

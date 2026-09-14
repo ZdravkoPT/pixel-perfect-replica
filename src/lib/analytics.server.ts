@@ -460,6 +460,7 @@ export async function runBacktest(
           match.away_team_id,
           eloDiff,
           { homeLog: context.homeLog, awayLog: context.awayLog },
+        );
 
         const markets = marketsFromMatrix(scorelineMatrix(lambdaHome, lambdaAway, params.rho));
 
@@ -587,6 +588,8 @@ async function scoreMatches(
   states: Map<string, TeamState>,
   params: DcParams,
   modelVersionId: string,
+  venue: VenueFactors = emptyVenueFactors(),
+  squads: Map<string, SquadContext> = new Map(),
 ): Promise<number> {
   let scored = 0;
 
@@ -607,11 +610,21 @@ async function scoreMatches(
         ? (kickoffMs - new Date(awayState.lastKickoff).getTime()) / 86_400_000
         : null;
 
+      const context = contextAdjustment({
+        leagueId: match.league_id,
+        homeTeamId: match.home_team_id,
+        awayTeamId: match.away_team_id,
+        venue,
+        homeSquad: squads.get(match.home_team_id) ?? emptySquadContext(),
+        awaySquad: squads.get(match.away_team_id) ?? emptySquadContext(),
+      });
+
       const { lambdaHome, lambdaAway } = blendedLambdas(
         params,
         match.home_team_id,
         match.away_team_id,
         eloDiff,
+        { homeLog: context.homeLog, awayLog: context.awayLog },
       );
       const markets = marketsFromMatrix(scorelineMatrix(lambdaHome, lambdaAway, params.rho));
       const featureTimestamp = new Date().toISOString();
@@ -639,7 +652,10 @@ async function scoreMatches(
           home_rest_days: restHome === null ? null : Number(restHome.toFixed(2)),
           away_rest_days: restAway === null ? null : Number(restAway.toFixed(2)),
           sample_size: Math.min(homeRoll.sample, awayRoll.sample),
-          payload: { rollingWindow: ROLLING_WINDOW },
+          payload: {
+            rollingWindow: ROLLING_WINDOW,
+            context: { homeLog: context.homeLog, awayLog: context.awayLog, notes: context.notes },
+          },
         })
         .select("id")
         .single();
@@ -738,6 +754,7 @@ async function scoreMatches(
           value: params.homeAdvantage,
           contribution: params.homeAdvantage,
         },
+        ...context.notes,
       ];
 
       const ranked = explanations
@@ -849,7 +866,12 @@ export async function runLivePredictions(
 
   const finished = await loadFinished();
   const states = buildStates(finished);
-  const scored = await scoreMatches(candidates, states, params, model.id);
+  const venue =
+    ((stored as { venue?: VenueFactors }).venue ?? null) ?? fitVenueFactors(toVenueMatches(finished));
+  const squads = await loadSquadContexts(
+    candidates.flatMap((match) => [match.home_team_id, match.away_team_id]),
+  );
+  const scored = await scoreMatches(candidates, states, params, model.id, venue, squads);
 
   return { status: "success", scored, modelVersionId: model.id, durationMs: Date.now() - startedAt };
 }
