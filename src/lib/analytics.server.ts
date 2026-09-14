@@ -460,6 +460,7 @@ export async function runBacktest(
           match.away_team_id,
           eloDiff,
           { homeLog: context.homeLog, awayLog: context.awayLog },
+        );
 
         const markets = marketsFromMatrix(scorelineMatrix(lambdaHome, lambdaAway, params.rho));
 
