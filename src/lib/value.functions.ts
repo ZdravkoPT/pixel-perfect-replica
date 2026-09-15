@@ -470,6 +470,8 @@ export const getAiBets = createServerFn({ method: "GET" })
       lineupStatus: "confirmed" | "projected" | "none";
       facts: string[];
       opinion?: string;
+      reasoning?: string;
+      risk?: string;
     };
 
     // Independent-Poisson scoreline grid from the stored goal rates.
