@@ -796,16 +796,24 @@ export const getAiBets = createServerFn({ method: "GET" })
             const raw = payload.choices?.[0]?.message?.content;
             if (raw) {
               const parsed = JSON.parse(raw) as {
-                opinions?: Array<{ matchId?: string; opinion?: string }>;
+                opinions?: Array<{
+                  matchId?: string;
+                  opinion?: string;
+                  reasoning?: string;
+                  risk?: string;
+                }>;
               };
               const byId = new Map(
                 (parsed.opinions ?? [])
-                  .filter((row) => row.matchId && row.opinion)
-                  .map((row) => [row.matchId as string, row.opinion as string]),
+                  .filter((row) => row.matchId)
+                  .map((row) => [row.matchId as string, row]),
               );
               for (const leg of megaSlip.legs) {
-                const opinion = byId.get(leg.matchId);
-                if (opinion) leg.opinion = opinion;
+                const row = byId.get(leg.matchId);
+                if (!row) continue;
+                if (row.opinion) leg.opinion = row.opinion;
+                if (row.reasoning) leg.reasoning = row.reasoning;
+                if (row.risk) leg.risk = row.risk;
               }
             }
           }
