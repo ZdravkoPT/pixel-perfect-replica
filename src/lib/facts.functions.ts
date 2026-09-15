@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { MatchFacts } from "./providers/fotmob.server";
 
 /**
  * Match facts for one fixture. The public FotMob feed supplies the live picture
@@ -43,7 +44,7 @@ export const getMatchFacts = createServerFn({ method: "GET" })
       }
     }
 
-    let facts = null as Awaited<ReturnType<FotmobProvider["getMatchFacts"]>>["data"] | null;
+    let facts: MatchFacts | null = null;
     let error: string | null = null;
     if (providerId) {
       const result = await fotmob.getMatchFacts(providerId);
