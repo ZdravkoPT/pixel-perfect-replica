@@ -470,6 +470,8 @@ export const getAiBets = createServerFn({ method: "GET" })
       lineupStatus: "confirmed" | "projected" | "none";
       facts: string[];
       opinion?: string;
+      reasoning?: string;
+      risk?: string;
     };
 
     // Independent-Poisson scoreline grid from the stored goal rates.
@@ -766,9 +768,13 @@ export const getAiBets = createServerFn({ method: "GET" })
                 {
                   role: "system",
                   content:
-                    "You write one-sentence betting verdicts per match using ONLY the supplied model numbers. " +
-                    "Return JSON only: an object with key \"opinions\", an array of {\"matchId\":string,\"opinion\":string}. " +
-                    "Each opinion is max 25 words, mentions the key number, and flags line-up or volatility risk when relevant. Never promise profit.",
+                    "You write a short analyst walkthrough for every match on a betting slip, using ONLY the supplied model numbers and facts. " +
+                    "Return JSON only: an object with key \"opinions\", an array of " +
+                    "{\"matchId\":string,\"opinion\":string,\"reasoning\":string,\"risk\":string}. " +
+                    "Cover EVERY matchId supplied, in the same order. " +
+                    "\"opinion\" is a max 20-word verdict naming the pick and its calibrated probability. " +
+                    "\"reasoning\" is 2-3 sentences (max 60 words) that read the goal rates, the 1X2 split and the goals/both-teams-score numbers, then explain why this selection is the pick. " +
+                    "\"risk\" is max 18 words on line-up status, volatility or how close the call is. Never invent facts and never promise profit.",
                 },
                 {
                   role: "user",
@@ -790,16 +796,24 @@ export const getAiBets = createServerFn({ method: "GET" })
             const raw = payload.choices?.[0]?.message?.content;
             if (raw) {
               const parsed = JSON.parse(raw) as {
-                opinions?: Array<{ matchId?: string; opinion?: string }>;
+                opinions?: Array<{
+                  matchId?: string;
+                  opinion?: string;
+                  reasoning?: string;
+                  risk?: string;
+                }>;
               };
               const byId = new Map(
                 (parsed.opinions ?? [])
-                  .filter((row) => row.matchId && row.opinion)
-                  .map((row) => [row.matchId as string, row.opinion as string]),
+                  .filter((row) => row.matchId)
+                  .map((row) => [row.matchId as string, row]),
               );
               for (const leg of megaSlip.legs) {
-                const opinion = byId.get(leg.matchId);
-                if (opinion) leg.opinion = opinion;
+                const row = byId.get(leg.matchId);
+                if (!row) continue;
+                if (row.opinion) leg.opinion = row.opinion;
+                if (row.reasoning) leg.reasoning = row.reasoning;
+                if (row.risk) leg.risk = row.risk;
               }
             }
           }
