@@ -867,7 +867,7 @@ export async function runLivePredictions(
   const finished = await loadFinished();
   const states = buildStates(finished);
   const venue =
-    ((stored as { venue?: VenueFactors }).venue ?? null) ?? fitVenueFactors(toVenueMatches(finished));
+    (stored as { venue?: VenueFactors }).venue ?? fitVenueFactors(toVenueMatches(finished));
   const squads = await loadSquadContexts(
     candidates.flatMap((match) => [match.home_team_id, match.away_team_id]),
   );

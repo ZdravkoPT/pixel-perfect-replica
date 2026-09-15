@@ -43,7 +43,8 @@ export const getMatchFacts = createServerFn({ method: "GET" })
       }
     }
 
-    let facts = null as Awaited<ReturnType<FotmobProvider["getMatchFacts"]>>["data"] | null;
+    type FactsResult = Awaited<ReturnType<typeof fotmob.getMatchFacts>>;
+    let facts = null as (FactsResult extends { data: infer D } ? D : never) | null;
     let error: string | null = null;
     if (providerId) {
       const result = await fotmob.getMatchFacts(providerId);
