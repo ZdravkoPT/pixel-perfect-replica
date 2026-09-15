@@ -302,7 +302,7 @@ export async function runAnalytics(
           attack: params.attack,
           defence: params.defence,
           venue,
-        },
+        } as unknown as Record<string, never>,
 
         metrics: { logLikelihood: params.logLikelihood, teams: Object.keys(params.attack).length },
         is_active: true,
