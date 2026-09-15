@@ -101,11 +101,16 @@ export async function runInPlayRefresh(options: { limit?: number } = {}): Promis
     }
     const live = feed.data;
 
-    const patch: Record<string, unknown> = {};
-    if (live.status !== match.status) patch["status"] = live.status;
-    if (live.homeScore !== null && live.homeScore !== match.home_score) patch["home_score"] = live.homeScore;
-    if (live.awayScore !== null && live.awayScore !== match.away_score) patch["away_score"] = live.awayScore;
-    if (live.minute !== null) patch["minute"] = live.minute;
+    const patch: {
+      status?: string;
+      home_score?: number;
+      away_score?: number;
+      minute?: number;
+    } = {};
+    if (live.status !== match.status) patch.status = live.status;
+    if (live.homeScore !== null && live.homeScore !== match.home_score) patch.home_score = live.homeScore;
+    if (live.awayScore !== null && live.awayScore !== match.away_score) patch.away_score = live.awayScore;
+    if (live.minute !== null) patch.minute = live.minute;
     if (Object.keys(patch).length > 0) {
       await supabaseAdmin.from("matches").update(patch).eq("id", match.id);
       updated += 1;
