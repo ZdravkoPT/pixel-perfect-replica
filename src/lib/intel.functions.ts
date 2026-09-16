@@ -224,6 +224,7 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
       { data: stats },
       { data: props },
       { data: attributes },
+      { data: career },
     ] =
       await Promise.all([
         supabase
