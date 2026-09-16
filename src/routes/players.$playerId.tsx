@@ -53,6 +53,53 @@ function PlayerProfile() {
   const team = (current?.team ?? null) as { id: string; name: string } | null;
   const max = Math.max(1, ...data.averages.map((row) => row.value));
 
+  type CareerPayload = {
+    preferred_foot: string | null;
+    height: string | null;
+    contract_end: string | null;
+    market_value_label: string | null;
+    current_season: {
+      season?: string;
+      league?: string;
+      matches: number | null;
+      goals: number | null;
+      assists: number | null;
+      minutes: number | null;
+      rating: number | null;
+    } | null;
+    seasons: Array<{
+      season: string;
+      team: string | null;
+      appearances: number;
+      goals: number;
+      assists: number;
+      rating: number | null;
+    }>;
+    clubs: Array<{
+      team: string;
+      from: string | null;
+      to: string | null;
+      active: boolean;
+      appearances: number;
+      goals: number;
+      assists: number;
+    }>;
+    national: Array<{
+      team: string;
+      from: string | null;
+      to: string | null;
+      active: boolean;
+      caps: number;
+      goals: number;
+    }>;
+  };
+  const career = (data.career ?? null) as CareerPayload | null;
+  const currentSeason =
+    career?.current_season && Object.keys(career.current_season).length > 0
+      ? career.current_season
+      : null;
+  const pastSeasons = (career?.seasons ?? []).slice(0, 6);
+
   return (
     <AppShell
       title={player.name}
