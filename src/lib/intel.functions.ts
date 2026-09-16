@@ -339,6 +339,7 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
       strengths,
       weaknesses,
       attributes: attributes ?? null,
+      career: career ?? null,
     };
   });
 
