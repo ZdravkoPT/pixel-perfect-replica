@@ -264,6 +264,13 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
           .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from("player_careers")
+          .select(
+            "country, height, preferred_foot, shirt, contract_end, market_value_label, position_description, current_season, seasons, clubs, national, fetched_at",
+          )
+          .eq("player_id", data.playerId)
+          .maybeSingle(),
       ]);
 
     const rows = stats ?? [];
