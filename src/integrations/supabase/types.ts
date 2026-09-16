@@ -1373,6 +1373,71 @@ export type Database = {
           },
         ]
       }
+      player_careers: {
+        Row: {
+          clubs: Json
+          contract_end: string | null
+          country: string | null
+          current_season: Json
+          fetched_at: string
+          height: string | null
+          injury: Json | null
+          market_value_label: string | null
+          name: string | null
+          national: Json
+          player_id: string
+          position_description: string | null
+          preferred_foot: string | null
+          seasons: Json
+          shirt: string | null
+          source: string
+        }
+        Insert: {
+          clubs?: Json
+          contract_end?: string | null
+          country?: string | null
+          current_season?: Json
+          fetched_at?: string
+          height?: string | null
+          injury?: Json | null
+          market_value_label?: string | null
+          name?: string | null
+          national?: Json
+          player_id: string
+          position_description?: string | null
+          preferred_foot?: string | null
+          seasons?: Json
+          shirt?: string | null
+          source?: string
+        }
+        Update: {
+          clubs?: Json
+          contract_end?: string | null
+          country?: string | null
+          current_season?: Json
+          fetched_at?: string
+          height?: string | null
+          injury?: Json | null
+          market_value_label?: string | null
+          name?: string | null
+          national?: Json
+          player_id?: string
+          position_description?: string | null
+          preferred_foot?: string | null
+          seasons?: Json
+          shirt?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_careers_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: true
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_match_stats: {
         Row: {
           assists: number

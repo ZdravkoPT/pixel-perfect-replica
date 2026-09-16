@@ -224,6 +224,7 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
       { data: stats },
       { data: props },
       { data: attributes },
+      { data: career },
     ] =
       await Promise.all([
         supabase
@@ -262,6 +263,13 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
           .eq("player_id", data.playerId)
           .order("updated_at", { ascending: false })
           .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("player_careers")
+          .select(
+            "country, height, preferred_foot, shirt, contract_end, market_value_label, position_description, current_season, seasons, clubs, national, fetched_at",
+          )
+          .eq("player_id", data.playerId)
           .maybeSingle(),
       ]);
 
@@ -331,6 +339,7 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
       strengths,
       weaknesses,
       attributes: attributes ?? null,
+      career: career ?? null,
     };
   });
 
@@ -462,6 +471,15 @@ export const refreshAttributes = createServerFn({ method: "POST" })
     await assertAdmin(context.supabase as never, context.userId);
     const { ingestPlayerAttributes } = await import("./attributes.server");
     return ingestPlayerAttributes({ triggeredBy: "manual" });
+  });
+
+/** Refresh career records (season stats, club history, national caps). */
+export const refreshCareers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase as never, context.userId);
+    const { ingestPlayerCareers } = await import("./attributes.server");
+    return ingestPlayerCareers({ triggeredBy: "manual" });
   });
 
 /** Re-run the past-10-week bet-builder review so the calibration stays current. */

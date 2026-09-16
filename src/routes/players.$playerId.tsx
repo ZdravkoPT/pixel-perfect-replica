@@ -53,6 +53,53 @@ function PlayerProfile() {
   const team = (current?.team ?? null) as { id: string; name: string } | null;
   const max = Math.max(1, ...data.averages.map((row) => row.value));
 
+  type CareerPayload = {
+    preferred_foot: string | null;
+    height: string | null;
+    contract_end: string | null;
+    market_value_label: string | null;
+    current_season: {
+      season?: string;
+      league?: string;
+      matches: number | null;
+      goals: number | null;
+      assists: number | null;
+      minutes: number | null;
+      rating: number | null;
+    } | null;
+    seasons: Array<{
+      season: string;
+      team: string | null;
+      appearances: number;
+      goals: number;
+      assists: number;
+      rating: number | null;
+    }>;
+    clubs: Array<{
+      team: string;
+      from: string | null;
+      to: string | null;
+      active: boolean;
+      appearances: number;
+      goals: number;
+      assists: number;
+    }>;
+    national: Array<{
+      team: string;
+      from: string | null;
+      to: string | null;
+      active: boolean;
+      caps: number;
+      goals: number;
+    }>;
+  };
+  const career = (data.career ?? null) as CareerPayload | null;
+  const currentSeason =
+    career?.current_season && Object.keys(career.current_season).length > 0
+      ? career.current_season
+      : null;
+  const pastSeasons = (career?.seasons ?? []).slice(0, 6);
+
   return (
     <AppShell
       title={player.name}
@@ -70,6 +117,118 @@ function PlayerProfile() {
         </div>
 
         <PlayerSkillCard attributes={(data.attributes ?? null) as never} />
+
+        {career ? (
+          <section>
+            <h2 className="text-sm font-semibold">Career record</h2>
+            <div className="mt-2 grid gap-3 sm:grid-cols-4">
+              <Fact label="Preferred foot" value={career.preferred_foot ?? "—"} />
+              <Fact label="Height" value={career.height ?? "—"} />
+              <Fact label="Contract until" value={career.contract_end ?? "—"} />
+              <Fact label="Market value" value={career.market_value_label ?? "—"} />
+            </div>
+
+            {currentSeason ? (
+              <div className="mt-4 overflow-hidden rounded-lg border border-border">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/40 text-left text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Season</th>
+                      <th className="px-3 py-2 font-medium">Competition</th>
+                      <th className="px-3 py-2 text-right font-medium">Apps</th>
+                      <th className="px-3 py-2 text-right font-medium">Goals</th>
+                      <th className="px-3 py-2 text-right font-medium">Assists</th>
+                      <th className="px-3 py-2 text-right font-medium">Minutes</th>
+                      <th className="px-3 py-2 text-right font-medium">Rating</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-border bg-card">
+                      <td className="px-3 py-2 font-medium">{currentSeason.season || "Current"}</td>
+                      <td className="px-3 py-2">{currentSeason.league}</td>
+                      <td className="px-3 py-2 text-right font-mono tabular-nums">{currentSeason.matches ?? "—"}</td>
+                      <td className="px-3 py-2 text-right font-mono tabular-nums">{currentSeason.goals ?? "—"}</td>
+                      <td className="px-3 py-2 text-right font-mono tabular-nums">{currentSeason.assists ?? "—"}</td>
+                      <td className="px-3 py-2 text-right font-mono tabular-nums">{currentSeason.minutes ?? "—"}</td>
+                      <td className="px-3 py-2 text-right font-mono tabular-nums">
+                        {currentSeason.rating !== null ? Number(currentSeason.rating).toFixed(2) : "—"}
+                      </td>
+                    </tr>
+                    {pastSeasons.map((season) => (
+                      <tr key={season.season} className="border-t border-border bg-card">
+                        <td className="px-3 py-2">{season.season}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{season.team ?? "—"}</td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums">{season.appearances}</td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums">{season.goals}</td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums">{season.assists}</td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums">—</td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums">
+                          {season.rating !== null ? Number(season.rating).toFixed(2) : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="border-t border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                  Season-by-season record from FotMob, refreshed weekly. The current season is shown
+                  against previous seasons for comparison.
+                </p>
+              </div>
+            ) : null}
+
+            {career.national.length > 0 ? (
+              <div className="mt-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  National team
+                </h3>
+                <ul className="mt-2 space-y-2">
+                  {career.national.map((row) => (
+                    <li
+                      key={`${row.team}-${row.from ?? ""}`}
+                      className="flex items-center justify-between rounded border border-border bg-card p-3 text-xs"
+                    >
+                      <span>
+                        {row.team}
+                        {row.active ? (
+                          <Badge variant="outline" className="ml-2">Active</Badge>
+                        ) : null}
+                      </span>
+                      <span className="font-mono tabular-nums text-muted-foreground">
+                        {row.caps} caps · {row.goals} goals
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {career.clubs.length > 0 ? (
+              <div className="mt-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Club career
+                </h3>
+                <ul className="mt-2 space-y-2">
+                  {career.clubs.map((row) => (
+                    <li
+                      key={`${row.team}-${row.from ?? ""}`}
+                      className="flex items-center justify-between rounded border border-border bg-card p-3 text-xs"
+                    >
+                      <span>
+                        {row.team}
+                        {row.active ? (
+                          <Badge variant="outline" className="ml-2">Current</Badge>
+                        ) : null}
+                      </span>
+                      <span className="font-mono tabular-nums text-muted-foreground">
+                        {row.from ?? "?"} – {row.active ? "now" : (row.to ?? "?")} · {row.appearances} apps · {row.goals}g/{row.assists}a
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <section>
           <h2 className="text-sm font-semibold">Per-90 averages</h2>

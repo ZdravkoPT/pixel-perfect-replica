@@ -362,3 +362,86 @@ export async function teamStrengthIndex(teamIds: string[]): Promise<Map<string, 
   }
   return strength;
 }
+
+export interface CareerSummary {
+  status: "success" | "partial" | "failed";
+  players: number;
+  errors: number;
+  durationMs: number;
+}
+
+/**
+ * Persist FotMob career data (bio, season-by-season record, club history,
+ * national-team caps) into player_careers for players we already track with a
+ * FotMob id. Skips players fetched within the last 7 days.
+ */
+export async function ingestPlayerCareers(
+  options: { maxProfiles?: number; triggeredBy?: string } = {},
+): Promise<CareerSummary> {
+  const startedAt = Date.now();
+  const maxProfiles = options.maxProfiles ?? 60;
+  const provider = new FotmobProvider();
+  const staleBefore = new Date(Date.now() - 7 * 86_400_000).toISOString();
+
+  // Players with a FotMob id, prioritising those in current squads of teams
+  // with upcoming fixtures and those never fetched.
+  const { data: rows } = await supabaseAdmin
+    .from("players")
+    .select("id, provider_ids")
+    .not("provider_ids->>fotmob", "is", null)
+    .limit(400);
+
+  const { data: existing } = await supabaseAdmin
+    .from("player_careers")
+    .select("player_id, fetched_at");
+  const fresh = new Set(
+    (existing ?? []).filter((row) => row.fetched_at > staleBefore).map((row) => row.player_id),
+  );
+
+  let players = 0;
+  let errors = 0;
+
+  for (const row of rows ?? []) {
+    if (players >= maxProfiles) break;
+    if (fresh.has(row.id)) continue;
+    const fotmobId = ((row.provider_ids ?? {}) as Record<string, string>)["fotmob"];
+    if (!fotmobId) continue;
+
+    const career = await provider.getPlayerCareer(fotmobId);
+    if (!career.ok) {
+      errors += 1;
+      continue;
+    }
+    const c = career.data;
+    const { error } = await supabaseAdmin.from("player_careers").upsert(
+      {
+        player_id: row.id,
+        source: "fotmob",
+        name: c.name,
+        country: c.country,
+        height: c.height,
+        preferred_foot: c.preferredFoot,
+        shirt: c.shirt,
+        contract_end: c.contractEnd,
+        market_value_label: c.marketValueLabel,
+        position_description: c.positionDescription,
+        current_season: c.currentSeason ?? {},
+        seasons: c.seasons,
+        clubs: c.clubs,
+        national: c.national,
+        injury: c.injury,
+        fetched_at: new Date().toISOString(),
+      },
+      { onConflict: "player_id" },
+    );
+    if (error) errors += 1;
+    else players += 1;
+  }
+
+  return {
+    status: errors > 0 ? (players > 0 ? "partial" : "failed") : "success",
+    players,
+    errors,
+    durationMs: Date.now() - startedAt,
+  };
+}
