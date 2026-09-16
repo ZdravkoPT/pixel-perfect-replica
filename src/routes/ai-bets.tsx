@@ -272,7 +272,7 @@ function AiBetsPage() {
                         <p className="mt-1 text-xs text-muted-foreground">{leg.reasoning}</p>
                       ) : null}
                       {leg.risk ? (
-                        <p className="mt-1 text-[11px] text-amber-500/90">Risk: {leg.risk}</p>
+                        <p className="mt-1 text-[11px] text-chart-4">Risk: {leg.risk}</p>
                       ) : null}
                       <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                         {leg.facts.map((fact, factIndex) => (
