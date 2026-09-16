@@ -464,6 +464,15 @@ export const refreshAttributes = createServerFn({ method: "POST" })
     return ingestPlayerAttributes({ triggeredBy: "manual" });
   });
 
+/** Refresh career records (season stats, club history, national caps). */
+export const refreshCareers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase as never, context.userId);
+    const { ingestPlayerCareers } = await import("./attributes.server");
+    return ingestPlayerCareers({ triggeredBy: "manual" });
+  });
+
 /** Re-run the past-10-week bet-builder review so the calibration stays current. */
 export const runBetHistoryReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
