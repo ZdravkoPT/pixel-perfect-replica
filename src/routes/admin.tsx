@@ -169,6 +169,13 @@ function AdminPage() {
           <Button
             variant="outline"
             disabled={busy}
+            onClick={() => runTask("Player careers", () => runCareersFn())}
+          >
+            Refresh player careers
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
             onClick={() => runTask("Bet review", () => runBetHistoryFn())}
           >
             Review last 10 weeks of bets
