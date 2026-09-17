@@ -10,6 +10,7 @@ import { getDiagnostics, triggerIngestion } from "@/lib/football.functions";
 import { startBacktest, syncHistory, trainModels } from "@/lib/analytics.functions";
 import {
   refreshAttributes,
+  refreshCareers,
   refreshIntel,
   refreshKickoff,
   runBetHistoryReview,
