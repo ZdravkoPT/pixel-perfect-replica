@@ -96,9 +96,9 @@ const PlayersIndexRoute = PlayersIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayersPlayerIdRoute = PlayersPlayerIdRouteImport.update({
-  id: '/$playerId',
-  path: '/$playerId',
-  getParentRoute: () => PlayersRoute,
+  id: '/players/$playerId',
+  path: '/players/$playerId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicHooksBetReviewRoute = ApiPublicHooksBetReviewRouteImport.update({
   id: '/api/public/hooks/bet-review',
@@ -284,6 +284,7 @@ export interface RootRouteChildren {
   ValueRoute: typeof ValueRoute
   WatchlistRoute: typeof WatchlistRoute
   MatchesMatchIdRoute: typeof MatchesMatchIdRoute
+  PlayersPlayerIdRoute: typeof PlayersPlayerIdRoute
   PlayersIndexRoute: typeof PlayersIndexRoute
   ApiPublicHooksBetReviewRoute: typeof ApiPublicHooksBetReviewRoute
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
@@ -388,10 +389,10 @@ declare module '@tanstack/react-router' {
     }
     '/players/$playerId': {
       id: '/players/$playerId'
-      path: '/$playerId'
+      path: '/players/$playerId'
       fullPath: '/players/$playerId'
       preLoaderRoute: typeof PlayersPlayerIdRouteImport
-      parentRoute: typeof PlayersRoute
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/bet-review': {
       id: '/api/public/hooks/bet-review'
@@ -461,6 +462,7 @@ const rootRouteChildren: RootRouteChildren = {
   ValueRoute: ValueRoute,
   WatchlistRoute: WatchlistRoute,
   MatchesMatchIdRoute: MatchesMatchIdRoute,
+  PlayersPlayerIdRoute: PlayersPlayerIdRoute,
   PlayersIndexRoute: PlayersIndexRoute,
   ApiPublicHooksBetReviewRoute: ApiPublicHooksBetReviewRoute,
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
