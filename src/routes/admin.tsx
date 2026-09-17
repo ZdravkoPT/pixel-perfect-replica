@@ -10,6 +10,7 @@ import { getDiagnostics, triggerIngestion } from "@/lib/football.functions";
 import { startBacktest, syncHistory, trainModels } from "@/lib/analytics.functions";
 import {
   refreshAttributes,
+  refreshCareers,
   refreshIntel,
   refreshKickoff,
   runBetHistoryReview,
@@ -45,6 +46,7 @@ function AdminPage() {
   const runIntelFn = useServerFn(refreshIntel);
   const runKickoffFn = useServerFn(refreshKickoff);
   const runAttributesFn = useServerFn(refreshAttributes);
+  const runCareersFn = useServerFn(refreshCareers);
   const runBetHistoryFn = useServerFn(runBetHistoryReview);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -163,6 +165,13 @@ function AdminPage() {
             onClick={() => runTask("Player skill cards", () => runAttributesFn())}
           >
             Refresh player skill cards
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Player careers", () => runCareersFn())}
+          >
+            Refresh player careers
           </Button>
           <Button
             variant="outline"
