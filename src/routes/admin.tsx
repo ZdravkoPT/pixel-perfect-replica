@@ -46,6 +46,7 @@ function AdminPage() {
   const runIntelFn = useServerFn(refreshIntel);
   const runKickoffFn = useServerFn(refreshKickoff);
   const runAttributesFn = useServerFn(refreshAttributes);
+  const runCareersFn = useServerFn(refreshCareers);
   const runBetHistoryFn = useServerFn(runBetHistoryReview);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
