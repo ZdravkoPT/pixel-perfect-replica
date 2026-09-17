@@ -582,3 +582,206 @@ export const getHeadToHead = createServerFn({ method: "GET" })
         : null,
     };
   });
+
+/* ------------------------------------------------------------------ */
+/* Team squads: season stats, availability, positions                  */
+/* ------------------------------------------------------------------ */
+
+export const listTeams = createServerFn({ method: "GET" })
+  .inputValidator((input: { query?: string; limit?: number } | undefined) => ({
+    query: (input?.query ?? "").trim(),
+    limit: Math.min(input?.limit ?? 80, 200),
+  }))
+  .handler(async ({ data }) => {
+    const supabase = publicClient();
+    let request = supabase
+      .from("teams")
+      .select("id, name, short_name, country, crest_url")
+      .order("name")
+      .limit(data.limit);
+    if (data.query) request = request.ilike("name", `%${data.query}%`);
+    const { data: rows } = await request;
+    return { teams: rows ?? [] };
+  });
+
+export const getTeamSquad = createServerFn({ method: "GET" })
+  .inputValidator((input: { teamId: string }) => input)
+  .handler(async ({ data }) => {
+    const supabase = publicClient();
+
+    const [{ data: team }, { data: memberships }, { data: injuries }] = await Promise.all([
+      supabase
+        .from("teams")
+        .select("id, name, short_name, country, crest_url")
+        .eq("id", data.teamId)
+        .maybeSingle(),
+      supabase
+        .from("squad_memberships")
+        .select(
+          "id, shirt_number, position, on_loan, player:players(id, name, position, nationality, birth_date)",
+        )
+        .eq("team_id", data.teamId)
+        .eq("is_current", true)
+        .limit(120),
+      supabase
+        .from("injuries")
+        .select("player_id, kind, reason, status, expected_return")
+        .eq("team_id", data.teamId)
+        .is("resolved_at", null),
+    ]);
+
+    const playerIds = (memberships ?? [])
+      .map((row) => (row.player as { id: string } | null)?.id)
+      .filter((id): id is string => typeof id === "string");
+
+    const { data: careers } = playerIds.length
+      ? await supabase
+          .from("player_careers")
+          .select("player_id, current_season, seasons, market_value_label")
+          .in("player_id", playerIds)
+      : { data: [] };
+
+    type Season = {
+      season?: string;
+      league?: string;
+      matches?: number | null;
+      goals?: number | null;
+      assists?: number | null;
+      minutes?: number | null;
+      rating?: number | null;
+      appearances?: number;
+      team?: string | null;
+    };
+
+    const careerById = new Map(
+      (careers ?? []).map((row) => [row.player_id as string, row]),
+    );
+    const injuryById = new Map(
+      (injuries ?? []).map((row) => [row.player_id as string, row]),
+    );
+
+    const now = Date.now();
+    const players = (memberships ?? []).map((row) => {
+      const player = row.player as {
+        id: string;
+        name: string;
+        position: string | null;
+        nationality: string | null;
+        birth_date: string | null;
+      } | null;
+      const career = player ? careerById.get(player.id) : undefined;
+      const currentRaw = (career?.current_season ?? null) as Season | null;
+      const current =
+        currentRaw && Object.keys(currentRaw).length > 0 ? currentRaw : null;
+      const seasons = ((career?.seasons ?? []) as Season[]).filter(Boolean);
+      const previous = seasons.length > 1 ? seasons[1] : (seasons[0] ?? null);
+      const injury = player ? injuryById.get(player.id) : undefined;
+      const age = player?.birth_date
+        ? Math.floor((now - new Date(player.birth_date).getTime()) / 31557600000)
+        : null;
+
+      return {
+        membershipId: row.id,
+        playerId: player?.id ?? null,
+        name: player?.name ?? "Unknown",
+        nationality: player?.nationality ?? null,
+        age,
+        shirt: row.shirt_number,
+        position: row.position ?? player?.position ?? null,
+        onLoan: row.on_loan ?? false,
+        marketValue: (career?.market_value_label as string | null) ?? null,
+        current: current
+          ? {
+              season: current.season ?? "Current",
+              league: current.league ?? null,
+              apps: current.matches ?? current.appearances ?? null,
+              goals: current.goals ?? null,
+              assists: current.assists ?? null,
+              minutes: current.minutes ?? null,
+              rating: current.rating ?? null,
+            }
+          : null,
+        previous: previous
+          ? {
+              season: previous.season ?? "Previous",
+              league: previous.team ?? previous.league ?? null,
+              apps: previous.appearances ?? previous.matches ?? null,
+              goals: previous.goals ?? null,
+              assists: previous.assists ?? null,
+              minutes: previous.minutes ?? null,
+              rating: previous.rating ?? null,
+            }
+          : null,
+        availability: injury
+          ? {
+              status: (injury.status as string | null) ?? "doubt",
+              kind: (injury.kind as string | null) ?? null,
+              reason: (injury.reason as string | null) ?? null,
+              expectedReturn: (injury.expected_return as string | null) ?? null,
+            }
+          : null,
+      };
+    });
+
+    return { team: team ?? null, players };
+  });
+
+/** Side-by-side comparison of two players: current season, previous season, career. */
+export const comparePlayers = createServerFn({ method: "GET" })
+  .inputValidator((input: { playerIds: string[] }) => ({
+    playerIds: input.playerIds.filter(Boolean).slice(0, 2),
+  }))
+  .handler(async ({ data }) => {
+    const supabase = publicClient();
+
+    const results = await Promise.all(
+      data.playerIds.map(async (playerId) => {
+        const [{ data: player }, { data: membership }, { data: career }, { data: attributes }, { data: injury }] =
+          await Promise.all([
+            supabase
+              .from("players")
+              .select("id, name, position, nationality, birth_date, photo_url")
+              .eq("id", playerId)
+              .maybeSingle(),
+            supabase
+              .from("squad_memberships")
+              .select("shirt_number, position, team:teams(id, name, crest_url)")
+              .eq("player_id", playerId)
+              .eq("is_current", true)
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from("player_careers")
+              .select(
+                "country, height, preferred_foot, contract_end, market_value_label, position_description, current_season, seasons, clubs, national",
+              )
+              .eq("player_id", playerId)
+              .maybeSingle(),
+            supabase
+              .from("player_attributes")
+              .select("overall, attacking, technical, creativity, defending, physical, rating, minutes, strengths, weaknesses")
+              .eq("player_id", playerId)
+              .order("updated_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from("injuries")
+              .select("kind, reason, status, expected_return")
+              .eq("player_id", playerId)
+              .is("resolved_at", null)
+              .limit(1)
+              .maybeSingle(),
+          ]);
+
+        return {
+          player: player ?? null,
+          membership: membership ?? null,
+          career: career ?? null,
+          attributes: attributes ?? null,
+          injury: injury ?? null,
+        };
+      }),
+    );
+
+    return { players: results };
+  });
