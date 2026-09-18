@@ -106,6 +106,25 @@ function PlayerProfile() {
       subtitle={`${team?.name ?? "No current club"} · ${current?.position ?? player.position ?? "—"}`}
     >
       <div className="space-y-6">
+        <div className="flex flex-wrap gap-3 text-xs">
+          {team?.id ? (
+            <Link
+              to="/squads/$teamId"
+              params={{ teamId: team.id }}
+              className="text-muted-foreground underline-offset-4 hover:underline"
+            >
+              View {team.name} squad
+            </Link>
+          ) : null}
+          <Link
+            to="/compare"
+            search={{ a: player.id }}
+            className="text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Compare with another player
+          </Link>
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-4">
           <Fact label="Nationality" value={player.nationality ?? "—"} />
           <Fact label="Date of birth" value={player.birth_date ?? "—"} />
