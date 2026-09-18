@@ -35,6 +35,17 @@ export const Route = createFileRoute("/compare")({
 
 type Season = Record<string, unknown>;
 
+function mkSearch(a: string | undefined, b: string | undefined): Search {
+  const out: Search = {};
+  if (a) out.a = a;
+  if (b) out.b = b;
+  return out;
+}
+
+function val(source: Record<string, unknown> | null | undefined, key: string): unknown {
+  return source ? source[key] : undefined;
+}
+
 function ComparePage() {
   const { a, b } = Route.useSearch();
   const navigate = useNavigate();
@@ -55,14 +66,14 @@ function ComparePage() {
           <Picker
             label="Player A"
             selectedName={slots[0]?.player?.name ?? null}
-            onPick={(id) => navigate({ to: "/compare", search: { a: id, b } })}
-            onClear={() => navigate({ to: "/compare", search: { b } })}
+            onPick={(id) => navigate({ to: "/compare", search: mkSearch(id, b) })}
+            onClear={() => navigate({ to: "/compare", search: mkSearch(undefined, b) })}
           />
           <Picker
             label="Player B"
             selectedName={slots[1]?.player?.name ?? null}
-            onPick={(id) => navigate({ to: "/compare", search: { a, b: id } })}
-            onClear={() => navigate({ to: "/compare", search: { a } })}
+            onPick={(id) => navigate({ to: "/compare", search: mkSearch(a, id) })}
+            onClear={() => navigate({ to: "/compare", search: mkSearch(a, undefined) })}
           />
         </div>
 
@@ -162,10 +173,10 @@ function PlayerColumn({
 }) {
   if (!slot.player) return null;
   const career = slot.career ?? {};
-  const current = (career.current_season ?? null) as Season | null;
-  const seasons = ((career.seasons ?? []) as Season[]).slice(0, 6);
-  const clubs = ((career.clubs ?? []) as Season[]).slice(0, 6);
-  const national = (career.national ?? null) as Record<string, unknown> | null;
+  const current = (val(career, "current_season") ?? null) as Season | null;
+  const seasons = ((val(career, "seasons") ?? []) as Season[]).slice(0, 6);
+  const clubs = ((val(career, "clubs") ?? []) as Season[]).slice(0, 6);
+  const national = (val(career, "national") ?? null) as Record<string, unknown> | null;
   const team = (slot.membership?.team ?? null) as { name?: string } | null;
   const attrs = slot.attributes ?? {};
 
@@ -182,7 +193,7 @@ function PlayerColumn({
         <p className="mt-1 text-xs text-muted-foreground">
           {team?.name ?? "—"} · {slot.membership?.position ?? slot.player.position ?? "—"} ·{" "}
           {slot.player.nationality ?? "—"}
-          {career.market_value_label ? ` · ${String(career.market_value_label)}` : ""}
+          {val(career, "market_value_label") ? ` · ${String(val(career, "market_value_label"))}` : ""}
         </p>
         {slot.injury ? (
           <Badge variant="destructive" className="mt-2 text-[10px]">
@@ -234,7 +245,7 @@ function PlayerColumn({
           ) : (
             clubs.map((club, index) => (
               <Badge key={index} variant="secondary" className="text-[10px]">
-                {String(club.team ?? club.name ?? "—")}
+                {String(val(club, "team") ?? val(club, "name") ?? "—")}
               </Badge>
             ))
           )}
@@ -247,7 +258,7 @@ function PlayerColumn({
         </p>
         <p className="mt-1 font-mono text-xs tabular-nums">
           {national
-            ? `${String(national.team ?? national.name ?? "—")} · ${String(national.appearances ?? national.matches ?? 0)} caps · ${String(national.goals ?? 0)}G`
+            ? `${String(val(national, "team") ?? val(national, "name") ?? "—")} · ${String(val(national, "appearances") ?? val(national, "matches") ?? 0)} caps · ${String(val(national, "goals") ?? 0)}G`
             : "—"}
         </p>
       </div>
@@ -257,10 +268,11 @@ function PlayerColumn({
 
 function seasonLine(season: Season | null) {
   if (!season || Object.keys(season).length === 0) return "—";
-  const label = String(season.season ?? season.team ?? "Season");
-  const apps = season.matches ?? season.appearances ?? 0;
-  const goals = season.goals ?? 0;
-  const assists = season.assists ?? 0;
-  const rating = season.rating ? ` · ⌀${Number(season.rating).toFixed(2)}` : "";
+  const label = String(val(season, "season") ?? val(season, "team") ?? "Season");
+  const apps = val(season, "matches") ?? val(season, "appearances") ?? 0;
+  const goals = val(season, "goals") ?? 0;
+  const assists = val(season, "assists") ?? 0;
+  const ratingRaw = val(season, "rating");
+  const rating = ratingRaw ? ` · ⌀${Number(ratingRaw).toFixed(2)}` : "";
   return `${label}: ${String(apps)} apps · ${String(goals)}G · ${String(assists)}A${rating}`;
 }
