@@ -9,10 +9,11 @@ import { comparePlayers, searchPlayers } from "@/lib/intel.functions";
 type Search = { a?: string; b?: string };
 
 export const Route = createFileRoute("/compare")({
-  validateSearch: (search: Record<string, unknown>): Search => ({
-    a: typeof search.a === "string" ? search.a : undefined,
-    b: typeof search.b === "string" ? search.b : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): Search =>
+    mkSearch(
+      typeof search["a"] === "string" ? search["a"] : undefined,
+      typeof search["b"] === "string" ? search["b"] : undefined,
+    ),
   head: () => ({
     meta: [
       { title: "Compare players | Football Intelligence" },
