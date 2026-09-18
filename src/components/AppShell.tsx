@@ -25,6 +25,8 @@ const NAV_GROUPS = [
     label: "People",
     items: [
       { to: "/players", label: "Players", icon: Users },
+      { to: "/squads", label: "Squads", icon: Shirt },
+      { to: "/compare", label: "Compare", icon: GitCompare },
       { to: "/coaches", label: "Coaches", icon: ClipboardList },
     ],
   },
