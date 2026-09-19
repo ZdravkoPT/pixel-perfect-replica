@@ -11,6 +11,7 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { FOOTBALL_DATA_COMPETITIONS, FootballDataProvider } from "./providers/football-data.server";
+import { FotmobProvider } from "./providers/fotmob.server";
 import { normalizeTeamName, slugify } from "./providers/normalize";
 import {
   derivedTeamMarkets,
