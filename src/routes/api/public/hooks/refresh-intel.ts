@@ -20,7 +20,12 @@ export const Route = createFileRoute("/api/public/hooks/refresh-intel")({
         const officials = await ingestOfficials({ triggeredBy: "cron", limit: 2000 });
         const intel = await runIntel({ triggeredBy: "cron" });
 
-        return Response.json({ squads, officials, intel });
+        // Grow player-career coverage a batch per cycle (weekly staleness window
+        // inside ingestPlayerCareers keeps this cheap once coverage is complete).
+        const { ingestPlayerCareers } = await import("@/lib/attributes.server");
+        const careers = await ingestPlayerCareers({ maxProfiles: 40, triggeredBy: "cron" });
+
+        return Response.json({ squads, officials, intel, careers });
       },
     },
   },

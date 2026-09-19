@@ -176,7 +176,16 @@ function PlayerColumn({
   const career = slot.career ?? {};
   const current = (val(career, "current_season") ?? null) as Season | null;
   const seasons = ((val(career, "seasons") ?? []) as Season[]).slice(0, 6);
-  const clubs = ((val(career, "clubs") ?? []) as Season[]).slice(0, 6);
+  const clubs = ((val(career, "clubs") ?? []) as Season[])
+    .filter(
+      (club, index, all) =>
+        all.findIndex(
+          (other) =>
+            String(val(other, "team") ?? val(other, "name") ?? "") ===
+            String(val(club, "team") ?? val(club, "name") ?? ""),
+        ) === index,
+    )
+    .slice(0, 6);
   const national = (val(career, "national") ?? null) as Record<string, unknown> | null;
   const team = (slot.membership?.team ?? null) as { name?: string } | null;
   const attrs = slot.attributes ?? {};
