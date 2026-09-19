@@ -462,15 +462,17 @@ export async function ingestFotmobSquads(
       }
     }
 
-    // Players no longer in the FotMob squad are not current anymore — but only
-    // when we actually saw them before, so other providers' records survive.
-    if (seenPlayerIds.size > 0) {
+    // Roster players absent from the FotMob squad are no longer current.
+    const staleIds = (roster ?? [])
+      .map((row) => row.player_id)
+      .filter((id): id is string => typeof id === "string" && !seenPlayerIds.has(id));
+    if (staleIds.length > 0) {
       await supabaseAdmin
         .from("squad_memberships")
         .update({ is_current: false })
         .eq("team_id", team.id)
         .eq("is_current", true)
-        .in("player_id", [...seenPlayerIds].length ? rosterPlayerIdsToRetain(roster ?? [], seenPlayerIds) : ["__none__"]);
+        .in("player_id", staleIds);
     }
 
     // Be polite to the free endpoint.
