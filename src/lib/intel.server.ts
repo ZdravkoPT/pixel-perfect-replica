@@ -482,17 +482,6 @@ export async function ingestFotmobSquads(
   return finishJob(jobId, startedAt, { processed, inserted, updated, errors });
 }
 
-/** Roster players seen before this sync but absent from the FotMob squad. */
-function rosterPlayerIdsToRetain(
-  roster: Array<{ player_id: string | null }>,
-  seen: Set<string>,
-): string[] {
-  const stale = (roster ?? [])
-    .map((row) => row.player_id)
-    .filter((id): id is string => typeof id === "string" && !seen.has(id));
-  return stale.length > 0 ? stale : ["__none__"];
-}
-
 /* ------------------------------------------------------------------ */
 /* Referees                                                            */
 /* ------------------------------------------------------------------ */
