@@ -11,6 +11,7 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { FOOTBALL_DATA_COMPETITIONS, FootballDataProvider } from "./providers/football-data.server";
+import { FotmobProvider } from "./providers/fotmob.server";
 import { normalizeTeamName, slugify } from "./providers/normalize";
 import {
   derivedTeamMarkets,
@@ -260,6 +261,222 @@ export async function ingestSquads(
         }
       }
     }
+  }
+
+  // Second pass: FotMob fills shirt numbers, injuries and market values, and
+  // links FotMob player ids onto existing players so career stats can follow.
+  try {
+    await ingestFotmobSquads({ triggeredBy: options.triggeredBy ?? "manual" });
+  } catch (error) {
+    await logError(jobId, "squads:fotmob", error instanceof Error ? error.message : String(error));
+  }
+
+  return finishJob(jobId, startedAt, { processed, inserted, updated, errors });
+}
+
+/**
+ * FotMob squad pass: for every club with a FotMob id, sync the current squad
+ * with shirt numbers, positions and injury flags. Members are matched to
+ * existing players by FotMob id first, then by name within the club's current
+ * roster (so the football-data.org record gains the FotMob id rather than a
+ * duplicate player being created).
+ */
+export async function ingestFotmobSquads(
+  options: { triggeredBy?: string; maxTeams?: number } = {},
+): Promise<IntelSummary> {
+  const startedAt = Date.now();
+  const jobId = await startJob("squads-fotmob", options.triggeredBy ?? "manual");
+  const provider = new FotmobProvider();
+
+  let processed = 0;
+  let inserted = 0;
+  let updated = 0;
+  let errors = 0;
+
+  const { data: teamRows } = await supabaseAdmin
+    .from("teams")
+    .select("id, name, provider_ids")
+    .not("provider_ids->>fotmob", "is", null);
+  const teams = (teamRows ?? []).slice(0, options.maxTeams ?? 300);
+
+  // Global FotMob id -> player lookup, built once per run.
+  const { data: fotmobPlayers } = await supabaseAdmin
+    .from("players")
+    .select("id, provider_ids")
+    .not("provider_ids->>fotmob", "is", null)
+    .limit(20000);
+  const playerByFotmobId = new Map<string, string>();
+  for (const row of fotmobPlayers ?? []) {
+    const fmId = ((row.provider_ids ?? {}) as Record<string, string>)["fotmob"];
+    if (fmId) playerByFotmobId.set(fmId, row.id);
+  }
+
+  for (const team of teams) {
+    const fmTeamId = ((team.provider_ids ?? {}) as Record<string, string>)["fotmob"];
+    if (!fmTeamId) continue;
+
+    const result = await provider.getSquad(fmTeamId);
+    if (!result.ok) {
+      errors += 1;
+      await logError(jobId, `squads-fotmob:${team.name}`, result.error);
+      continue;
+    }
+    if (result.data.length === 0) continue;
+
+    // Current roster of this club for name matching.
+    const { data: roster } = await supabaseAdmin
+      .from("squad_memberships")
+      .select("id, player_id, shirt_number, player:players(id, name)")
+      .eq("team_id", team.id)
+      .eq("is_current", true);
+    const rosterByName = new Map<string, { membershipId: string; playerId: string }>();
+    for (const row of roster ?? []) {
+      const player = row.player as { id: string; name: string } | null;
+      if (player) {
+        rosterByName.set(slugify(player.name), {
+          membershipId: row.id,
+          playerId: player.id,
+        });
+      }
+    }
+
+    const seenPlayerIds = new Set<string>();
+
+    for (const member of result.data) {
+      processed += 1;
+      try {
+        let playerId = playerByFotmobId.get(member.providerId) ?? null;
+
+        if (!playerId) {
+          const match = rosterByName.get(slugify(member.name));
+          if (match) {
+            playerId = match.playerId;
+            // Link the FotMob id onto the existing player record.
+            const { data: existing } = await supabaseAdmin
+              .from("players")
+              .select("provider_ids")
+              .eq("id", playerId)
+              .single();
+            const ids = { ...((existing?.provider_ids ?? {}) as Record<string, string>) };
+            if (!ids["fotmob"]) {
+              ids["fotmob"] = member.providerId;
+              await supabaseAdmin
+                .from("players")
+                .update({ provider_ids: ids })
+                .eq("id", playerId);
+              playerByFotmobId.set(member.providerId, playerId);
+            }
+          }
+        }
+
+        if (!playerId) {
+          const { data: created, error } = await supabaseAdmin
+            .from("players")
+            .upsert(
+              {
+                canonical_id: `player:fotmob:${member.providerId}`,
+                name: member.name,
+                position: member.positionGroup,
+                provider_ids: { fotmob: member.providerId },
+              },
+              { onConflict: "canonical_id" },
+            )
+            .select("id")
+            .single();
+          if (error || !created) {
+            errors += 1;
+            await logError(jobId, "fotmob-player-upsert", error?.message ?? "unknown");
+            continue;
+          }
+          playerId = created.id;
+          playerByFotmobId.set(member.providerId, playerId);
+          inserted += 1;
+        } else {
+          updated += 1;
+        }
+
+        seenPlayerIds.add(playerId);
+
+        await supabaseAdmin.from("player_aliases").upsert(
+          {
+            player_id: playerId,
+            alias: member.name,
+            normalized_alias: slugify(member.name),
+            source: "fotmob",
+          },
+          { onConflict: "player_id,normalized_alias", ignoreDuplicates: true },
+        );
+
+        const membership = {
+          player_id: playerId,
+          team_id: team.id,
+          shirt_number: member.shirtNumber,
+          position: member.positionGroup,
+          is_current: true,
+        };
+        const { data: existingMembership } = await supabaseAdmin
+          .from("squad_memberships")
+          .select("id, shirt_number")
+          .eq("player_id", playerId)
+          .eq("team_id", team.id)
+          .maybeSingle();
+        if (existingMembership) {
+          // Keep an existing shirt number if FotMob did not provide one.
+          await supabaseAdmin
+            .from("squad_memberships")
+            .update({
+              ...membership,
+              shirt_number: member.shirtNumber ?? existingMembership.shirt_number,
+            })
+            .eq("id", existingMembership.id);
+        } else {
+          await supabaseAdmin.from("squad_memberships").insert(membership);
+        }
+
+        // Injury flag: record an unresolved injury only when none exists.
+        if (member.injured) {
+          const { data: open } = await supabaseAdmin
+            .from("injuries")
+            .select("id")
+            .eq("player_id", playerId)
+            .is("resolved_at", null)
+            .limit(1)
+            .maybeSingle();
+          if (!open) {
+            await supabaseAdmin.from("injuries").insert({
+              player_id: playerId,
+              team_id: team.id,
+              kind: "injury",
+              status: "out",
+              source_id: "fotmob",
+            });
+          }
+        }
+      } catch (error) {
+        errors += 1;
+        await logError(
+          jobId,
+          "fotmob-member",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+
+    // Roster players absent from the FotMob squad are no longer current.
+    const staleIds = (roster ?? [])
+      .map((row) => row.player_id)
+      .filter((id): id is string => typeof id === "string" && !seenPlayerIds.has(id));
+    if (staleIds.length > 0) {
+      await supabaseAdmin
+        .from("squad_memberships")
+        .update({ is_current: false })
+        .eq("team_id", team.id)
+        .eq("is_current", true)
+        .in("player_id", staleIds);
+    }
+
+    // Be polite to the free endpoint.
+    await new Promise((resolve) => setTimeout(resolve, 120));
   }
 
   return finishJob(jobId, startedAt, { processed, inserted, updated, errors });
