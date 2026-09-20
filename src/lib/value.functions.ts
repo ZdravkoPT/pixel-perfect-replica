@@ -385,6 +385,105 @@ export const getAiBets = createServerFn({ method: "GET" })
     const latest = new Map<string, NonNullable<typeof predictions>[number]>();
     for (const row of predictions ?? []) if (!latest.has(row.match_id)) latest.set(row.match_id, row);
 
+    // ---- Real recent-form statistics for every team playing today ----------
+    // The slip must be justified by results on the pitch, not only by the model
+    // output, so we read each club's last matches and derive scoring, conceding,
+    // goals-market and result rates that feed both the blend and the facts list.
+    type Form = {
+      matches: number;
+      ppg: number;
+      winRate: number;
+      lossRate: number;
+      drawRate: number;
+      gf: number;
+      ga: number;
+      over15: number;
+      over25: number;
+      btts: number;
+      cleanSheets: number;
+      failedToScore: number;
+      last5: string;
+    };
+    const emptyForm: Form = {
+      matches: 0,
+      ppg: 0,
+      winRate: 0,
+      lossRate: 0,
+      drawRate: 0,
+      gf: 0,
+      ga: 0,
+      over15: 0,
+      over25: 0,
+      btts: 0,
+      cleanSheets: 0,
+      failedToScore: 0,
+      last5: "",
+    };
+    const formByTeam = new Map<string, Form>();
+    {
+      const teamIds = [
+        ...new Set(rows.flatMap((row) => [row.home_team_id, row.away_team_id]).filter(Boolean)),
+      ];
+      const since = new Date(now.getTime() - 300 * 86_400_000).toISOString();
+      const { data: pastRows } = await supabase
+        .from("matches")
+        .select("home_team_id, away_team_id, home_score, away_score, kickoff_at")
+        .eq("status", "FINISHED")
+        .gte("kickoff_at", since)
+        .lte("kickoff_at", now.toISOString())
+        .or(
+          `home_team_id.in.(${teamIds.join(",")}),away_team_id.in.(${teamIds.join(",")})`,
+        )
+        .order("kickoff_at", { ascending: false })
+        .limit(5000);
+
+      const perTeam = new Map<
+        string,
+        Array<{ gf: number; ga: number; total: number; btts: boolean }>
+      >();
+      for (const past of pastRows ?? []) {
+        if (past.home_score === null || past.away_score === null) continue;
+        const hs = Number(past.home_score);
+        const as = Number(past.away_score);
+        const push = (teamId: string | null, gf: number, ga: number) => {
+          if (!teamId || !teamIds.includes(teamId)) return;
+          const list = perTeam.get(teamId) ?? [];
+          if (list.length >= 12) return; // ordered newest first: keep last 12
+          list.push({ gf, ga, total: hs + as, btts: hs > 0 && as > 0 });
+          perTeam.set(teamId, list);
+        };
+        push(past.home_team_id, hs, as);
+        push(past.away_team_id, as, hs);
+      }
+
+      for (const [teamId, list] of perTeam) {
+        if (list.length === 0) continue;
+        const n = list.length;
+        const rate = (fn: (g: (typeof list)[number]) => boolean) =>
+          list.filter(fn).length / n;
+        formByTeam.set(teamId, {
+          matches: n,
+          ppg:
+            list.reduce((acc, g) => acc + (g.gf > g.ga ? 3 : g.gf === g.ga ? 1 : 0), 0) / n,
+          winRate: rate((g) => g.gf > g.ga),
+          drawRate: rate((g) => g.gf === g.ga),
+          lossRate: rate((g) => g.gf < g.ga),
+          gf: list.reduce((acc, g) => acc + g.gf, 0) / n,
+          ga: list.reduce((acc, g) => acc + g.ga, 0) / n,
+          over15: rate((g) => g.total > 1),
+          over25: rate((g) => g.total > 2),
+          btts: rate((g) => g.btts),
+          cleanSheets: rate((g) => g.ga === 0),
+          failedToScore: rate((g) => g.gf === 0),
+          last5: list
+            .slice(0, 5)
+            .map((g) => (g.gf > g.ga ? "W" : g.gf === g.ga ? "D" : "L"))
+            .join(""),
+        });
+      }
+    }
+
+
     const adjust = (market: string, probability: number) =>
       Math.min(0.97, Math.max(0.02, probability * (multipliers.get(market) ?? 1)));
 
