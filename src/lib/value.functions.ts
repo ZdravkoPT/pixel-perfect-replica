@@ -288,10 +288,18 @@ async function loadCalibration(supabase: ReturnType<typeof publicClient>) {
   if (!data) return { run: null, multipliers: new Map<string, number>() };
 
   const multipliers = new Map<string, number>();
-  for (const row of (data.by_market ?? []) as Array<{ market: string; multiplier: number }>) {
+  const marketRoi = new Map<string, { roi: number; picks: number }>();
+  for (const row of (data.by_market ?? []) as Array<{
+    market: string;
+    multiplier: number;
+    roiMarket?: number;
+    picks?: number;
+  }>) {
     if (row?.market && Number.isFinite(row.multiplier)) multipliers.set(row.market, Number(row.multiplier));
+    if (row?.market && Number.isFinite(row.roiMarket))
+      marketRoi.set(row.market, { roi: Number(row.roiMarket), picks: Number(row.picks ?? 0) });
   }
-  return { run: data, multipliers };
+  return { run: data, multipliers, marketRoi };
 }
 
 /** Public read of the past-N-week bet-builder scorecard. */
