@@ -332,12 +332,12 @@ export const getAiBets = createServerFn({ method: "GET" })
     const end = new Date(now);
     end.setUTCHours(23, 59, 59, 999);
 
-    const { run: historyRun, multipliers } = await loadCalibration(supabase);
+    const { run: historyRun, multipliers, marketRoi } = await loadCalibration(supabase);
 
     const { data: matches } = await supabase
       .from("matches")
       .select(
-        "id, kickoff_at, home_team_id, league:leagues(name), home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)",
+        "id, kickoff_at, home_team_id, away_team_id, league:leagues(name), home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)",
       )
       .gte("kickoff_at", now.toISOString())
       .lte("kickoff_at", end.toISOString())
