@@ -732,28 +732,20 @@ export const getAiBets = createServerFn({ method: "GET" })
         options.push({ market: "btts", marketLabel: "Both teams to score", selection: "Both teams to score — no", calibrationKey: "btts_no", p: grid ? grid.bttsNo : 1 - btts });
       }
 
-      const priced = options
+      const priced: PricedOption[] = options
         .filter((option) => Number.isFinite(option.p) && option.p > 0)
         .map((option) => {
           const calibrated = Math.min(0.985, Math.max(0.02, adjust(option.calibrationKey, option.p)));
-          const probability = Math.min(0.985, Math.max(0.02, temper(calibrated)));
-          return { ...option, probability };
+          const formP = formProbabilityFor(option.calibrationKey);
+          const blended =
+            formP === null || !Number.isFinite(formP) || formWeight <= 0
+              ? calibrated
+              : calibrated * (1 - formWeight) +
+                Math.min(0.99, Math.max(0.01, formP)) * formWeight;
+          const probability = Math.min(0.985, Math.max(0.02, temper(blended)));
+          return { ...option, probability, formProbability: formP };
         });
       if (priced.length === 0) continue;
-
-      // Safety floor first, then take the best price among the safe options so
-      // the slip is not made of near-certain 1.02 legs that add no value.
-      const safeFloor = 0.72;
-      const safe = priced.filter((option) => option.probability >= safeFloor);
-      const pool = safe.length > 0 ? safe : priced;
-      const pick = pool.reduce((best, option) => {
-        const score = (candidate: typeof option) =>
-          safe.length > 0
-            ? // among safe options prefer the longest price, lightly weighted by safety
-              (1 / candidate.probability) * Math.pow(candidate.probability, 0.35)
-            : candidate.probability;
-        return score(option) > score(best) ? option : best;
-      });
 
       const facts = [
         `Goal rates ${lh.toFixed(2)} – ${la.toFixed(2)} (${Number(prediction.expected_goals ?? total).toFixed(2)} total)`,
@@ -762,7 +754,15 @@ export const getAiBets = createServerFn({ method: "GET" })
         prediction.p_over_25 === null ? null : `Over 2.5 ${(Number(prediction.p_over_25) * 100).toFixed(0)}%`,
         prediction.p_btts === null ? null : `Both score ${(Number(prediction.p_btts) * 100).toFixed(0)}%`,
         prediction.top_scoreline ? `Most likely score ${prediction.top_scoreline}` : null,
-        `Model call ${(pick.p * 100).toFixed(0)}% → calibrated ${(pick.probability * 100).toFixed(0)}%`,
+        homeForm.matches > 0
+          ? `${homeName} last ${homeForm.matches}: ${homeForm.last5} · ${homeForm.gf.toFixed(1)} scored / ${homeForm.ga.toFixed(1)} conceded · over 2.5 in ${(homeForm.over25 * 100).toFixed(0)}% · both score ${(homeForm.btts * 100).toFixed(0)}%`
+          : `${homeName}: no recent results stored`,
+        awayForm.matches > 0
+          ? `${awayName} last ${awayForm.matches}: ${awayForm.last5} · ${awayForm.gf.toFixed(1)} scored / ${awayForm.ga.toFixed(1)} conceded · over 2.5 in ${(awayForm.over25 * 100).toFixed(0)}% · both score ${(awayForm.btts * 100).toFixed(0)}%`
+          : `${awayName}: no recent results stored`,
+        sample > 0
+          ? `Form weight ${(formWeight * 100).toFixed(0)}% (points per game ${homeForm.ppg.toFixed(2)} vs ${awayForm.ppg.toFixed(2)})`
+          : null,
         lineupStatus === "confirmed"
           ? "Confirmed team sheet"
           : lineupStatus === "projected"
@@ -770,11 +770,60 @@ export const getAiBets = createServerFn({ method: "GET" })
             : "No line-up published yet",
       ].filter((value): value is string => Boolean(value));
 
-      megaLegs.push({
+      matchOptions.push({
         matchId: match.id,
         fixture,
         league: match.league?.name ?? "Unknown league",
         kickoffAt: match.kickoff_at,
+        lineupStatus,
+        confidence,
+        facts,
+        priced,
+      });
+    }
+
+    // ---- Leg selection with market variety --------------------------------
+    // Picks are made across all fixtures at once: a match-result pick has to
+    // out-argue the goals / both-teams-to-score / double-chance alternative,
+    // and each market carries a quota so the slip cannot become 20 x 1X2.
+    const safeFloor = 0.72;
+    const bestSafe = (entry: (typeof matchOptions)[number]) =>
+      entry.priced.reduce((acc, option) => Math.max(acc, option.probability), 0);
+    const targetLegs = Math.min(20, matchOptions.length);
+    const maxPerMarket = Math.max(2, Math.ceil(targetLegs * 0.35));
+    const marketCounts = new Map<string, number>();
+    const megaLegs: MegaLeg[] = [];
+
+    for (const entry of matchOptions.slice().sort((a, b) => bestSafe(b) - bestSafe(a))) {
+      const safe = entry.priced.filter((option) => option.probability >= safeFloor);
+      const pool = safe.length > 0 ? safe : entry.priced;
+      let pick: PricedOption | null = null;
+      let bestScore = -Infinity;
+      for (const option of pool) {
+        const used = marketCounts.get(option.market) ?? 0;
+        const base =
+          safe.length > 0
+            ? (1 / option.probability) * Math.pow(option.probability, 0.35)
+            : option.probability;
+        // Reward markets where recent form agrees with the model call.
+        const agreement =
+          option.formProbability === null
+            ? 1
+            : 1 + 0.12 * (1 - Math.min(1, Math.abs(option.formProbability - option.p) * 2));
+        const variety = (used >= maxPerMarket ? 0.5 : 1) / (1 + 0.22 * used);
+        const score = base * agreement * variety;
+        if (score > bestScore) {
+          bestScore = score;
+          pick = option;
+        }
+      }
+      if (!pick) continue;
+      marketCounts.set(pick.market, (marketCounts.get(pick.market) ?? 0) + 1);
+      megaLegs.push({
+        matchId: entry.matchId,
+        fixture: entry.fixture,
+        league: entry.league,
+        kickoffAt: entry.kickoffAt,
         market: pick.market,
         pickCode: pick.calibrationKey,
         marketLabel: pick.marketLabel,
@@ -782,11 +831,19 @@ export const getAiBets = createServerFn({ method: "GET" })
         probability: pick.probability,
         modelProbability: pick.p,
         fairOdds: odds(pick.probability),
-        confidence,
-        lineupStatus,
-        facts,
+        confidence: entry.confidence,
+        lineupStatus: entry.lineupStatus,
+        facts: [
+          ...entry.facts,
+          `Model call ${(pick.p * 100).toFixed(0)}%${
+            pick.formProbability === null
+              ? ""
+              : ` · recent form suggests ${(pick.formProbability * 100).toFixed(0)}%`
+          } → final ${(pick.probability * 100).toFixed(0)}%`,
+        ],
       });
     }
+
     // Keep the twenty most reliable legs, then present them by kick-off time.
     const slipLegs = megaLegs
       .slice()
