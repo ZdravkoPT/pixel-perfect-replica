@@ -8,6 +8,13 @@
       "when": 1789538850443,
       "tag": "0000_create_player_careers",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789986604663,
+      "tag": "0001_create_coach_profiles_player_conditions",
+      "breakpoints": true
     }
   ]
 }

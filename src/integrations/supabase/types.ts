@@ -384,6 +384,63 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_profiles: {
+        Row: {
+          achievements: Json
+          career: Json
+          coach_id: string
+          current_team_id: string | null
+          fetched_at: string
+          name: string | null
+          nationality: string | null
+          provider_coach_id: string | null
+          seasons: Json
+          source: string
+          totals: Json
+        }
+        Insert: {
+          achievements?: Json
+          career?: Json
+          coach_id: string
+          current_team_id?: string | null
+          fetched_at?: string
+          name?: string | null
+          nationality?: string | null
+          provider_coach_id?: string | null
+          seasons?: Json
+          source?: string
+          totals?: Json
+        }
+        Update: {
+          achievements?: Json
+          career?: Json
+          coach_id?: string
+          current_team_id?: string | null
+          fetched_at?: string
+          name?: string | null
+          nationality?: string | null
+          provider_coach_id?: string | null
+          seasons?: Json
+          source?: string
+          totals?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_profiles_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: true
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_profiles_current_team_id_fkey"
+            columns: ["current_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coach_spells: {
         Row: {
           coach_id: string
@@ -1434,6 +1491,93 @@ export type Database = {
             columns: ["player_id"]
             isOneToOne: true
             referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_conditions: {
+        Row: {
+          assists_recent: number
+          availability: string
+          avg_rating_prior: number | null
+          avg_rating_recent: number | null
+          days_since_last_match: number | null
+          fetched_at: string
+          goals_recent: number
+          injury: Json | null
+          load_index: number | null
+          matches_30d: number
+          matches_recent: number
+          minutes_30d: number
+          minutes_recent: number
+          minutes_share: number | null
+          player_id: string
+          rating_trend: number | null
+          recent_matches: Json
+          sharpness: number | null
+          source: string
+          starts_recent: number
+          team_id: string | null
+        }
+        Insert: {
+          assists_recent?: number
+          availability?: string
+          avg_rating_prior?: number | null
+          avg_rating_recent?: number | null
+          days_since_last_match?: number | null
+          fetched_at?: string
+          goals_recent?: number
+          injury?: Json | null
+          load_index?: number | null
+          matches_30d?: number
+          matches_recent?: number
+          minutes_30d?: number
+          minutes_recent?: number
+          minutes_share?: number | null
+          player_id: string
+          rating_trend?: number | null
+          recent_matches?: Json
+          sharpness?: number | null
+          source?: string
+          starts_recent?: number
+          team_id?: string | null
+        }
+        Update: {
+          assists_recent?: number
+          availability?: string
+          avg_rating_prior?: number | null
+          avg_rating_recent?: number | null
+          days_since_last_match?: number | null
+          fetched_at?: string
+          goals_recent?: number
+          injury?: Json | null
+          load_index?: number | null
+          matches_30d?: number
+          matches_recent?: number
+          minutes_30d?: number
+          minutes_recent?: number
+          minutes_share?: number | null
+          player_id?: string
+          rating_trend?: number | null
+          recent_matches?: Json
+          sharpness?: number | null
+          source?: string
+          starts_recent?: number
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_conditions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: true
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_conditions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
