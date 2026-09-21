@@ -613,7 +613,25 @@ export const getAiBets = createServerFn({ method: "GET" })
       };
     };
 
-    const megaLegs: MegaLeg[] = [];
+    type PricedOption = {
+      market: MegaLeg["market"];
+      marketLabel: string;
+      selection: string;
+      calibrationKey: string;
+      p: number;
+      probability: number;
+      formProbability: number | null;
+    };
+    const matchOptions: Array<{
+      matchId: string;
+      fixture: string;
+      league: string;
+      kickoffAt: string;
+      lineupStatus: "confirmed" | "projected" | "none";
+      confidence: number | null;
+      facts: string[];
+      priced: PricedOption[];
+    }> = [];
     for (const match of rows) {
       const prediction = latest.get(match.id);
       if (!prediction) continue;
@@ -629,6 +647,48 @@ export const getAiBets = createServerFn({ method: "GET" })
       const la = Number(prediction.lambda_away ?? 0);
       const total = lh + la;
       const grid = total > 0 ? poissonGrid(lh, la) : null;
+
+      // ---- Recent-form blend --------------------------------------------
+      // Every market is pulled towards what the two clubs have actually been
+      // doing on the pitch, weighted by how many recent matches we have.
+      const homeForm = formByTeam.get(match.home_team_id) ?? emptyForm;
+      const awayForm = formByTeam.get(match.away_team_id) ?? emptyForm;
+      const sample = Math.min(homeForm.matches, awayForm.matches);
+      const formWeight = (0.32 * Math.min(sample, 10)) / 10;
+      const avg2 = (a: number, b: number) => (a + b) / 2;
+      const formProbabilityFor = (key: string): number | null => {
+        if (sample === 0) return null;
+        switch (key) {
+          case "home":
+            return avg2(homeForm.winRate, awayForm.lossRate);
+          case "away":
+            return avg2(awayForm.winRate, homeForm.lossRate);
+          case "draw":
+            return avg2(homeForm.drawRate, awayForm.drawRate);
+          case "dc_home":
+            return avg2(homeForm.winRate + homeForm.drawRate, awayForm.lossRate + awayForm.drawRate);
+          case "dc_away":
+            return avg2(awayForm.winRate + awayForm.drawRate, homeForm.lossRate + homeForm.drawRate);
+          case "dc_nodraw":
+            return 1 - avg2(homeForm.drawRate, awayForm.drawRate);
+          case "over05":
+            return 1 - homeForm.failedToScore * awayForm.failedToScore;
+          case "over15":
+            return avg2(homeForm.over15, awayForm.over15);
+          case "over25":
+            return avg2(homeForm.over25, awayForm.over25);
+          case "under35":
+            return 1 - avg2(homeForm.over25, awayForm.over25) * 0.75;
+          case "under45":
+            return 1 - avg2(homeForm.over25, awayForm.over25) * 0.45;
+          case "btts":
+            return avg2(homeForm.btts, awayForm.btts);
+          case "btts_no":
+            return 1 - avg2(homeForm.btts, awayForm.btts);
+          default:
+            return null;
+        }
+      };
 
       // Reliability: how much we trust the stored numbers for this fixture.
       const ageHours =
