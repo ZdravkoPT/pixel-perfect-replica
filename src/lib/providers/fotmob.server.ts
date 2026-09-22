@@ -507,7 +507,214 @@ export class FotmobProvider {
 
     return ok({ items, minutes: typeof minutesStat?.value === "number" ? minutesStat.value : null });
   }
+
+  /** FotMob id of the head coach currently listed in a club's squad. */
+  async findTeamCoach(
+    teamId: string,
+  ): Promise<{ providerId: string; name: string; nationality: string | null; birthDate: string | null } | null> {
+    const result = await this.request<{
+      squad?: {
+        squad?: Array<{
+          title?: string;
+          members?: Array<{
+            id?: number;
+            name?: string;
+            cname?: string | null;
+            dateOfBirth?: string | null;
+          }>;
+        }>;
+      };
+    }>(`/teams?id=${teamId}&tab=squad`);
+    if (!result.ok) return null;
+
+    const group = (result.data.squad?.squad ?? []).find((entry) => entry.title === "coach");
+    const member = group?.members?.[0];
+    if (!member?.id || !member.name) return null;
+    return {
+      providerId: String(member.id),
+      name: String(member.name),
+      nationality: member.cname ?? null,
+      birthDate: member.dateOfBirth ? String(member.dateOfBirth).slice(0, 10) : null,
+    };
+  }
+
+  /**
+   * Full coach dossier: managerial spells (including assistant-coach roles),
+   * the playing career that came before them, per-club records and the trophy
+   * list FotMob publishes for free.
+   */
+  async getCoachProfile(providerCoachId: string): Promise<ProviderResult<CoachProfile>> {
+    const result = await this.request<Record<string, any>>(`/playerData?id=${providerCoachId}`);
+    if (!result.ok) return result;
+    const data = result.data;
+
+    const info: Record<string, string> = {};
+    for (const item of (data["playerInformation"] ?? []) as any[]) {
+      const title = String(item?.title ?? "");
+      const value = item?.value?.fallback;
+      if (title && typeof value === "string") info[title] = value;
+    }
+
+    const spell = (entry: any, kind: "coach" | "player"): CoachSpellEntry => ({
+      kind,
+      team: String(entry?.team ?? ""),
+      teamProviderId: entry?.teamId ? String(entry.teamId) : null,
+      role: entry?.role?.text ? String(entry.role.text) : kind === "coach" ? "head coach" : "player",
+      from: entry?.startDate ? String(entry.startDate).slice(0, 10) : null,
+      to: entry?.endDate ? String(entry.endDate).slice(0, 10) : null,
+      active: Boolean(entry?.active),
+      appearances: entry?.appearances ? String(entry.appearances) : null,
+      goals: entry?.goals ? String(entry.goals) : null,
+    });
+
+    const items = data["careerHistory"]?.careerItems ?? {};
+    const career: CoachSpellEntry[] = [
+      ...((items?.coach?.teamEntries ?? []) as any[]).map((entry) => spell(entry, "coach")),
+      ...((items?.senior?.teamEntries ?? []) as any[]).map((entry) => spell(entry, "player")),
+    ];
+
+    const seasons: CoachClubRecord[] = (
+      (data["coachStats"]?.historicalCareerEntries ?? []) as any[]
+    ).map((entry) => ({
+      team: String(entry?.teamName ?? ""),
+      teamProviderId: entry?.teamId ? String(entry.teamId) : null,
+      from: entry?.startDate?.utcTime ? String(entry.startDate.utcTime).slice(0, 10) : null,
+      to: entry?.endDate?.utcTime ? String(entry.endDate.utcTime).slice(0, 10) : null,
+      matches: Number(entry?.matches ?? 0),
+      wins: Number(entry?.wins ?? 0),
+      draws: Number(entry?.draws ?? 0),
+      losses: Number(entry?.losses ?? 0),
+      winPercentage: Number.isFinite(Number(entry?.winPercentage))
+        ? Number(entry.winPercentage)
+        : null,
+      pointsPerGame: Number.isFinite(Number(entry?.pointsPerGame))
+        ? Number(entry.pointsPerGame)
+        : null,
+    }));
+
+    const achievements: CoachAchievement[] = [];
+    for (const club of (data["trophies"]?.playerTrophies ?? []) as any[]) {
+      for (const tournament of (club?.tournaments ?? []) as any[]) {
+        achievements.push({
+          team: String(club?.teamName ?? ""),
+          competition: String(tournament?.leagueName ?? ""),
+          won: ((tournament?.seasonsWon ?? []) as any[]).map(String),
+          runnerUp: ((tournament?.seasonsRunnerUp ?? []) as any[]).map(String),
+        });
+      }
+    }
+
+    const active = data["coachStats"]?.activeCareerEntry ?? null;
+    const totals = seasons.reduce(
+      (acc, row) => ({
+        matches: acc.matches + row.matches,
+        wins: acc.wins + row.wins,
+        draws: acc.draws + row.draws,
+        losses: acc.losses + row.losses,
+      }),
+      { matches: 0, wins: 0, draws: 0, losses: 0 },
+    );
+
+    return ok({
+      name: data["name"] ? String(data["name"]) : null,
+      nationality: info["Country"] ?? null,
+      currentTeam: active?.teamName ? String(active.teamName) : null,
+      currentTeamProviderId: active?.teamId ? String(active.teamId) : null,
+      career,
+      seasons,
+      achievements,
+      totals,
+    });
+  }
+
+  /** Recent appearances for one player — the basis of the condition panel. */
+  async getPlayerRecentMatches(
+    providerPlayerId: string,
+  ): Promise<ProviderResult<{ matches: RecentAppearance[]; injury: unknown }>> {
+    const result = await this.request<Record<string, any>>(`/playerData?id=${providerPlayerId}`);
+    if (!result.ok) return result;
+
+    const matches: RecentAppearance[] = ((result.data["recentMatches"] ?? []) as any[])
+      .filter((row) => row?.matchDate?.utcTime)
+      .map((row) => ({
+        matchId: row?.id ? String(row.id) : null,
+        date: String(row.matchDate.utcTime),
+        teamProviderId: row?.teamId ? String(row.teamId) : null,
+        team: row?.teamName ? String(row.teamName) : null,
+        opponent: row?.opponentTeamName ? String(row.opponentTeamName) : null,
+        league: row?.leagueName ? String(row.leagueName) : null,
+        minutes: Number(row?.minutesPlayed ?? 0),
+        started: Boolean(row?.playedInMatch) && !row?.onBench,
+        played: Boolean(row?.playedInMatch),
+        goals: Number(row?.goals ?? 0),
+        assists: Number(row?.assists ?? 0),
+        rating: Number.isFinite(Number(row?.ratingProps?.rating))
+          ? Number(row.ratingProps.rating)
+          : null,
+      }));
+
+    return ok({ matches, injury: result.data["injuryInformation"] ?? null });
+  }
 }
+
+export interface CoachSpellEntry {
+  kind: "coach" | "player";
+  team: string;
+  teamProviderId: string | null;
+  role: string;
+  from: string | null;
+  to: string | null;
+  active: boolean;
+  appearances: string | null;
+  goals: string | null;
+}
+
+export interface CoachClubRecord {
+  team: string;
+  teamProviderId: string | null;
+  from: string | null;
+  to: string | null;
+  matches: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  winPercentage: number | null;
+  pointsPerGame: number | null;
+}
+
+export interface CoachAchievement {
+  team: string;
+  competition: string;
+  won: string[];
+  runnerUp: string[];
+}
+
+export interface CoachProfile {
+  name: string | null;
+  nationality: string | null;
+  currentTeam: string | null;
+  currentTeamProviderId: string | null;
+  career: CoachSpellEntry[];
+  seasons: CoachClubRecord[];
+  achievements: CoachAchievement[];
+  totals: { matches: number; wins: number; draws: number; losses: number };
+}
+
+export interface RecentAppearance {
+  matchId: string | null;
+  date: string;
+  teamProviderId: string | null;
+  team: string | null;
+  opponent: string | null;
+  league: string | null;
+  minutes: number;
+  started: boolean;
+  played: boolean;
+  goals: number;
+  assists: number;
+  rating: number | null;
+}
+
 
 interface RawSquadMember {
   id?: number;
