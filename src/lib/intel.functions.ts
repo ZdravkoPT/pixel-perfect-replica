@@ -328,6 +328,14 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
       .sort((a, b) => a.value - b.value)
       .slice(0, 3);
 
+    const { data: condition } = await supabase
+      .from("player_conditions")
+      .select(
+        "matches_30d, minutes_30d, matches_recent, minutes_recent, starts_recent, avg_rating_recent, avg_rating_prior, rating_trend, goals_recent, assists_recent, days_since_last_match, minutes_share, load_index, sharpness, availability, injury, recent_matches, fetched_at",
+      )
+      .eq("player_id", data.playerId)
+      .maybeSingle();
+
     return {
       player: player ?? null,
       memberships: memberships ?? [],
@@ -340,8 +348,10 @@ export const getPlayerProfile = createServerFn({ method: "GET" })
       weaknesses,
       attributes: attributes ?? null,
       career: career ?? null,
+      condition: condition ?? null,
     };
   });
+
 
 /* ------------------------------------------------------------------ */
 /* Coaches                                                             */
