@@ -184,6 +184,20 @@ function AdminPage() {
           >
             Review last 10 weeks of bets
           </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Manager dossiers", () => runCoachProfilesFn())}
+          >
+            Refresh manager dossiers
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Player condition", () => runConditionsFn())}
+          >
+            Refresh player condition
+          </Button>
 
         </div>
         {status ? <p className="mt-3 break-all text-xs text-muted-foreground">{status}</p> : null}
