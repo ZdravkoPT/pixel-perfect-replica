@@ -463,7 +463,13 @@ export const getCoach = createServerFn({ method: "GET" })
       });
     }
 
-    return { coach: coach ?? null, spells: spells ?? [], record };
+    const { data: dossier } = await supabase
+      .from("coach_profiles")
+      .select("career, seasons, achievements, totals, nationality, fetched_at")
+      .eq("coach_id", data.coachId)
+      .maybeSingle();
+
+    return { coach: coach ?? null, spells: spells ?? [], record, dossier: dossier ?? null };
   });
 
 export const refreshKickoff = createServerFn({ method: "POST" })
