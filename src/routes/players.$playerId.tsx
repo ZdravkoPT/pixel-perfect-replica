@@ -137,6 +137,8 @@ function PlayerProfile() {
 
         <PlayerSkillCard attributes={(data.attributes ?? null) as never} />
 
+        <PlayerConditionPanel condition={(data.condition ?? null) as never} />
+
         {career ? (
           <section>
             <h2 className="text-sm font-semibold">Career record</h2>
