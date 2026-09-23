@@ -50,6 +50,8 @@ function AdminPage() {
   const runAttributesFn = useServerFn(refreshAttributes);
   const runCareersFn = useServerFn(refreshCareers);
   const runBetHistoryFn = useServerFn(runBetHistoryReview);
+  const runCoachProfilesFn = useServerFn(refreshCoachProfiles);
+  const runConditionsFn = useServerFn(refreshPlayerConditions);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
