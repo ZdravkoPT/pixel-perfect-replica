@@ -107,10 +107,7 @@ function CoachProfile() {
           </div>
         </section>
 
-        <p className="text-xs text-muted-foreground">
-          Honours and trophy lists are not published by the feeds we use, so achievements shown here
-          are limited to verifiable results from our own match archive.
-        </p>
+        <CoachDossier dossier={data.dossier as DossierShape | null} />
       </div>
     </AppShell>
   );
