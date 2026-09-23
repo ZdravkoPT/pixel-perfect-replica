@@ -489,6 +489,24 @@ export const refreshAttributes = createServerFn({ method: "POST" })
     return ingestPlayerAttributes({ triggeredBy: "manual" });
   });
 
+/** Refresh manager dossiers: career, assistant spells, club records, trophies. */
+export const refreshCoachProfiles = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase as never, context.userId);
+    const { ingestCoachProfiles } = await import("./coach-intel.server");
+    return ingestCoachProfiles({ triggeredBy: "manual" });
+  });
+
+/** Refresh player condition: recent load, sharpness, availability. */
+export const refreshPlayerConditions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase as never, context.userId);
+    const { ingestPlayerConditions } = await import("./coach-intel.server");
+    return ingestPlayerConditions({ triggeredBy: "manual" });
+  });
+
 /** Refresh career records (season stats, club history, national caps). */
 export const refreshCareers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
