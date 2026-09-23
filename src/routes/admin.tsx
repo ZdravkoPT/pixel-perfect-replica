@@ -11,8 +11,10 @@ import { startBacktest, syncHistory, trainModels } from "@/lib/analytics.functio
 import {
   refreshAttributes,
   refreshCareers,
+  refreshCoachProfiles,
   refreshIntel,
   refreshKickoff,
+  refreshPlayerConditions,
   runBetHistoryReview,
   syncOfficials,
   syncSquads,
@@ -48,6 +50,8 @@ function AdminPage() {
   const runAttributesFn = useServerFn(refreshAttributes);
   const runCareersFn = useServerFn(refreshCareers);
   const runBetHistoryFn = useServerFn(runBetHistoryReview);
+  const runCoachProfilesFn = useServerFn(refreshCoachProfiles);
+  const runConditionsFn = useServerFn(refreshPlayerConditions);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -179,6 +183,20 @@ function AdminPage() {
             onClick={() => runTask("Bet review", () => runBetHistoryFn())}
           >
             Review last 10 weeks of bets
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Manager dossiers", () => runCoachProfilesFn())}
+          >
+            Refresh manager dossiers
+          </Button>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => runTask("Player condition", () => runConditionsFn())}
+          >
+            Refresh player condition
           </Button>
 
         </div>

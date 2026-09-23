@@ -25,7 +25,14 @@ export const Route = createFileRoute("/api/public/hooks/refresh-intel")({
         const { ingestPlayerCareers } = await import("@/lib/attributes.server");
         const careers = await ingestPlayerCareers({ maxProfiles: 40, triggeredBy: "cron" });
 
-        return Response.json({ squads, officials, intel, careers });
+        // Manager dossiers and player condition snapshots, a batch per cycle.
+        const { ingestCoachProfiles, ingestPlayerConditions } = await import(
+          "@/lib/coach-intel.server"
+        );
+        const coachProfiles = await ingestCoachProfiles({ maxTeams: 60, triggeredBy: "cron" });
+        const conditions = await ingestPlayerConditions({ maxPlayers: 120, triggeredBy: "cron" });
+
+        return Response.json({ squads, officials, intel, careers, coachProfiles, conditions });
       },
     },
   },

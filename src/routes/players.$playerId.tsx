@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { getPlayerProfile } from "@/lib/intel.functions";
 import { PlayerSkillCard } from "@/components/PlayerSkillCard";
+import { PlayerConditionPanel } from "@/components/PlayerConditionPanel";
 
 const profileQuery = (playerId: string) =>
   queryOptions({
@@ -136,6 +137,8 @@ function PlayerProfile() {
         </div>
 
         <PlayerSkillCard attributes={(data.attributes ?? null) as never} />
+
+        <PlayerConditionPanel condition={(data.condition ?? null) as never} />
 
         {career ? (
           <section>
