@@ -11,8 +11,10 @@ import { startBacktest, syncHistory, trainModels } from "@/lib/analytics.functio
 import {
   refreshAttributes,
   refreshCareers,
+  refreshCoachProfiles,
   refreshIntel,
   refreshKickoff,
+  refreshPlayerConditions,
   runBetHistoryReview,
   syncOfficials,
   syncSquads,
