@@ -5,6 +5,8 @@ import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getTeamSquad } from "@/lib/intel.functions";
+import { FifaCard } from "@/components/FifaCard";
+import { CoachDossier, type DossierShape } from "@/components/CoachDossier";
 
 export const Route = createFileRoute("/squads/$teamId")({
   head: () => ({
@@ -43,6 +45,8 @@ function SquadPage() {
   const { teamId } = Route.useParams();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string[]>([]);
+  const [view, setView] = useState<"table" | "cards">("table");
+  const [showDossier, setShowDossier] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["team-squad", teamId],
@@ -92,12 +96,93 @@ function SquadPage() {
           </Button>
         </div>
 
+        {data ? (
+          <section className="space-y-4 rounded-lg border border-border bg-card/50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">
+                Manager:{" "}
+                {data.currentManager ? (
+                  <Link
+                    to="/coaches/$coachId"
+                    params={{ coachId: data.currentManager.coachId }}
+                    className="underline-offset-4 hover:underline"
+                  >
+                    {data.currentManager.name}
+                  </Link>
+                ) : (
+                  "not recorded"
+                )}
+              </h2>
+              <Button size="sm" variant="outline" onClick={() => setShowDossier((v) => !v)}>
+                {showDossier ? "Hide manager dossier" : "Show manager dossier"}
+              </Button>
+            </div>
+            {data.managers.length > 0 ? (
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Club manager history
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {data.managers.map((m) => (
+                    <Link
+                      key={`${m.coachId}-${m.from}`}
+                      to="/coaches/$coachId"
+                      params={{ coachId: m.coachId }}
+                      className="rounded border border-border px-2 py-1 text-xs hover:border-primary"
+                    >
+                      <span className="font-medium">{m.name}</span>
+                      <span className="ml-2 font-mono text-muted-foreground">
+                        {m.from?.slice(0, 4) ?? "—"}–{m.isCurrent ? "now" : (m.to?.slice(0, 4) ?? "—")}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {showDossier ? <CoachDossier dossier={data.dossier as DossierShape | null} /> : null}
+          </section>
+        ) : null}
+
+        {!isLoading && players.length > 0 ? (
+          <div className="flex gap-2">
+            <Button size="sm" variant={view === "table" ? "default" : "outline"} onClick={() => setView("table")}>
+              Table
+            </Button>
+            <Button size="sm" variant={view === "cards" ? "default" : "outline"} onClick={() => setView("cards")}>
+              Player cards
+            </Button>
+          </div>
+        ) : null}
+
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading squad…</p>
         ) : players.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             No current squad records for this club yet — run a squad sync from Diagnostics.
           </div>
+        ) : view === "cards" ? (
+          grouped.map(([group, rows]) => (
+            <section key={group} className="space-y-2">
+              <h2 className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                {group} · {rows.length}
+              </h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {[...rows]
+                  .sort((a, b) => (b.card?.overall ?? -1) - (a.card?.overall ?? -1))
+                  .map((player) => (
+                    <FifaCard
+                      key={player.membershipId}
+                      compact
+                      name={player.name}
+                      position={player.position}
+                      shirt={player.shirt}
+                      card={player.card}
+                      playerId={player.playerId}
+                    />
+                  ))}
+              </div>
+            </section>
+          ))
         ) : (
           grouped.map(([group, rows]) => (
             <section key={group} className="space-y-2">
