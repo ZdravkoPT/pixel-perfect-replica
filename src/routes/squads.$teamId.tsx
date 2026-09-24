@@ -220,6 +220,11 @@ function SquadPage() {
                             ) : (
                               <span className="font-medium">{player.name}</span>
                             )}
+                            {player.card?.overall ? (
+                              <span className="rounded bg-primary/10 px-1.5 font-mono text-[10px] font-semibold text-primary">
+                                {player.card.overall}
+                              </span>
+                            ) : null}
                             {player.onLoan ? (
                               <Badge variant="outline" className="text-[10px]">
                                 loan
