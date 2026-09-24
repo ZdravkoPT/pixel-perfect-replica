@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 
-function Cell({ label, value }: { label: string; value: string }) {
+export function Cell({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded border border-border px-2 py-1 text-center">
       <p className="text-[10px] uppercase text-muted-foreground">{label}</p>

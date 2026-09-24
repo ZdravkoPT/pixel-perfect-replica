@@ -3,7 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { getCoach } from "@/lib/intel.functions";
-import { CoachDossier, type DossierShape } from "@/components/CoachDossier";
+import { CoachDossier, Cell, type DossierShape } from "@/components/CoachDossier";
 
 const coachQuery = (coachId: string) =>
   queryOptions({
