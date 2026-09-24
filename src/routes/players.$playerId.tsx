@@ -136,7 +136,19 @@ function PlayerProfile() {
           />
         </div>
 
-        <PlayerSkillCard attributes={(data.attributes ?? null) as never} />
+        <div className="grid gap-4 md:grid-cols-[220px_1fr]">
+          <FifaCard
+            name={player.name}
+            position={player.position ?? null}
+            shirt={current?.shirt_number ?? null}
+            card={(data.attributes ?? null) as CardStats | null}
+          />
+          <PlayerSkillCard attributes={(data.attributes ?? null) as never} />
+        </div>
+        <p className="-mt-3 text-[11px] text-muted-foreground">
+          IQ is derived from the player's technical and creativity percentiles; all other values come
+          from provider data.
+        </p>
 
         <PlayerConditionPanel condition={(data.condition ?? null) as never} />
 
