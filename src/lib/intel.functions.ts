@@ -668,12 +668,50 @@ export const getTeamSquad = createServerFn({ method: "GET" })
       .map((row) => (row.player as { id: string } | null)?.id)
       .filter((id): id is string => typeof id === "string");
 
-    const { data: careers } = playerIds.length
+    const [{ data: careers }, { data: attrRows }, { data: spellRows }] = await Promise.all([
+      playerIds.length
+        ? supabase
+            .from("player_careers")
+            .select("player_id, current_season, seasons, market_value_label")
+            .in("player_id", playerIds)
+        : Promise.resolve({ data: [] as never[] }),
+      playerIds.length
+        ? supabase
+            .from("player_attributes")
+            .select("player_id, overall, attacking, technical, creativity, defending, physical, rating")
+            .in("player_id", playerIds)
+        : Promise.resolve({ data: [] as never[] }),
+      supabase
+        .from("coach_spells")
+        .select("coach_id, started_at, ended_at, is_current, coach:coaches(id, name, nationality)")
+        .eq("team_id", data.teamId)
+        .order("started_at", { ascending: false, nullsFirst: false })
+        .limit(30),
+    ]);
+
+    const managers = (spellRows ?? []).map((row) => {
+      const coach = row.coach as { id: string; name: string; nationality: string | null } | null;
+      return {
+        coachId: row.coach_id as string,
+        name: coach?.name ?? "Unknown",
+        nationality: coach?.nationality ?? null,
+        from: row.started_at as string | null,
+        to: row.ended_at as string | null,
+        isCurrent: !!row.is_current,
+      };
+    });
+    const currentManager = managers.find((row) => row.isCurrent) ?? managers[0] ?? null;
+    const { data: dossier } = currentManager
       ? await supabase
-          .from("player_careers")
-          .select("player_id, current_season, seasons, market_value_label")
-          .in("player_id", playerIds)
-      : { data: [] };
+          .from("coach_profiles")
+          .select("career, seasons, achievements, totals, fetched_at")
+          .eq("coach_id", currentManager.coachId)
+          .maybeSingle()
+      : { data: null };
+
+    const attrById = new Map(
+      (attrRows ?? []).map((row) => [row.player_id as string, row]),
+    );
 
     type Season = {
       season?: string;
@@ -757,7 +795,25 @@ export const getTeamSquad = createServerFn({ method: "GET" })
       };
     });
 
-    return { team: team ?? null, players };
+    const playersWithCards = players.map((row) => {
+      const a = row.playerId ? attrById.get(row.playerId) : undefined;
+      return {
+        ...row,
+        card: a
+          ? {
+              overall: a.overall as number | null,
+              attacking: a.attacking as number | null,
+              technical: a.technical as number | null,
+              creativity: a.creativity as number | null,
+              defending: a.defending as number | null,
+              physical: a.physical as number | null,
+              rating: a.rating === null ? null : Number(a.rating),
+            }
+          : null,
+      };
+    });
+
+    return { team: team ?? null, players: playersWithCards, managers, currentManager, dossier: dossier ?? null };
   });
 
 /** Side-by-side comparison of two players: current season, previous season, career. */
