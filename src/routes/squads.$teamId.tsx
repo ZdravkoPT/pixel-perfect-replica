@@ -94,6 +94,9 @@ function SquadPage() {
           >
             Compare selected
           </Button>
+          <Link to="/teams/$teamId" params={{ teamId }} className="text-xs text-primary underline-offset-4 hover:underline">
+            Team stats →
+          </Link>
         </div>
 
         {data ? (
@@ -112,6 +115,15 @@ function SquadPage() {
                 ) : (
                   "not recorded"
                 )}
+                {data.currentManager ? (
+                  <Link
+                    to="/coaches/$coachId/history"
+                    params={{ coachId: data.currentManager.coachId }}
+                    className="ml-3 text-xs font-normal text-primary underline-offset-4 hover:underline"
+                  >
+                    Career history →
+                  </Link>
+                ) : null}
               </h2>
               <Button size="sm" variant="outline" onClick={() => setShowDossier((v) => !v)}>
                 {showDossier ? "Hide manager dossier" : "Show manager dossier"}

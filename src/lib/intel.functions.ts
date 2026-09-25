@@ -875,3 +875,77 @@ export const comparePlayers = createServerFn({ method: "GET" })
 
     return { players: results };
   });
+
+/** Team-level season stats derived from our own finished-match archive. */
+export const getTeamStats = createServerFn({ method: "GET" })
+  .inputValidator((input: { teamId: string }) => input)
+  .handler(async ({ data }) => {
+    const supabase = publicClient();
+    const [{ data: team }, { data: matches }, { data: box }] = await Promise.all([
+      supabase.from("teams").select("id, name, crest_url, country").eq("id", data.teamId).maybeSingle(),
+      supabase
+        .from("matches")
+        .select("id, kickoff_at, home_team_id, away_team_id, home_score, away_score, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)")
+        .or(`home_team_id.eq.${data.teamId},away_team_id.eq.${data.teamId}`)
+        .eq("status", "FINISHED")
+        .not("home_score", "is", null)
+        .order("kickoff_at", { ascending: false })
+        .limit(60),
+      supabase
+        .from("team_match_stats")
+        .select("possession, shots, shots_on_target, corners, fouls, yellow_cards, red_cards, pass_accuracy")
+        .eq("team_id", data.teamId)
+        .limit(60),
+    ]);
+
+    type Split = { played: number; w: number; d: number; l: number; gf: number; ga: number; cs: number; btts: number; o25: number };
+    const blank = (): Split => ({ played: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, cs: 0, btts: 0, o25: 0 });
+    const all = blank();
+    const home = blank();
+    const away = blank();
+    const form: Array<{ id: string; date: string; opponent: string; venue: "H" | "A"; gf: number; ga: number; result: "W" | "D" | "L" }> = [];
+    for (const m of matches ?? []) {
+      const isHome = m.home_team_id === data.teamId;
+      const gf = (isHome ? m.home_score : m.away_score) ?? 0;
+      const ga = (isHome ? m.away_score : m.home_score) ?? 0;
+      const result = gf > ga ? "W" : gf === ga ? "D" : "L";
+      for (const s of [all, isHome ? home : away]) {
+        s.played += 1;
+        s.gf += gf;
+        s.ga += ga;
+        if (result === "W") s.w += 1;
+        else if (result === "D") s.d += 1;
+        else s.l += 1;
+        if (ga === 0) s.cs += 1;
+        if (gf > 0 && ga > 0) s.btts += 1;
+        if (gf + ga > 2) s.o25 += 1;
+      }
+      if (form.length < 10) {
+        const opp = (isHome ? m.away : m.home) as { name: string } | null;
+        form.push({ id: m.id, date: m.kickoff_at, opponent: opp?.name ?? "—", venue: isHome ? "H" : "A", gf, ga, result });
+      }
+    }
+    const avg = (key: keyof NonNullable<typeof box>[number]) => {
+      const vals = (box ?? []).map((r) => r[key]).filter((v): v is number => typeof v === "number");
+      return vals.length ? Number((vals.reduce((a, b) => a + Number(b), 0) / vals.length).toFixed(1)) : null;
+    };
+    return {
+      team,
+      all,
+      home,
+      away,
+      form,
+      box: {
+        samples: box?.length ?? 0,
+        possession: avg("possession"),
+        shots: avg("shots"),
+        shotsOnTarget: avg("shots_on_target"),
+        corners: avg("corners"),
+        fouls: avg("fouls"),
+        yellow: avg("yellow_cards"),
+        passAccuracy: avg("pass_accuracy"),
+      },
+      // No free provider publishes team running distance; kept explicit rather than estimated.
+      distancePer90: null as number | null,
+    };
+  });
