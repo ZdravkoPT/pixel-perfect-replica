@@ -1,6 +1,6 @@
 import { namesMatch } from "./normalize";
 import type { MatchSheet, MatchSheetPlayer, MatchSheetSide } from "./football-data.server";
-import { fail, ok, type MatchStatus, type ProviderResult } from "./types";
+import { fail, ok, type MatchStatus, type NormalizedMatch, type ProviderResult } from "./types";
 
 /**
  * FotMob public web API — free, no API key, no account.
@@ -97,6 +97,81 @@ export class FotmobProvider {
       }
     }
     return null;
+  }
+
+  /**
+   * Senior national-team fixtures (Nations Leagues, World Cup / AFCON / EURO
+   * qualifiers, friendlies…) for each day in the range. Youth, women's and
+   * multi-sport events are skipped.
+   */
+  async getInternationalMatches(fromISO: string, days: number): Promise<ProviderResult<NormalizedMatch[]>> {
+    const out: NormalizedMatch[] = [];
+    const skip = /club|U\s?\d{2}|women|youth|games|olympic|futsal|beach/i;
+    let lastError: string | null = null;
+    for (let i = 0; i <= days; i += 1) {
+      const date = new Date(new Date(`${fromISO}T00:00:00Z`).getTime() + i * 86_400_000)
+        .toISOString()
+        .slice(0, 10)
+        .replace(/-/g, "");
+      const result = await this.request<{ leagues?: Array<Record<string, unknown>> }>(`/matches?date=${date}`);
+      if (!result.ok) {
+        lastError = result.error;
+        continue;
+      }
+      for (const league of result.data.leagues ?? []) {
+        if (league["ccode"] !== "INT") continue;
+        const name = String(league["parentLeagueName"] ?? league["name"] ?? "");
+        if (!name || skip.test(name)) continue;
+        const parentId = String(league["primaryId"] ?? league["parentLeagueId"] ?? league["id"]);
+        for (const m of (league["matches"] as Array<Record<string, unknown>> | undefined) ?? []) {
+          const home = m["home"] as { id?: number; name?: string; longName?: string; score?: number } | undefined;
+          const away = m["away"] as { id?: number; name?: string; longName?: string; score?: number } | undefined;
+          const st = m["status"] as
+            | { utcTime?: string; started?: boolean; finished?: boolean; cancelled?: boolean; liveTime?: { short?: string } }
+            | undefined;
+          if (!m["id"] || !home?.id || !away?.id || !st?.utcTime) continue;
+          const status: MatchStatus = st.cancelled
+            ? "CANCELLED"
+            : st.finished
+              ? "FINISHED"
+              : st.started
+                ? "LIVE"
+                : "SCHEDULED";
+          const played = status === "FINISHED" || status === "LIVE";
+          const minute = st.liveTime?.short ? Number.parseInt(st.liveTime.short, 10) || null : null;
+          const team = (t: typeof home) => ({
+            providerId: String(t!.id),
+            name: String(t!.longName ?? t!.name),
+            shortName: t!.name ?? null,
+            tla: null,
+            country: String(t!.longName ?? t!.name),
+            founded: null,
+            crestUrl: `https://images.fotmob.com/image_resources/logo/teamlogo/${t!.id}.png`,
+          });
+          out.push({
+            providerMatchId: String(m["id"]),
+            competitionProviderId: parentId,
+            competitionName: name,
+            seasonLabel: null,
+            kickoffAt: new Date(st.utcTime).toISOString(),
+            status,
+            matchday: null,
+            stage: league["groupName"] ? `Group ${String(league["groupName"])}` : null,
+            homeTeam: team(home),
+            awayTeam: team(away),
+            venue: null,
+            homeScore: played ? (home.score ?? null) : null,
+            awayScore: played ? (away.score ?? null) : null,
+            homeScoreHt: null,
+            awayScoreHt: null,
+            minute,
+            raw: m,
+          });
+        }
+      }
+    }
+    if (out.length === 0 && lastError) return fail(lastError);
+    return ok(out);
   }
 
   /** Confirmed team sheet (starting XI + bench + coach) plus live status. */

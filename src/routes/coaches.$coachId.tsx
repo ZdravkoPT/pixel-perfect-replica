@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +65,13 @@ function CoachProfile() {
       subtitle={`${current?.teamName ?? "No current club"} · ${coach.nationality ?? "Unknown nationality"}`}
     >
       <div className="space-y-6">
+        <Link
+          to="/coaches/$coachId/history"
+          params={{ coachId }}
+          className="inline-block text-xs text-primary underline-offset-4 hover:underline"
+        >
+          Full career timeline, ex-clubs & achievements →
+        </Link>
         <div className="grid gap-3 sm:grid-cols-4">
           <Fact label="Matches in archive" value={String(career.played)} />
           <Fact label="Won" value={String(career.won)} />

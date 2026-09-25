@@ -1,4 +1,4 @@
-export type ProviderId = "football_data" | "api_football";
+export type ProviderId = "football_data" | "api_football" | "fotmob";
 
 export type MatchStatus =
   | "SCHEDULED"

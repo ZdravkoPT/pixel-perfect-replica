@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ApiFootballProvider } from "./providers/api-football.server";
+import { FotmobProvider } from "./providers/fotmob.server";
 import { FOOTBALL_DATA_COMPETITIONS, FootballDataProvider } from "./providers/football-data.server";
 import { matchCanonicalId, namesMatch, normalizeTeamName, similarity, slugify } from "./providers/normalize";
 import type { NormalizedMatch, NormalizedTeam, ProviderId } from "./providers/types";
@@ -56,15 +57,18 @@ class TeamResolver {
     }
   }
 
-  async resolve(provider: ProviderId, team: NormalizedTeam): Promise<string> {
+  async resolve(provider: ProviderId, team: NormalizedTeam, national = false): Promise<string> {
     const providerKey = `${provider}:${team.providerId}`;
     const existingByProvider = this.byProvider.get(providerKey);
     if (existingByProvider) return existingByProvider.id;
 
     const normalized = normalizeTeamName(team.name);
-    let candidate = this.byAlias.get(normalized) ?? null;
+    // National sides only reuse an exact national row — never fuzzy-merge into a club.
+    let candidate = national
+      ? (this.all.find((row) => row.canonical_id === `team:national:${normalized}`) ?? null)
+      : (this.byAlias.get(normalized) ?? null);
 
-    if (!candidate) {
+    if (!candidate && !national) {
       let best = 0;
       for (const row of this.all) {
         const score = similarity(normalized, normalizeTeamName(row.name));
@@ -91,7 +95,7 @@ class TeamResolver {
       return candidate.id;
     }
 
-    const canonicalId = `team:${normalized}`;
+    const canonicalId = national ? `team:national:${normalized}` : `team:${normalized}`;
     const { data: inserted } = await supabaseAdmin
       .from("teams")
       .upsert(
@@ -328,8 +332,9 @@ export async function ingestFixtures(options: {
     counterpart: NormalizedMatch | null,
   ) => {
     const { leagueId, canonicalId: leagueCanonical, seasonId } = await upsertLeague(provider, match);
-    const homeTeamId = await resolver.resolve(provider, match.homeTeam);
-    const awayTeamId = await resolver.resolve(provider, match.awayTeam);
+    const national = provider === "fotmob";
+    const homeTeamId = await resolver.resolve(provider, match.homeTeam, national);
+    const awayTeamId = await resolver.resolve(provider, match.awayTeam, national);
     const canonicalId = matchCanonicalId(
       leagueCanonical,
       match.kickoffAt,
@@ -477,6 +482,21 @@ export async function ingestFixtures(options: {
         "persist",
         error instanceof Error ? error.message : String(error),
       );
+    }
+  }
+
+  // National-team competitions (Nations Leagues, qualifiers, friendlies) from FotMob.
+  const fotmob = new FotmobProvider();
+  const intl = await fotmob.getInternationalMatches(from, Math.min(days, 7));
+  if (!intl.ok) await recordError("fotmob", "fetch", intl.error);
+  else {
+    for (const match of intl.data) {
+      processed += 1;
+      try {
+        await persist("fotmob", match, null);
+      } catch (error) {
+        await recordError("fotmob", "persist", error instanceof Error ? error.message : String(error));
+      }
     }
   }
 

@@ -1,0 +1,106 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { AppShell } from "@/components/AppShell";
+import { Badge } from "@/components/ui/badge";
+import { Cell } from "@/components/CoachDossier";
+import { getTeamStats } from "@/lib/intel.functions";
+
+const teamStatsQuery = (teamId: string) =>
+  queryOptions({ queryKey: ["team-stats", teamId], queryFn: () => getTeamStats({ data: { teamId } }) });
+
+export const Route = createFileRoute("/teams/$teamId")({
+  head: () => ({
+    meta: [
+      { title: "Team stats | Football Intelligence" },
+      { name: "description", content: "Club-level stats: results, goals per game, clean sheets, BTTS and over 2.5 rates, home/away splits and recent form." },
+      { property: "og:title", content: "Team stats | Football Intelligence" },
+      { property: "og:description", content: "Team-level results, goal rates, splits and form." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  loader: ({ context, params }) => context.queryClient.ensureQueryData(teamStatsQuery(params.teamId)),
+  component: TeamStatsPage,
+});
+
+type Split = { played: number; w: number; d: number; l: number; gf: number; ga: number; cs: number; btts: number; o25: number };
+const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : "—");
+const per = (n: number, d: number) => (d ? (n / d).toFixed(2) : "—");
+const fmt = (v: number | null, suffix = "") => (v == null ? "—" : `${v}${suffix}`);
+
+function SplitBlock({ label, s }: { label: string; s: Split }) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label} · {s.played} games</p>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-xs sm:grid-cols-5">
+        <Cell label="W-D-L" value={`${s.w}-${s.d}-${s.l}`} />
+        <Cell label="PPG" value={per(s.w * 3 + s.d, s.played)} />
+        <Cell label="GF / g" value={per(s.gf, s.played)} />
+        <Cell label="GA / g" value={per(s.ga, s.played)} />
+        <Cell label="Clean sh." value={pct(s.cs, s.played)} />
+        <Cell label="BTTS" value={pct(s.btts, s.played)} />
+        <Cell label="Over 2.5" value={pct(s.o25, s.played)} />
+        <Cell label="Win %" value={pct(s.w, s.played)} />
+      </div>
+    </div>
+  );
+}
+
+function TeamStatsPage() {
+  const { teamId } = Route.useParams();
+  const { data } = useSuspenseQuery(teamStatsQuery(teamId));
+  if (!data.team) {
+    return <AppShell title="Team not found"><p className="text-sm text-muted-foreground">This club is not in the database.</p></AppShell>;
+  }
+  return (
+    <AppShell title={`${data.team.name} · team stats`} subtitle="From the last 60 finished matches in our archive.">
+      <div className="space-y-6">
+        <div className="flex flex-wrap gap-3 text-xs">
+          <Link to="/squads/$teamId" params={{ teamId }} className="text-muted-foreground underline-offset-4 hover:underline">← Squad</Link>
+          <Link to="/compare" className="text-muted-foreground underline-offset-4 hover:underline">Compare players</Link>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Physical & match stats per 90</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+            <Cell label="Distance / 90" value={data.distancePer90 == null ? "n/a" : `${data.distancePer90} km`} />
+            <Cell label="Possession" value={fmt(data.box.possession, "%")} />
+            <Cell label="Shots" value={fmt(data.box.shots)} />
+            <Cell label="On target" value={fmt(data.box.shotsOnTarget)} />
+            <Cell label="Corners" value={fmt(data.box.corners)} />
+            <Cell label="Fouls" value={fmt(data.box.fouls)} />
+            <Cell label="Yellow cards" value={fmt(data.box.yellow)} />
+            <Cell label="Pass acc." value={fmt(data.box.passAccuracy, "%")} />
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Running distance isn't published by any free data source, so it's shown as n/a rather than estimated.
+            {data.box.samples === 0 ? " Box-score stats fill in as match statistics are imported." : ` Based on ${data.box.samples} matches.`}
+          </p>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          <SplitBlock label="All" s={data.all} />
+          <SplitBlock label="Home" s={data.home} />
+          <SplitBlock label="Away" s={data.away} />
+        </div>
+
+        <section>
+          <h2 className="text-sm font-semibold">Last 10 results</h2>
+          <div className="mt-3 space-y-1">
+            {data.form.length === 0 ? <p className="text-xs text-muted-foreground">No finished matches in the archive yet.</p> : null}
+            {data.form.map((f) => (
+              <Link key={f.id} to="/matches/$matchId" params={{ matchId: f.id }} className="flex items-center justify-between rounded border border-border bg-card px-3 py-2 text-xs hover:border-primary">
+                <span className="flex items-center gap-2">
+                  <Badge variant={f.result === "W" ? "default" : f.result === "L" ? "destructive" : "secondary"} className="w-6 justify-center">{f.result}</Badge>
+                  <span className="font-mono text-muted-foreground">{f.venue}</span>
+                  {f.opponent}
+                </span>
+                <span className="font-mono tabular-nums">{f.gf}–{f.ga} · <span className="text-muted-foreground">{new Date(f.date).toLocaleDateString()}</span></span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
+    </AppShell>
+  );
+}
