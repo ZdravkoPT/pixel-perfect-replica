@@ -106,7 +106,7 @@ export class FotmobProvider {
    */
   async getInternationalMatches(fromISO: string, days: number): Promise<ProviderResult<NormalizedMatch[]>> {
     const out: NormalizedMatch[] = [];
-    const skip = /U\s?\d{2}|women|youth|games|olympic|futsal|beach/i;
+    const skip = /club|U\s?\d{2}|women|youth|games|olympic|futsal|beach/i;
     let lastError: string | null = null;
     for (let i = 0; i <= days; i += 1) {
       const date = new Date(new Date(`${fromISO}T00:00:00Z`).getTime() + i * 86_400_000)
