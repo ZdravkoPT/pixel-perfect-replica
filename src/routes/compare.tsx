@@ -5,6 +5,11 @@ import { AppShell } from "@/components/AppShell";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { comparePlayers, searchPlayers } from "@/lib/intel.functions";
+import { FifaCard } from "@/components/FifaCard";
+
+function num(v: unknown): number | null {
+  return typeof v === "number" ? v : null;
+}
 
 type Search = { a?: string; b?: string };
 
@@ -212,16 +217,34 @@ function PlayerColumn({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-center">
-        {["overall", "attacking", "technical", "creativity", "defending", "physical"].map((key) => (
-          <div key={key} className="rounded border border-border px-2 py-1">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{key}</p>
-            <p className="font-mono text-sm tabular-nums">
-              {typeof attrs[key] === "number" ? String(attrs[key]) : "—"}
-            </p>
-          </div>
-        ))}
-      </div>
+      <FifaCard
+        name={slot.player.name}
+        position={slot.membership?.position ?? slot.player.position}
+        shirt={slot.membership?.shirt_number ?? null}
+        compact
+        card={
+          slot.attributes
+            ? {
+                overall: num(attrs["overall"]),
+                attacking: num(attrs["attacking"]),
+                technical: num(attrs["technical"]),
+                creativity: num(attrs["creativity"]),
+                defending: num(attrs["defending"]),
+                physical: num(attrs["physical"]),
+                rating: (attrs["rating"] as number | string | null) ?? null,
+              }
+            : null
+        }
+      />
+      {(team as { id?: string } | null)?.id ? (
+        <Link
+          to="/teams/$teamId"
+          params={{ teamId: (team as { id: string }).id }}
+          className="inline-block text-xs text-primary underline-offset-4 hover:underline"
+        >
+          {team?.name} team stats →
+        </Link>
+      ) : null}
 
       <div>
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">

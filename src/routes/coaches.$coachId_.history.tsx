@@ -66,7 +66,7 @@ function HistoryPage() {
   const archiveSpells = (data.spells ?? []) as Array<{ id: string; started_at: string | null; ended_at: string | null; is_current: boolean; team: { id: string; name: string } | null }>;
 
   return (
-    <AppShell title={`${data.coach.name} · career history`} subtitle={data.coach.nationality ?? undefined}>
+    <AppShell title={`${data.coach.name} · career history`} subtitle={data.coach.nationality ?? "Nationality unknown"}>
       <div className="space-y-8">
         <Link to="/coaches/$coachId" params={{ coachId }} className="text-xs text-muted-foreground underline-offset-4 hover:underline">← Manager profile</Link>
 
