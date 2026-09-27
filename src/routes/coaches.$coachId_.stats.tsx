@@ -47,7 +47,7 @@ function ManagerStatsPage() {
     <AppShell title={`${data.coach.name} · manager stats`} subtitle="Career record, trophies and per-club statistics.">
       <div className="space-y-8">
         <div className="flex gap-3 text-xs">
-          <Link to="/coaches/$coachId_/history" params={{ coachId }} className="text-muted-foreground underline-offset-4 hover:underline">← Career history</Link>
+          <Link to="/coaches/$coachId/history" params={{ coachId }} className="text-muted-foreground underline-offset-4 hover:underline">← Career history</Link>
           <Link to="/coaches/$coachId" params={{ coachId }} className="text-muted-foreground underline-offset-4 hover:underline">Profile</Link>
         </div>
         {records.length === 0 ? (
