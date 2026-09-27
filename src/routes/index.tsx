@@ -81,6 +81,11 @@ function Dashboard() {
       title="Fixtures"
       subtitle={`${filtered.length} matches over the next 7 days · model confidence from the Elo + Dixon-Coles engine`}
     >
+      <div className="mb-4 flex justify-end">
+        <Link to="/fixtures" className="font-mono text-xs text-primary underline-offset-4 hover:underline">
+          All fixtures · live scores · calendar →
+        </Link>
+      </div>
       {(picks.data?.picks ?? []).length > 0 ? (
         <section className="mb-6">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

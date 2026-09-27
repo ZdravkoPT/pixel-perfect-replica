@@ -237,6 +237,24 @@ function SquadPage() {
                                 {player.card.overall}
                               </span>
                             ) : null}
+                            {player.playerId ? (
+                              <Link
+                                to="/players/$playerId/stats"
+                                params={{ playerId: player.playerId }}
+                                className="font-mono text-[10px] text-primary underline-offset-4 hover:underline"
+                              >
+                                stats
+                              </Link>
+                            ) : null}
+                            {player.playerId ? (
+                              <Link
+                                to="/compare"
+                                search={{ a: player.playerId }}
+                                className="font-mono text-[10px] text-muted-foreground underline-offset-4 hover:underline"
+                              >
+                                compare
+                              </Link>
+                            ) : null}
                             {player.onLoan ? (
                               <Badge variant="outline" className="text-[10px]">
                                 loan
