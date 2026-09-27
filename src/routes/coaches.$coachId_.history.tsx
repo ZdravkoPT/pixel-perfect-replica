@@ -70,7 +70,7 @@ function HistoryPage() {
       <div className="space-y-8">
         <div className="flex gap-3 text-xs">
           <Link to="/coaches/$coachId" params={{ coachId }} className="text-muted-foreground underline-offset-4 hover:underline">← Manager profile</Link>
-          <Link to="/coaches/$coachId_/stats" params={{ coachId }} className="text-primary underline-offset-4 hover:underline">Manager stats →</Link>
+          <Link to="/coaches/$coachId/stats" params={{ coachId }} className="text-primary underline-offset-4 hover:underline">Manager stats →</Link>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
