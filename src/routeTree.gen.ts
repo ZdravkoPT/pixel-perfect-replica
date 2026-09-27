@@ -29,6 +29,7 @@ import { Route as SquadsIndexRouteImport } from './routes/squads.index'
 import { Route as SquadsTeamIdRouteImport } from './routes/squads.$teamId'
 import { Route as TeamsTeamIdRouteImport } from './routes/teams.$teamId'
 import { Route as CoachesCoachIdHistoryRouteImport } from './routes/coaches.$coachId_.history'
+import { Route as CoachesCoachIdStatsRouteImport } from './routes/coaches.$coachId_.stats'
 import { Route as PlayersPlayerIdStatsRouteImport } from './routes/players.$playerId_.stats'
 import { Route as ApiPublicHooksBetReviewRouteImport } from './routes/api/public/hooks/bet-review'
 import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/public/hooks/ingest-fixtures'
@@ -138,6 +139,11 @@ const CoachesCoachIdHistoryRoute = CoachesCoachIdHistoryRouteImport.update({
   path: '/$coachId/history',
   getParentRoute: () => CoachesRoute,
 } as any)
+const CoachesCoachIdStatsRoute = CoachesCoachIdStatsRouteImport.update({
+  id: '/$coachId_/stats',
+  path: '/$coachId/stats',
+  getParentRoute: () => CoachesRoute,
+} as any)
 const PlayersPlayerIdStatsRoute = PlayersPlayerIdStatsRouteImport.update({
   id: '/players/$playerId_/stats',
   path: '/players/$playerId/stats',
@@ -206,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/players/': typeof PlayersIndexRoute
   '/squads/': typeof SquadsIndexRoute
   '/coaches/$coachId/history': typeof CoachesCoachIdHistoryRoute
+  '/coaches/$coachId/stats': typeof CoachesCoachIdStatsRoute
   '/players/$playerId/stats': typeof PlayersPlayerIdStatsRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
@@ -236,6 +243,7 @@ export interface FileRoutesByTo {
   '/players': typeof PlayersIndexRoute
   '/squads': typeof SquadsIndexRoute
   '/coaches/$coachId/history': typeof CoachesCoachIdHistoryRoute
+  '/coaches/$coachId/stats': typeof CoachesCoachIdStatsRoute
   '/players/$playerId/stats': typeof PlayersPlayerIdStatsRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/players/': typeof PlayersIndexRoute
   '/squads/': typeof SquadsIndexRoute
   '/coaches/$coachId_/history': typeof CoachesCoachIdHistoryRoute
+  '/coaches/$coachId_/stats': typeof CoachesCoachIdStatsRoute
   '/players/$playerId_/stats': typeof PlayersPlayerIdStatsRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/players/'
     | '/squads/'
     | '/coaches/$coachId/history'
+    | '/coaches/$coachId/stats'
     | '/players/$playerId/stats'
     | '/api/public/hooks/bet-review'
     | '/api/public/hooks/ingest-fixtures'
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/players'
     | '/squads'
     | '/coaches/$coachId/history'
+    | '/coaches/$coachId/stats'
     | '/players/$playerId/stats'
     | '/api/public/hooks/bet-review'
     | '/api/public/hooks/ingest-fixtures'
@@ -359,6 +370,7 @@ export interface FileRouteTypes {
     | '/players/'
     | '/squads/'
     | '/coaches/$coachId_/history'
+    | '/coaches/$coachId_/stats'
     | '/players/$playerId_/stats'
     | '/api/public/hooks/bet-review'
     | '/api/public/hooks/ingest-fixtures'
@@ -540,6 +552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoachesCoachIdHistoryRouteImport
       parentRoute: typeof CoachesRoute
     }
+    '/coaches/$coachId_/stats': {
+      id: '/coaches/$coachId_/stats'
+      path: '/$coachId/stats'
+      fullPath: '/coaches/$coachId/stats'
+      preLoaderRoute: typeof CoachesCoachIdStatsRouteImport
+      parentRoute: typeof CoachesRoute
+    }
     '/players/$playerId_/stats': {
       id: '/players/$playerId_/stats'
       path: '/players/$playerId/stats'
@@ -602,11 +621,13 @@ declare module '@tanstack/react-router' {
 interface CoachesRouteChildren {
   CoachesCoachIdRoute: typeof CoachesCoachIdRoute
   CoachesCoachIdHistoryRoute: typeof CoachesCoachIdHistoryRoute
+  CoachesCoachIdStatsRoute: typeof CoachesCoachIdStatsRoute
 }
 
 const CoachesRouteChildren: CoachesRouteChildren = {
   CoachesCoachIdRoute: CoachesCoachIdRoute,
   CoachesCoachIdHistoryRoute: CoachesCoachIdHistoryRoute,
+  CoachesCoachIdStatsRoute: CoachesCoachIdStatsRoute,
 }
 
 const CoachesRouteWithChildren =
