@@ -881,7 +881,7 @@ export const getTeamStats = createServerFn({ method: "GET" })
   .inputValidator((input: { teamId: string }) => input)
   .handler(async ({ data }) => {
     const supabase = publicClient();
-    const [{ data: team }, { data: matches }, { data: box }] = await Promise.all([
+    const [{ data: team }, { data: matches }, { data: box }, { data: history }, { data: tracking }] = await Promise.all([
       supabase.from("teams").select("id, name, crest_url, country").eq("id", data.teamId).maybeSingle(),
       supabase
         .from("matches")
@@ -896,6 +896,15 @@ export const getTeamStats = createServerFn({ method: "GET" })
         .select("possession, shots, shots_on_target, corners, fouls, yellow_cards, red_cards, pass_accuracy")
         .eq("team_id", data.teamId)
         .limit(60),
+      supabase
+        .from("matches")
+        .select("kickoff_at, home_team_id, home_score, away_score")
+        .or(`home_team_id.eq.${data.teamId},away_team_id.eq.${data.teamId}`)
+        .eq("status", "FINISHED")
+        .not("home_score", "is", null)
+        .order("kickoff_at", { ascending: false })
+        .limit(1000),
+      supabase.from("team_tracking").select("distance_km, minutes").eq("team_id", data.teamId).limit(500),
     ]);
 
     type Split = { played: number; w: number; d: number; l: number; gf: number; ga: number; cs: number; btts: number; o25: number };
@@ -929,6 +938,31 @@ export const getTeamStats = createServerFn({ method: "GET" })
       const vals = (box ?? []).map((r) => r[key]).filter((v): v is number => typeof v === "number");
       return vals.length ? Number((vals.reduce((a, b) => a + Number(b), 0) / vals.length).toFixed(1)) : null;
     };
+    // Season buckets (July–June) for the form chart.
+    const seasonMap = new Map<string, { season: string; played: number; w: number; d: number; l: number; o25: number }>();
+    for (const m of history ?? []) {
+      const dt = new Date(m.kickoff_at);
+      const start = dt.getUTCMonth() >= 6 ? dt.getUTCFullYear() : dt.getUTCFullYear() - 1;
+      const label = `${start}/${String((start + 1) % 100).padStart(2, "0")}`;
+      const isHome = m.home_team_id === data.teamId;
+      const gf = (isHome ? m.home_score : m.away_score) ?? 0;
+      const ga = (isHome ? m.away_score : m.home_score) ?? 0;
+      const row = seasonMap.get(label) ?? { season: label, played: 0, w: 0, d: 0, l: 0, o25: 0 };
+      row.played += 1;
+      if (gf > ga) row.w += 1;
+      else if (gf === ga) row.d += 1;
+      else row.l += 1;
+      if (gf + ga > 2) row.o25 += 1;
+      seasonMap.set(label, row);
+    }
+    const seasons = [...seasonMap.values()].sort((a, b) => a.season.localeCompare(b.season)).slice(-6);
+    let distKm = 0;
+    let distMin = 0;
+    for (const t of tracking ?? []) {
+      distKm += Number(t.distance_km);
+      distMin += Number(t.minutes);
+    }
+    const distancePer90 = distMin > 0 ? Number(((distKm / distMin) * 90).toFixed(1)) : null;
     return {
       team,
       all,
@@ -945,7 +979,9 @@ export const getTeamStats = createServerFn({ method: "GET" })
         yellow: avg("yellow_cards"),
         passAccuracy: avg("pass_accuracy"),
       },
-      // No free provider publishes team running distance; kept explicit rather than estimated.
-      distancePer90: null as number | null,
+      // Only from the club's own uploaded tracking data — never estimated.
+      distancePer90,
+      distanceSamples: tracking?.length ?? 0,
+      seasons,
     };
   });

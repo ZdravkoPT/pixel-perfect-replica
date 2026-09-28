@@ -15,6 +15,13 @@
       "when": 1789986604663,
       "tag": "0001_create_coach_profiles_player_conditions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790575314803,
+      "tag": "0002_create_team_tracking",
+      "breakpoints": true
     }
   ]
 }

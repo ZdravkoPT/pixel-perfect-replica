@@ -2390,6 +2390,50 @@ export type Database = {
           },
         ]
       }
+      team_tracking: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          distance_km: number
+          id: string
+          match_date: string
+          minutes: number
+          opponent: string | null
+          source: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          distance_km: number
+          id?: string
+          match_date: string
+          minutes?: number
+          opponent?: string | null
+          source?: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          distance_km?: number
+          id?: string
+          match_date?: string
+          minutes?: number
+          opponent?: string | null
+          source?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_tracking_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           canonical_id: string
