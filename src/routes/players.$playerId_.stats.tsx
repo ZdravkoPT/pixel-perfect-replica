@@ -3,6 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { getPlayerStats } from "@/lib/player-stats.functions";
+import { PlayerFormChart } from "@/components/PlayerFormChart";
 
 const statsQuery = (playerId: string) =>
   queryOptions({ queryKey: ["player-stats", playerId], queryFn: () => getPlayerStats({ data: { playerId } }) });
@@ -97,6 +98,11 @@ function PlayerStatsPage() {
             <Stat label="Goals" value={String(totals.goals)} />
             <Stat label="Assists" value={String(totals.assists)} />
           </div>
+        </section>
+
+        <section>
+          <h2 className="text-sm font-semibold">Form over recent seasons</h2>
+          <div className="mt-2"><PlayerFormChart seasons={seasons} /></div>
         </section>
 
         <section>
