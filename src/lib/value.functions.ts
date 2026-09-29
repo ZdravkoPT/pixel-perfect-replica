@@ -851,9 +851,80 @@ export const getAiBets = createServerFn({ method: "GET" })
       .slice(0, 20)
       .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
     const slipProbability = slipLegs.reduce((acc, leg) => acc * leg.probability, 1);
+
+    // Split the long slip into small slips of up to 4 legs (strongest legs grouped together).
+    const byStrength = slipLegs.slice().sort((a, b) => b.probability - a.probability);
+    const miniSlips: Array<{ legs: MegaLeg[]; probability: number; fairOdds: number }> = [];
+    for (let i = 0; i < byStrength.length; i += 4) {
+      const legs = byStrength.slice(i, i + 4);
+      const p = legs.reduce((acc, leg) => acc * leg.probability, 1);
+      miniSlips.push({ legs, probability: p, fairOdds: odds(p) });
+    }
+
+    // Manager picks: compare the two current managers' published career records.
+    type ManagerRec = { coachId: string; name: string; matches: number; winPct: number; ppg: number };
+    const managerPicks: Array<{
+      matchId: string; fixture: string; kickoffAt: string;
+      home: ManagerRec | null; away: ManagerRec | null; edge: "home" | "away" | null; note: string;
+    }> = [];
+    try {
+      const teamIds = [...new Set(rows.flatMap((r) => [r.home_team_id, (r as { away_team_id?: string }).away_team_id]).filter(Boolean))] as string[];
+      if (teamIds.length) {
+        const { data: spells } = await supabase
+          .from("coach_spells")
+          .select("team_id, coach_id, coach:coaches(name)")
+          .in("team_id", teamIds)
+          .eq("is_current", true);
+        const coachIds = [...new Set((spells ?? []).map((s) => s.coach_id))];
+        const { data: profiles } = coachIds.length
+          ? await supabase.from("coach_profiles").select("coach_id, seasons").in("coach_id", coachIds)
+          : { data: [] as Array<{ coach_id: string; seasons: unknown }> };
+        const recByCoach = new Map<string, { m: number; w: number; d: number }>();
+        for (const p of profiles ?? []) {
+          const list = Array.isArray(p.seasons) ? (p.seasons as Array<{ matches?: number; wins?: number; draws?: number }>) : [];
+          const t = list.reduce((s, r) => ({ m: s.m + (r.matches ?? 0), w: s.w + (r.wins ?? 0), d: s.d + (r.draws ?? 0) }), { m: 0, w: 0, d: 0 });
+          if (t.m > 0) recByCoach.set(p.coach_id, t);
+        }
+        const mgrByTeam = new Map<string, ManagerRec>();
+        for (const s of spells ?? []) {
+          const r = recByCoach.get(s.coach_id);
+          if (!r) continue;
+          mgrByTeam.set(s.team_id, {
+            coachId: s.coach_id,
+            name: (s.coach as { name?: string } | null)?.name ?? "Manager",
+            matches: r.m,
+            winPct: Math.round((r.w / r.m) * 100),
+            ppg: Number(((r.w * 3 + r.d) / r.m).toFixed(2)),
+          });
+        }
+        for (const r of rows) {
+          const awayId = (r as { away_team_id?: string }).away_team_id ?? "";
+          const home = mgrByTeam.get(r.home_team_id) ?? null;
+          const away = mgrByTeam.get(awayId) ?? null;
+          if (!home && !away) continue;
+          const hn = (r.home as { name?: string } | null)?.name ?? "Home";
+          const an = (r.away as { name?: string } | null)?.name ?? "Away";
+          let edge: "home" | "away" | null = null;
+          let note = "Only one manager has a published career record — no comparison.";
+          if (home && away) {
+            const gap = home.winPct - away.winPct;
+            edge = gap >= 8 ? "home" : gap <= -8 ? "away" : null;
+            note = edge
+              ? `${edge === "home" ? home.name : away.name} wins ${Math.abs(gap)} points more often across their career.`
+              : "Managers' career win rates are within 8 points — no manager edge.";
+          }
+          managerPicks.push({ matchId: r.id, fixture: `${hn} vs ${an}`, kickoffAt: r.kickoff_at, home, away, edge, note });
+        }
+      }
+    } catch {
+      // Manager data is optional; never block the slip.
+    }
+
     const megaSlip =
       slipLegs.length >= 2
         ? {
+            miniSlips,
+            managerPicks,
             legs: slipLegs,
             probability: slipProbability,
             fairOdds: odds(slipProbability),
