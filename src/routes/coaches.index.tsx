@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { listCoaches } from "@/lib/intel.functions";
 
-export const Route = createFileRoute("/coaches")({
+export const Route = createFileRoute("/coaches/")({
   head: () => ({
     meta: [
       { title: "Coach Directory | Football Intelligence" },
