@@ -14,13 +14,13 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AiBetsRouteImport } from './routes/ai-bets'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as CoachesRouteImport } from './routes/coaches'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as FixturesRouteImport } from './routes/fixtures'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as ProvidersRouteImport } from './routes/providers'
 import { Route as ValueRouteImport } from './routes/value'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
+import { Route as CoachesIndexRouteImport } from './routes/coaches.index'
 import { Route as CoachesCoachIdRouteImport } from './routes/coaches.$coachId'
 import { Route as MatchesMatchIdRouteImport } from './routes/matches.$matchId'
 import { Route as PlayersIndexRouteImport } from './routes/players.index'
@@ -65,11 +65,6 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CoachesRoute = CoachesRouteImport.update({
-  id: '/coaches',
-  path: '/coaches',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CompareRoute = CompareRouteImport.update({
   id: '/compare',
   path: '/compare',
@@ -98,6 +93,11 @@ const ValueRoute = ValueRouteImport.update({
 const WatchlistRoute = WatchlistRouteImport.update({
   id: '/watchlist',
   path: '/watchlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoachesIndexRoute = CoachesIndexRouteImport.update({
+  id: '/coaches/',
+  path: '/coaches/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CoachesCoachIdRoute = CoachesCoachIdRouteImport.update({
@@ -203,7 +203,6 @@ export interface FileRoutesByFullPath {
   '/ai-bets': typeof AiBetsRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
-  '/coaches': typeof CoachesRouteWithChildren
   '/compare': typeof CompareRoute
   '/fixtures': typeof FixturesRoute
   '/live': typeof LiveRoute
@@ -215,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/squads/$teamId': typeof SquadsTeamIdRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
+  '/coaches/': typeof CoachesIndexRoute
   '/players/': typeof PlayersIndexRoute
   '/squads/': typeof SquadsIndexRoute
   '/coaches/$coachId/history': typeof CoachesCoachIdHistoryRoute
@@ -235,7 +235,6 @@ export interface FileRoutesByTo {
   '/ai-bets': typeof AiBetsRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
-  '/coaches': typeof CoachesRouteWithChildren
   '/compare': typeof CompareRoute
   '/fixtures': typeof FixturesRoute
   '/live': typeof LiveRoute
@@ -247,6 +246,7 @@ export interface FileRoutesByTo {
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/squads/$teamId': typeof SquadsTeamIdRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
+  '/coaches': typeof CoachesIndexRoute
   '/players': typeof PlayersIndexRoute
   '/squads': typeof SquadsIndexRoute
   '/coaches/$coachId/history': typeof CoachesCoachIdHistoryRoute
@@ -268,7 +268,6 @@ export interface FileRoutesById {
   '/ai-bets': typeof AiBetsRoute
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
-  '/coaches': typeof CoachesRouteWithChildren
   '/compare': typeof CompareRoute
   '/fixtures': typeof FixturesRoute
   '/live': typeof LiveRoute
@@ -280,6 +279,7 @@ export interface FileRoutesById {
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/squads/$teamId': typeof SquadsTeamIdRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
+  '/coaches/': typeof CoachesIndexRoute
   '/players/': typeof PlayersIndexRoute
   '/squads/': typeof SquadsIndexRoute
   '/coaches/$coachId_/history': typeof CoachesCoachIdHistoryRoute
@@ -302,7 +302,6 @@ export interface FileRouteTypes {
     | '/ai-bets'
     | '/analytics'
     | '/auth'
-    | '/coaches'
     | '/compare'
     | '/fixtures'
     | '/live'
@@ -314,6 +313,7 @@ export interface FileRouteTypes {
     | '/players/$playerId'
     | '/squads/$teamId'
     | '/teams/$teamId'
+    | '/coaches/'
     | '/players/'
     | '/squads/'
     | '/coaches/$coachId/history'
@@ -334,7 +334,6 @@ export interface FileRouteTypes {
     | '/ai-bets'
     | '/analytics'
     | '/auth'
-    | '/coaches'
     | '/compare'
     | '/fixtures'
     | '/live'
@@ -346,6 +345,7 @@ export interface FileRouteTypes {
     | '/players/$playerId'
     | '/squads/$teamId'
     | '/teams/$teamId'
+    | '/coaches'
     | '/players'
     | '/squads'
     | '/coaches/$coachId/history'
@@ -366,7 +366,6 @@ export interface FileRouteTypes {
     | '/ai-bets'
     | '/analytics'
     | '/auth'
-    | '/coaches'
     | '/compare'
     | '/fixtures'
     | '/live'
@@ -378,6 +377,7 @@ export interface FileRouteTypes {
     | '/players/$playerId'
     | '/squads/$teamId'
     | '/teams/$teamId'
+    | '/coaches/'
     | '/players/'
     | '/squads/'
     | '/coaches/$coachId_/history'
@@ -399,7 +399,6 @@ export interface RootRouteChildren {
   AiBetsRoute: typeof AiBetsRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
-  CoachesRoute: typeof CoachesRouteWithChildren
   CompareRoute: typeof CompareRoute
   FixturesRoute: typeof FixturesRoute
   LiveRoute: typeof LiveRoute
@@ -410,6 +409,7 @@ export interface RootRouteChildren {
   PlayersPlayerIdRoute: typeof PlayersPlayerIdRoute
   SquadsTeamIdRoute: typeof SquadsTeamIdRoute
   TeamsTeamIdRoute: typeof TeamsTeamIdRoute
+  CoachesIndexRoute: typeof CoachesIndexRoute
   PlayersIndexRoute: typeof PlayersIndexRoute
   SquadsIndexRoute: typeof SquadsIndexRoute
   PlayersPlayerIdStatsRoute: typeof PlayersPlayerIdStatsRoute
@@ -460,13 +460,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/coaches': {
-      id: '/coaches'
-      path: '/coaches'
-      fullPath: '/coaches'
-      preLoaderRoute: typeof CoachesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/compare': {
       id: '/compare'
       path: '/compare'
@@ -507,6 +500,13 @@ declare module '@tanstack/react-router' {
       path: '/watchlist'
       fullPath: '/watchlist'
       preLoaderRoute: typeof WatchlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/coaches/': {
+      id: '/coaches/'
+      path: '/coaches'
+      fullPath: '/coaches/'
+      preLoaderRoute: typeof CoachesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/coaches/$coachId': {
@@ -638,28 +638,12 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface CoachesRouteChildren {
-  CoachesCoachIdRoute: typeof CoachesCoachIdRoute
-  CoachesCoachIdHistoryRoute: typeof CoachesCoachIdHistoryRoute
-  CoachesCoachIdStatsRoute: typeof CoachesCoachIdStatsRoute
-}
-
-const CoachesRouteChildren: CoachesRouteChildren = {
-  CoachesCoachIdRoute: CoachesCoachIdRoute,
-  CoachesCoachIdHistoryRoute: CoachesCoachIdHistoryRoute,
-  CoachesCoachIdStatsRoute: CoachesCoachIdStatsRoute,
-}
-
-const CoachesRouteWithChildren =
-  CoachesRoute._addFileChildren(CoachesRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AiBetsRoute: AiBetsRoute,
   AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
-  CoachesRoute: CoachesRouteWithChildren,
   CompareRoute: CompareRoute,
   FixturesRoute: FixturesRoute,
   LiveRoute: LiveRoute,
@@ -670,6 +654,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlayersPlayerIdRoute: PlayersPlayerIdRoute,
   SquadsTeamIdRoute: SquadsTeamIdRoute,
   TeamsTeamIdRoute: TeamsTeamIdRoute,
+  CoachesIndexRoute: CoachesIndexRoute,
   PlayersIndexRoute: PlayersIndexRoute,
   SquadsIndexRoute: SquadsIndexRoute,
   PlayersPlayerIdStatsRoute: PlayersPlayerIdStatsRoute,
