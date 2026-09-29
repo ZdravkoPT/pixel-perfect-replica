@@ -101,9 +101,9 @@ const CoachesIndexRoute = CoachesIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const CoachesCoachIdRoute = CoachesCoachIdRouteImport.update({
-  id: '/$coachId',
-  path: '/$coachId',
-  getParentRoute: () => CoachesRoute,
+  id: '/coaches/$coachId',
+  path: '/coaches/$coachId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MatchesMatchIdRoute = MatchesMatchIdRouteImport.update({
   id: '/matches/$matchId',
@@ -136,14 +136,14 @@ const TeamsTeamIdRoute = TeamsTeamIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const CoachesCoachIdHistoryRoute = CoachesCoachIdHistoryRouteImport.update({
-  id: '/$coachId_/history',
-  path: '/$coachId/history',
-  getParentRoute: () => CoachesRoute,
+  id: '/coaches/$coachId_/history',
+  path: '/coaches/$coachId/history',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CoachesCoachIdStatsRoute = CoachesCoachIdStatsRouteImport.update({
-  id: '/$coachId_/stats',
-  path: '/$coachId/stats',
-  getParentRoute: () => CoachesRoute,
+  id: '/coaches/$coachId_/stats',
+  path: '/coaches/$coachId/stats',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PlayersPlayerIdStatsRoute = PlayersPlayerIdStatsRouteImport.update({
   id: '/players/$playerId_/stats',
@@ -405,6 +405,7 @@ export interface RootRouteChildren {
   ProvidersRoute: typeof ProvidersRoute
   ValueRoute: typeof ValueRoute
   WatchlistRoute: typeof WatchlistRoute
+  CoachesCoachIdRoute: typeof CoachesCoachIdRoute
   MatchesMatchIdRoute: typeof MatchesMatchIdRoute
   PlayersPlayerIdRoute: typeof PlayersPlayerIdRoute
   SquadsTeamIdRoute: typeof SquadsTeamIdRoute
@@ -412,6 +413,8 @@ export interface RootRouteChildren {
   CoachesIndexRoute: typeof CoachesIndexRoute
   PlayersIndexRoute: typeof PlayersIndexRoute
   SquadsIndexRoute: typeof SquadsIndexRoute
+  CoachesCoachIdHistoryRoute: typeof CoachesCoachIdHistoryRoute
+  CoachesCoachIdStatsRoute: typeof CoachesCoachIdStatsRoute
   PlayersPlayerIdStatsRoute: typeof PlayersPlayerIdStatsRoute
   TeamsTeamIdDistanceRoute: typeof TeamsTeamIdDistanceRoute
   ApiPublicHooksBetReviewRoute: typeof ApiPublicHooksBetReviewRoute
@@ -511,10 +514,10 @@ declare module '@tanstack/react-router' {
     }
     '/coaches/$coachId': {
       id: '/coaches/$coachId'
-      path: '/$coachId'
+      path: '/coaches/$coachId'
       fullPath: '/coaches/$coachId'
       preLoaderRoute: typeof CoachesCoachIdRouteImport
-      parentRoute: typeof CoachesRoute
+      parentRoute: typeof rootRouteImport
     }
     '/matches/$matchId': {
       id: '/matches/$matchId'
@@ -560,17 +563,17 @@ declare module '@tanstack/react-router' {
     }
     '/coaches/$coachId_/history': {
       id: '/coaches/$coachId_/history'
-      path: '/$coachId/history'
+      path: '/coaches/$coachId/history'
       fullPath: '/coaches/$coachId/history'
       preLoaderRoute: typeof CoachesCoachIdHistoryRouteImport
-      parentRoute: typeof CoachesRoute
+      parentRoute: typeof rootRouteImport
     }
     '/coaches/$coachId_/stats': {
       id: '/coaches/$coachId_/stats'
-      path: '/$coachId/stats'
+      path: '/coaches/$coachId/stats'
       fullPath: '/coaches/$coachId/stats'
       preLoaderRoute: typeof CoachesCoachIdStatsRouteImport
-      parentRoute: typeof CoachesRoute
+      parentRoute: typeof rootRouteImport
     }
     '/players/$playerId_/stats': {
       id: '/players/$playerId_/stats'
@@ -650,6 +653,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProvidersRoute: ProvidersRoute,
   ValueRoute: ValueRoute,
   WatchlistRoute: WatchlistRoute,
+  CoachesCoachIdRoute: CoachesCoachIdRoute,
   MatchesMatchIdRoute: MatchesMatchIdRoute,
   PlayersPlayerIdRoute: PlayersPlayerIdRoute,
   SquadsTeamIdRoute: SquadsTeamIdRoute,
@@ -657,6 +661,8 @@ const rootRouteChildren: RootRouteChildren = {
   CoachesIndexRoute: CoachesIndexRoute,
   PlayersIndexRoute: PlayersIndexRoute,
   SquadsIndexRoute: SquadsIndexRoute,
+  CoachesCoachIdHistoryRoute: CoachesCoachIdHistoryRoute,
+  CoachesCoachIdStatsRoute: CoachesCoachIdStatsRoute,
   PlayersPlayerIdStatsRoute: PlayersPlayerIdStatsRoute,
   TeamsTeamIdDistanceRoute: TeamsTeamIdDistanceRoute,
   ApiPublicHooksBetReviewRoute: ApiPublicHooksBetReviewRoute,
