@@ -218,6 +218,68 @@ function AiBetsPage() {
 
             <StakeSettings value={settings} onChange={setSettings} />
 
+            {data.megaSlip && data.megaSlip.miniSlips.length > 0 ? (
+              <section className="rounded-lg border border-border bg-card p-5">
+                <h2 className="text-sm font-semibold">Small slips — {data.megaSlip.miniSlips.length} × up to 4 legs</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  The 20 picks split into small slips, strongest legs first, so one miss only costs one slip.
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {data.megaSlip.miniSlips.map((slip, i) => (
+                    <div key={i} className="rounded border border-border bg-background p-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-mono uppercase tracking-wider text-muted-foreground">Slip {i + 1}</span>
+                        <span className="font-mono tabular-nums">
+                          {(slip.probability * 100).toFixed(1)}% win · {slip.fairOdds.toFixed(2)}
+                        </span>
+                      </div>
+                      <ul className="mt-2 space-y-1 text-xs">
+                        {slip.legs.map((leg) => (
+                          <li key={leg.matchId + leg.pickCode} className="flex justify-between gap-2">
+                            <span className="truncate">{leg.selection} <span className="text-muted-foreground">· {leg.fixture}</span></span>
+                            <Badge variant="outline" className="font-mono">{(leg.probability * 100).toFixed(0)}%</Badge>
+                          </li>
+                        ))}
+                      </ul>
+                      <StakeCalculator probability={slip.probability} fairOdds={slip.fairOdds} settings={settings} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {data.megaSlip && data.megaSlip.managerPicks.length > 0 ? (
+              <section className="rounded-lg border border-border bg-card p-5">
+                <h2 className="text-sm font-semibold">Manager picks</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Today's managers compared on their published career win rate. An edge needs an 8-point gap.
+                </p>
+                <div className="mt-3 space-y-2">
+                  {data.megaSlip.managerPicks.map((m) => (
+                    <div key={m.matchId} className="rounded border border-border bg-background p-3 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Link to="/matches/$matchId" params={{ matchId: m.matchId }} className="font-medium hover:text-primary">{m.fixture}</Link>
+                        {m.edge ? <Badge>{m.edge === "home" ? "Home manager edge" : "Away manager edge"}</Badge> : <Badge variant="secondary">No edge</Badge>}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 font-mono tabular-nums">
+                        {[m.home, m.away].map((g, j) => (
+                          <div key={j} className="rounded border border-border px-2 py-1">
+                            {g ? (
+                              <>
+                                <Link to="/coaches/$coachId/stats" params={{ coachId: g.coachId }} className="font-sans hover:text-primary">{g.name}</Link>
+                                <p className="text-muted-foreground">{g.winPct}% win · {g.ppg} PPG · {g.matches} games</p>
+                              </>
+                            ) : <p className="text-muted-foreground">No career record</p>}
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-muted-foreground">{m.note}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
             {data.megaSlip ? (
               <section className="rounded-lg border border-border bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">

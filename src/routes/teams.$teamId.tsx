@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Cell } from "@/components/CoachDossier";
 import { getTeamStats } from "@/lib/intel.functions";
+import { TeamFormChart } from "@/components/TeamFormChart";
 
 const teamStatsQuery = (teamId: string) =>
   queryOptions({ queryKey: ["team-stats", teamId], queryFn: () => getTeamStats({ data: { teamId } }) });
@@ -73,8 +74,11 @@ function TeamStatsPage() {
             <Cell label="Pass acc." value={fmt(data.box.passAccuracy, "%")} />
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Running distance isn't published by any free data source, so it's shown as n/a rather than estimated.
-            {data.box.samples === 0 ? " Box-score stats fill in as match statistics are imported." : ` Based on ${data.box.samples} matches.`}
+            Distance per 90 comes only from your own tracking data.{" "}
+            <Link to="/teams/$teamId/distance" params={{ teamId }} className="text-primary underline-offset-4 hover:underline">
+              Open distance per 90 →
+            </Link>
+            {data.box.samples === 0 ? " Box-score stats fill in as match statistics are imported." : ` Box score based on ${data.box.samples} matches.`}
           </p>
         </div>
 
@@ -83,6 +87,11 @@ function TeamStatsPage() {
           <SplitBlock label="Home" s={data.home} />
           <SplitBlock label="Away" s={data.away} />
         </div>
+
+        <section>
+          <h2 className="text-sm font-semibold">Form by season</h2>
+          <div className="mt-3"><TeamFormChart seasons={data.seasons} /></div>
+        </section>
 
         <section>
           <h2 className="text-sm font-semibold">Last 10 results</h2>
