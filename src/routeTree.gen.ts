@@ -31,6 +31,7 @@ import { Route as TeamsTeamIdRouteImport } from './routes/teams.$teamId'
 import { Route as CoachesCoachIdHistoryRouteImport } from './routes/coaches.$coachId_.history'
 import { Route as CoachesCoachIdStatsRouteImport } from './routes/coaches.$coachId_.stats'
 import { Route as PlayersPlayerIdStatsRouteImport } from './routes/players.$playerId_.stats'
+import { Route as TeamsTeamIdDistanceRouteImport } from './routes/teams.$teamId_.distance'
 import { Route as ApiPublicHooksBetReviewRouteImport } from './routes/api/public/hooks/bet-review'
 import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/public/hooks/ingest-fixtures'
 import { Route as ApiPublicHooksKickoffRefreshRouteImport } from './routes/api/public/hooks/kickoff-refresh'
@@ -149,6 +150,11 @@ const PlayersPlayerIdStatsRoute = PlayersPlayerIdStatsRouteImport.update({
   path: '/players/$playerId/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamsTeamIdDistanceRoute = TeamsTeamIdDistanceRouteImport.update({
+  id: '/teams/$teamId_/distance',
+  path: '/teams/$teamId/distance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksBetReviewRoute = ApiPublicHooksBetReviewRouteImport.update({
   id: '/api/public/hooks/bet-review',
   path: '/api/public/hooks/bet-review',
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/coaches/$coachId/history': typeof CoachesCoachIdHistoryRoute
   '/coaches/$coachId/stats': typeof CoachesCoachIdStatsRoute
   '/players/$playerId/stats': typeof PlayersPlayerIdStatsRoute
+  '/teams/$teamId/distance': typeof TeamsTeamIdDistanceRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
@@ -245,6 +252,7 @@ export interface FileRoutesByTo {
   '/coaches/$coachId/history': typeof CoachesCoachIdHistoryRoute
   '/coaches/$coachId/stats': typeof CoachesCoachIdStatsRoute
   '/players/$playerId/stats': typeof PlayersPlayerIdStatsRoute
+  '/teams/$teamId/distance': typeof TeamsTeamIdDistanceRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   '/coaches/$coachId_/history': typeof CoachesCoachIdHistoryRoute
   '/coaches/$coachId_/stats': typeof CoachesCoachIdStatsRoute
   '/players/$playerId_/stats': typeof PlayersPlayerIdStatsRoute
+  '/teams/$teamId_/distance': typeof TeamsTeamIdDistanceRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
@@ -310,6 +319,7 @@ export interface FileRouteTypes {
     | '/coaches/$coachId/history'
     | '/coaches/$coachId/stats'
     | '/players/$playerId/stats'
+    | '/teams/$teamId/distance'
     | '/api/public/hooks/bet-review'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
@@ -341,6 +351,7 @@ export interface FileRouteTypes {
     | '/coaches/$coachId/history'
     | '/coaches/$coachId/stats'
     | '/players/$playerId/stats'
+    | '/teams/$teamId/distance'
     | '/api/public/hooks/bet-review'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
@@ -372,6 +383,7 @@ export interface FileRouteTypes {
     | '/coaches/$coachId_/history'
     | '/coaches/$coachId_/stats'
     | '/players/$playerId_/stats'
+    | '/teams/$teamId_/distance'
     | '/api/public/hooks/bet-review'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
@@ -401,6 +413,7 @@ export interface RootRouteChildren {
   PlayersIndexRoute: typeof PlayersIndexRoute
   SquadsIndexRoute: typeof SquadsIndexRoute
   PlayersPlayerIdStatsRoute: typeof PlayersPlayerIdStatsRoute
+  TeamsTeamIdDistanceRoute: typeof TeamsTeamIdDistanceRoute
   ApiPublicHooksBetReviewRoute: typeof ApiPublicHooksBetReviewRoute
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
   ApiPublicHooksKickoffRefreshRoute: typeof ApiPublicHooksKickoffRefreshRoute
@@ -566,6 +579,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayersPlayerIdStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/teams/$teamId_/distance': {
+      id: '/teams/$teamId_/distance'
+      path: '/teams/$teamId/distance'
+      fullPath: '/teams/$teamId/distance'
+      preLoaderRoute: typeof TeamsTeamIdDistanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/bet-review': {
       id: '/api/public/hooks/bet-review'
       path: '/api/public/hooks/bet-review'
@@ -653,6 +673,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlayersIndexRoute: PlayersIndexRoute,
   SquadsIndexRoute: SquadsIndexRoute,
   PlayersPlayerIdStatsRoute: PlayersPlayerIdStatsRoute,
+  TeamsTeamIdDistanceRoute: TeamsTeamIdDistanceRoute,
   ApiPublicHooksBetReviewRoute: ApiPublicHooksBetReviewRoute,
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
   ApiPublicHooksKickoffRefreshRoute: ApiPublicHooksKickoffRefreshRoute,
