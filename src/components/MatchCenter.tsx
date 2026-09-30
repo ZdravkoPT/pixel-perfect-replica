@@ -20,11 +20,11 @@ function PlayerMarker({ row }: { row: PlayerRow }) {
   const name = row.player?.name ?? "Unknown";
   const number = "shirt_number" in row ? row.shirt_number : null;
   return (
-    <Link to="/players/$playerId" params={{ playerId: row.player_id }} title={name} className="group flex min-w-0 flex-col items-center gap-1 text-center text-pitch-foreground">
+    <Link to="/players/$playerId" params={{ playerId: row.player_id }} title={name} className="group flex w-[19%] min-w-0 shrink-0 flex-col items-center gap-1 text-center text-pitch-foreground lg:w-full">
       <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-pitch-foreground/80 bg-pitch-foreground font-sans text-xs font-bold text-pitch-ink shadow-sm transition-transform group-hover:scale-110">
         {typeof number === "number" ? number : name.slice(0, 2).toUpperCase()}
       </span>
-      <span className="max-w-20 truncate text-[10px] font-semibold leading-tight drop-shadow-sm">{name}</span>
+      <span className="w-full truncate px-0.5 text-[10px] font-semibold leading-tight drop-shadow-sm">{name}</span>
     </Link>
   );
 }
@@ -34,9 +34,9 @@ function PitchSide({ lineup, reversed }: { lineup: IntelData["lineups"][number] 
   const bands = [0, 1, 2, 3].map((band) => starters.filter((row) => positionBand(row.position ?? row.player?.position ?? null) === band));
   if (starters.length === 0) return <div className="flex flex-1 items-center justify-center px-6 text-center text-xs text-pitch-foreground/80">Team sheet not available</div>;
   return (
-    <div className={`relative z-10 flex flex-1 flex-col justify-around py-5 ${reversed ? "flex-col-reverse" : ""}`}>
+    <div className={`relative z-10 flex flex-1 flex-col justify-around py-5 lg:flex-row lg:py-2 ${reversed ? "flex-col-reverse lg:flex-row-reverse" : ""}`}>
       {bands.map((players, index) => (
-        <div key={index} className="flex min-h-12 items-center justify-evenly gap-1 px-2">
+        <div key={index} className="flex min-h-12 items-center justify-evenly gap-1 px-2 lg:w-1/4 lg:flex-col lg:px-0.5">
           {players.map((row) => <PlayerMarker key={row.player_id} row={row} />)}
         </div>
       ))}
@@ -46,7 +46,7 @@ function PitchSide({ lineup, reversed }: { lineup: IntelData["lineups"][number] 
 
 function StatRow({ item }: { item: FactGroup["items"][number] }) {
   const parse = (text: string) => {
-    const number = Number.parseFloat(text.replace(/[^\d.\-]/g, ""));
+    const number = Number.parseFloat(text.trim());
     return Number.isFinite(number) && number >= 0 ? number : null;
   };
   const home = parse(item.home);
@@ -90,12 +90,12 @@ export function MatchCenter({ matchId, homeName, awayName, intel }: { matchId: s
           <div className="bg-pitch-header px-4 pb-3 text-center text-[11px] text-pitch-foreground/80">
             {homeLineup?.is_predicted || awayLineup?.is_predicted ? "Projected team sheet — not confirmed" : homeLineup && awayLineup ? "Confirmed team sheets" : "Lineups appear when published"}
           </div>
-          <div className="pitch-field relative flex min-h-[610px] flex-col overflow-hidden sm:min-h-[680px]">
+          <div className="pitch-field relative flex min-h-[610px] flex-col overflow-hidden sm:min-h-[680px] lg:min-h-[440px] lg:flex-row">
             <div className="pitch-outline pointer-events-none absolute inset-4 rounded-sm border-2 border-pitch-lines" />
-            <div className="pointer-events-none absolute top-1/2 left-4 right-4 border-t-2 border-pitch-lines" />
+            <div className="pointer-events-none absolute top-1/2 left-4 right-4 border-t-2 border-pitch-lines lg:top-4 lg:bottom-4 lg:left-1/2 lg:right-auto lg:border-t-0 lg:border-l-2" />
             <div className="pointer-events-none absolute top-1/2 left-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-pitch-lines" />
-            <div className="pointer-events-none absolute top-4 left-1/4 right-1/4 h-14 border-x-2 border-b-2 border-pitch-lines" />
-            <div className="pointer-events-none absolute bottom-4 left-1/4 right-1/4 h-14 border-x-2 border-t-2 border-pitch-lines" />
+            <div className="pointer-events-none absolute top-4 left-1/4 right-1/4 h-14 border-x-2 border-b-2 border-pitch-lines lg:top-1/4 lg:bottom-1/4 lg:left-4 lg:right-auto lg:h-auto lg:w-14 lg:border-y-2 lg:border-r-2 lg:border-l-0" />
+            <div className="pointer-events-none absolute bottom-4 left-1/4 right-1/4 h-14 border-x-2 border-t-2 border-pitch-lines lg:top-1/4 lg:bottom-1/4 lg:left-auto lg:right-4 lg:h-auto lg:w-14 lg:border-y-2 lg:border-l-2 lg:border-r-0" />
             <PitchSide lineup={homeLineup} />
             <PitchSide lineup={awayLineup} reversed />
           </div>
