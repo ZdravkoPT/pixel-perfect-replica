@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+Match-center presentation uses stored confirmed/projected lineup rows and live FotMob facts when available; distinguish observed statistics from archive form and never synthesize missing physical metrics or insights.

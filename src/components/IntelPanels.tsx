@@ -16,6 +16,7 @@ export interface IntelData {
       is_starter: boolean;
       start_probability: number | null;
       expected_minutes: number | null;
+      shirt_number: number | null;
       player: Player;
     }>;
   }>;

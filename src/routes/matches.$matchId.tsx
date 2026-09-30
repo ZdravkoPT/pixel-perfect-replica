@@ -18,6 +18,7 @@ import {
 import { SquadProfilePanel } from "@/components/SquadProfilePanel";
 import { HeadToHeadPanel } from "@/components/HeadToHeadPanel";
 import { MatchFactsPanel } from "@/components/MatchFactsPanel";
+import { MatchCenter } from "@/components/MatchCenter";
 
 const TABS = [
   "Overview",
@@ -63,6 +64,8 @@ export const Route = createFileRoute("/matches/$matchId")({
         property: "og:description",
         content: "Fixture overview, provider sources and upcoming analytics.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   loader: async ({ context, params }) => {
@@ -140,7 +143,7 @@ function MatchDetail() {
           ))}
         </TabsList>
 
-        <TabsContent value="Overview" className="mt-4 space-y-4">
+        <TabsContent value="Overview" className="mt-4 space-y-6">
           <div className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">{match.home?.name ?? "TBD"}</span>
@@ -170,6 +173,7 @@ function MatchDetail() {
             </div>
           </div>
 
+          <MatchCenter matchId={matchId} homeName={homeName} awayName={awayName} intel={intel} />
 
           <div className="rounded-lg border border-border bg-card p-5">
             <h2 className="text-sm font-semibold">Provider sources</h2>

@@ -39,7 +39,7 @@ export const getMatchIntel = createServerFn({ method: "GET" })
         supabase
           .from("lineups")
           .select(
-            "id, team_id, formation, is_predicted, confidence, players:lineup_players(player_id, position, is_starter, start_probability, expected_minutes, player:players(id, name, position, nationality))",
+            "id, team_id, formation, is_predicted, confidence, players:lineup_players(player_id, position, shirt_number, is_starter, start_probability, expected_minutes, player:players(id, name, position, nationality))",
           )
           .eq("match_id", data.matchId),
         supabase
