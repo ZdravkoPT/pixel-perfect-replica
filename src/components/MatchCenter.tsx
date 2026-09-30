@@ -1,0 +1,138 @@
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { getMatchFacts } from "@/lib/facts.functions";
+import type { IntelData } from "@/components/IntelPanels";
+
+type PlayerRow = IntelData["lineups"][number]["players"][number];
+type FactGroup = { title: string; items: Array<{ title: string; home: string; away: string }> };
+
+const positionBand = (position: string | null) => {
+  const value = (position ?? "").toLowerCase();
+  if (/goal|^gk|keeper/.test(value)) return 0;
+  if (/def|back|^cb|^lb|^rb/.test(value)) return 1;
+  if (/mid|^cm|^dm|^am/.test(value)) return 2;
+  return 3;
+};
+
+function PlayerMarker({ row }: { row: PlayerRow }) {
+  const name = row.player?.name ?? "Unknown";
+  const number = "shirt_number" in row ? row.shirt_number : null;
+  return (
+    <Link to="/players/$playerId" params={{ playerId: row.player_id }} title={name} className="group flex min-w-0 flex-col items-center gap-1 text-center text-pitch-foreground">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-pitch-foreground/80 bg-pitch-foreground font-sans text-xs font-bold text-pitch-ink shadow-sm transition-transform group-hover:scale-110">
+        {typeof number === "number" ? number : name.slice(0, 2).toUpperCase()}
+      </span>
+      <span className="max-w-20 truncate text-[10px] font-semibold leading-tight drop-shadow-sm">{name}</span>
+    </Link>
+  );
+}
+
+function PitchSide({ lineup, reversed }: { lineup: IntelData["lineups"][number] | undefined; reversed?: boolean }) {
+  const starters = (lineup?.players ?? []).filter((row) => row.is_starter);
+  const bands = [0, 1, 2, 3].map((band) => starters.filter((row) => positionBand(row.position ?? row.player?.position ?? null) === band));
+  if (starters.length === 0) return <div className="flex flex-1 items-center justify-center px-6 text-center text-xs text-pitch-foreground/80">Team sheet not available</div>;
+  return (
+    <div className={`relative z-10 flex flex-1 flex-col justify-around py-5 ${reversed ? "flex-col-reverse" : ""}`}>
+      {bands.map((players, index) => (
+        <div key={index} className="flex min-h-12 items-center justify-evenly gap-1 px-2">
+          {players.map((row) => <PlayerMarker key={row.player_id} row={row} />)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StatRow({ item }: { item: FactGroup["items"][number] }) {
+  const parse = (text: string) => {
+    const number = Number.parseFloat(text.replace(/[^\d.\-]/g, ""));
+    return Number.isFinite(number) && number >= 0 ? number : null;
+  };
+  const home = parse(item.home);
+  const away = parse(item.away);
+  const total = home !== null && away !== null ? home + away : 0;
+  return (
+    <div className="border-b border-border/60 py-3 last:border-b-0">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(100px,1.6fr)_minmax(0,1fr)] items-center gap-2 text-xs">
+        <span className="font-mono font-semibold tabular-nums">{item.home}</span>
+        <span className="text-center text-muted-foreground">{item.title}</span>
+        <span className="text-right font-mono font-semibold tabular-nums">{item.away}</span>
+      </div>
+      {total > 0 && <div className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-muted">
+        <span className="bg-stat-home" style={{ width: `${100 * (home ?? 0) / total}%` }} />
+        <span className="bg-stat-away" style={{ width: `${100 * (away ?? 0) / total}%` }} />
+      </div>}
+    </div>
+  );
+}
+
+export function MatchCenter({ matchId, homeName, awayName, intel }: { matchId: string; homeName: string; awayName: string; intel: IntelData }) {
+  const [metric, setMetric] = useState<"stats" | "form">("stats");
+  const { data, isLoading } = useQuery({ queryKey: ["match-facts", matchId], queryFn: () => getMatchFacts({ data: { matchId } }), refetchInterval: 120_000 });
+  const groups = (metric === "stats" ? data?.facts?.statGroups : data?.local?.statGroups) ?? [];
+  const homeLineup = intel.lineups.find((row) => row.team_id === intel.homeTeamId);
+  const awayLineup = intel.lineups.find((row) => row.team_id === intel.awayTeamId);
+  const form = data?.local?.form ?? [];
+  const insights = [
+    ...((data?.local?.info ?? []).filter((item) => /model goal rates|most likely score|model 1x2/i.test(item.label)).map((item) => `${item.label}: ${item.value}`)),
+    ...((data?.facts?.info ?? []).filter((item) => /referee|stadium|attendance/i.test(item.label)).map((item) => `${item.label}: ${item.value}`)),
+  ];
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(210px,0.32fr)]">
+      <div className="min-w-0 space-y-6">
+        <section aria-label="Match lineups" className="overflow-hidden rounded-md border border-border">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-pitch-header px-4 py-3 text-pitch-foreground">
+            <div className="min-w-0 text-xs font-semibold">{homeName} <span className="ml-2 font-mono opacity-75">{homeLineup?.formation ?? "—"}</span></div>
+            <div className="min-w-0 text-right text-xs font-semibold"><span className="mr-2 font-mono opacity-75">{awayLineup?.formation ?? "—"}</span>{awayName}</div>
+          </div>
+          <div className="bg-pitch-header px-4 pb-3 text-center text-[11px] text-pitch-foreground/80">
+            {homeLineup?.is_predicted || awayLineup?.is_predicted ? "Projected team sheet — not confirmed" : homeLineup && awayLineup ? "Confirmed team sheets" : "Lineups appear when published"}
+          </div>
+          <div className="pitch-field relative flex min-h-[610px] flex-col overflow-hidden sm:min-h-[680px]">
+            <div className="pitch-outline pointer-events-none absolute inset-4 rounded-sm border-2 border-pitch-lines" />
+            <div className="pointer-events-none absolute top-1/2 left-4 right-4 border-t-2 border-pitch-lines" />
+            <div className="pointer-events-none absolute top-1/2 left-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-pitch-lines" />
+            <div className="pointer-events-none absolute top-4 left-1/4 right-1/4 h-14 border-x-2 border-b-2 border-pitch-lines" />
+            <div className="pointer-events-none absolute bottom-4 left-1/4 right-1/4 h-14 border-x-2 border-t-2 border-pitch-lines" />
+            <PitchSide lineup={homeLineup} />
+            <PitchSide lineup={awayLineup} reversed />
+          </div>
+          <div className="grid grid-cols-2 gap-4 bg-card px-4 py-4 text-xs">
+            {[homeLineup, awayLineup].map((lineup, index) => (
+              <div key={index} className="min-w-0">
+                <p className="font-semibold">{index === 0 ? homeName : awayName}</p>
+                <p className="mt-1 text-muted-foreground">Substitutes</p>
+                <div className="mt-2 space-y-1.5">{(lineup?.players ?? []).filter((row) => !row.is_starter).map((row) => <Link key={row.player_id} to="/players/$playerId" params={{ playerId: row.player_id }} className="block truncate hover:text-primary">{row.player?.name ?? "Unknown"}</Link>)}
+                  {!lineup?.players.some((row) => !row.is_starter) && <span className="text-muted-foreground">Not published</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section aria-label="Match statistics" className="border-t border-border pt-5">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold">Match statistics</h2>
+            <div className="flex gap-1 rounded-md bg-muted p-1" role="group" aria-label="Statistics view">
+              <Button size="sm" variant={metric === "stats" ? "secondary" : "ghost"} onClick={() => setMetric("stats")}>Match</Button>
+              <Button size="sm" variant={metric === "form" ? "secondary" : "ghost"} onClick={() => setMetric("form")}>Recent form</Button>
+            </div>
+          </div>
+          {isLoading ? <p className="text-sm text-muted-foreground">Loading statistics…</p> : groups.length ? <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
+            {groups.map((group) => <div key={group.title} className="min-w-0"><h3 className="border-b border-border pb-2 text-center text-xs font-semibold">{group.title}</h3>{group.items.map((item, index) => <StatRow key={`${item.title}-${index}`} item={item} />)}</div>)}
+          </div> : <p className="text-sm text-muted-foreground">{metric === "stats" ? "No observed match statistics have been published yet." : "No recent form in the archive yet."}</p>}
+        </section>
+      </div>
+      <aside aria-label="Match insights" className="min-w-0 border-t border-border pt-5 xl:border-t-0 xl:border-l xl:pl-6 xl:pt-0">
+        <h2 className="text-sm font-semibold">Insights</h2>
+        {form.length === 2 && <div className="mt-5 border-b border-border pb-5 text-xs">
+          <p className="mb-3 font-medium">Last five matches</p>
+          {[homeName, awayName].map((name, index) => <div key={name} className="mt-2 flex items-center justify-between gap-2"><span className="truncate text-muted-foreground">{name}</span><span className="flex gap-1 font-mono">{(form[index] ?? []).map((result, i) => <span key={i} className={`flex h-5 w-5 items-center justify-center rounded-sm ${result === "W" ? "bg-primary text-primary-foreground" : result === "L" ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground"}`}>{result}</span>)}</span></div>)}
+        </div>}
+        {insights.length ? <ul className="mt-4 space-y-2">{insights.map((text, index) => <li key={index} className="border-l-2 border-primary bg-muted/50 px-3 py-3 text-xs leading-relaxed">{text}</li>)}</ul> : <p className="mt-4 text-xs text-muted-foreground">No verified match insights available yet.</p>}
+      </aside>
+    </div>
+  );
+}
