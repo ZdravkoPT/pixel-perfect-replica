@@ -62,6 +62,12 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-pitch-header: var(--pitch-header);
+  --color-pitch-foreground: var(--pitch-foreground);
+  --color-pitch-ink: var(--pitch-ink);
+  --color-pitch-lines: var(--pitch-lines);
+  --color-stat-home: var(--stat-home);
+  --color-stat-away: var(--stat-away);
 }
 
 :root {
@@ -98,6 +104,12 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+  --pitch-header: oklch(0.48 0.13 158);
+  --pitch-foreground: oklch(0.99 0 0);
+  --pitch-ink: oklch(0.22 0.03 158);
+  --pitch-lines: oklch(0.86 0.11 158 / 0.23);
+  --stat-home: oklch(0.42 0.13 248);
+  --stat-away: oklch(0.47 0.19 20);
 }
 
 .dark {
@@ -134,6 +146,16 @@
   --sidebar-accent-foreground: oklch(0.96 0.008 150);
   --sidebar-border: oklch(0.32 0.045 156);
   --sidebar-ring: oklch(0.84 0.19 146);
+  --pitch-header: oklch(0.44 0.13 158);
+  --pitch-foreground: oklch(0.99 0 0);
+  --pitch-ink: oklch(0.2 0.03 158);
+  --pitch-lines: oklch(0.86 0.11 158 / 0.23);
+  --stat-home: oklch(0.64 0.14 248);
+  --stat-away: oklch(0.64 0.18 20);
+}
+
+.pitch-field {
+  background: repeating-linear-gradient(to bottom, oklch(0.49 0.14 160) 0, oklch(0.49 0.14 160) 12.5%, oklch(0.46 0.14 160) 12.5%, oklch(0.46 0.14 160) 25%);
 }
 
 @layer base {
