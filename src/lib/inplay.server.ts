@@ -32,18 +32,30 @@ export async function runInPlayRefresh(options: { limit?: number } = {}): Promis
   const from = new Date(now - 3.5 * 3_600_000).toISOString();
   const to = new Date(now + 5 * 60_000).toISOString();
 
+  const cols =
+    "id, kickoff_at, status, home_score, away_score, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)";
   const { data: candidates } = await supabaseAdmin
     .from("matches")
-    .select(
-      "id, kickoff_at, status, home_score, away_score, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)",
-    )
+    .select(cols)
     .gte("kickoff_at", from)
     .lte("kickoff_at", to)
     .neq("status", "FINISHED")
     .order("kickoff_at", { ascending: true })
     .limit(options.limit ?? 40);
 
-  const matches = candidates ?? [];
+  // Sweep: games that kicked off earlier but never got a final whistle (missed runs,
+  // late provider updates). Least-recently-touched first so every stale game rotates.
+  const { data: stale } = await supabaseAdmin
+    .from("matches")
+    .select(cols)
+    .lt("kickoff_at", from)
+    .gte("kickoff_at", new Date(now - 7 * 86_400_000).toISOString())
+    .in("status", ["SCHEDULED", "TIMED", "LIVE", "IN_PLAY", "PAUSED"])
+    .order("updated_at", { ascending: true })
+    .limit(12);
+  for (const row of stale ?? []) await supabaseAdmin.from("matches").update({ minute: null }).eq("id", row.id);
+
+  const matches = [...(candidates ?? []), ...(stale ?? [])];
   if (matches.length === 0) {
     const { settled } = await settlePendingPicks();
     return {
