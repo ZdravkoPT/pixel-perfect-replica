@@ -6,5 +6,5 @@
 - [ ] Global search + browser notifications
 - [ ] Own shot xG model + xT player value
 - [x] Pi-ratings and Glicko in model competition; calibration chart
-- [ ] Referee page and deep head-to-head page
+- [x] Referee page and deep head-to-head page
 - [ ] Follow lower leagues' fixtures
