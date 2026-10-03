@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-function publicClient() {
+export function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
   const url = process.env["SUPABASE_URL"]!;
   return createClient<Database>(url, key, {

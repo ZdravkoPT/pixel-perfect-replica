@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { getMatchDetail } from "@/lib/football.functions";
@@ -135,6 +136,12 @@ function MatchDetail() {
       title={`${match.home?.name ?? "TBD"} vs ${match.away?.name ?? "TBD"}`}
       subtitle={`${match.league?.name ?? "Unknown league"} · ${kickoff.toLocaleString()}`}
     >
+      <div className="mb-3 flex flex-wrap gap-3 text-xs">
+        {typeof match["home_team_id"] === "string" && typeof match["away_team_id"] === "string" && (
+          <Link to="/h2h/$teamA/$teamB" params={{ teamA: match["home_team_id"], teamB: match["away_team_id"] }} className="text-primary hover:underline">Full head-to-head →</Link>
+        )}
+        <RefereeLink matchId={String(match["id"])} />
+      </div>
       <Tabs defaultValue="Overview">
         <TabsList className="flex h-auto flex-wrap justify-start">
           {TABS.map((tab) => (
@@ -274,4 +281,16 @@ function MatchDetail() {
       </Tabs>
     </AppShell>
   );
+}
+
+function RefereeLink({ matchId }: { matchId: string }) {
+  const { data } = useQuery({
+    queryKey: ["match-referee", matchId],
+    queryFn: async () => {
+      const { data } = await supabase.from("match_officials").select("referee:referees(id, name)").eq("match_id", matchId).eq("role", "referee").maybeSingle();
+      return (data?.referee as { id: string; name: string } | null) ?? null;
+    },
+  });
+  if (!data) return null;
+  return <Link to="/referees/$refereeId" params={{ refereeId: data.id }} className="text-primary hover:underline">Referee: {data.name} →</Link>;
 }
