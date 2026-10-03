@@ -38,7 +38,7 @@ export async function computeMatchPicks() {
     sb.from("injuries").select("team_id").in("team_id", teamIds).is("resolved_at", null),
     sb.from("player_conditions").select("team_id, sharpness, load_index").in("team_id", teamIds),
     sb.from("coach_spells").select("team_id, coach_id, coach:coaches(name)").in("team_id", teamIds).eq("is_current", true),
-    sb.from("ai_bet_log").select("pick_code, probability, result, slip_type").in("result", ["hit", "miss"])
+    sb.from("ai_bet_log").select("pick_code, probability, result, slip_type, signals").in("result", ["hit", "miss"])
       .gte("kickoff_at", new Date(now.getTime() - 70 * 86400e3).toISOString()).limit(5000),
   ]);
 
@@ -245,6 +245,28 @@ export async function computeMatchPicks() {
     .filter(([, e]) => e.n >= 5)
     .map(([code, e]) => ({ code, picks: e.n, hitRate: e.hit / e.n, expected: e.exp / e.n }))
     .sort((a, b) => b.picks - a.picks);
+
+  // ---- per-source report: how often each source was right when it backed a settled pick ----
+  const srcAgg = new Map<string, { n: number; right: number; exp: number }>();
+  for (const s of settled.data ?? []) {
+    const list = (s as { signals?: unknown }).signals;
+    if (!Array.isArray(list)) continue;
+    for (const it of list as Array<{ name: string; p: number }>) {
+      if (typeof it?.name !== "string" || typeof it.p !== "number") continue;
+      const e = srcAgg.get(it.name) ?? { n: 0, right: 0, exp: 0 };
+      const backed = it.p >= 0.5;
+      e.n++;
+      e.exp += backed ? it.p : 1 - it.p;
+      if ((s.result === "hit") === backed) e.right++;
+      srcAgg.set(it.name, e);
+    }
+  }
+  const sourceWeights: Record<string, number> = {};
+  const signalTrack = [...srcAgg.entries()].map(([name, e]) => {
+    const ratio = e.right / Math.max(e.exp, 1e-6);
+    if (e.n >= 20) sourceWeights[name] = 1 + (ratio - 1) * (e.n / (e.n + 40)) * 2;
+    return { name, picks: e.n, rightRate: e.right / e.n, expected: e.exp / e.n, weight: sourceWeights[name] ?? 1 };
+  }).sort((a, b) => b.picks - a.picks);
 
   // ---- latest model-competition winner (walk-forward best on league history) ----
   const { data: comp } = await sb.from("model_competitions").select("winner, ratings")
