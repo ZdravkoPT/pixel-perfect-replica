@@ -33,9 +33,12 @@ import { Route as CoachesCoachIdStatsRouteImport } from './routes/coaches.$coach
 import { Route as PlayersPlayerIdStatsRouteImport } from './routes/players.$playerId_.stats'
 import { Route as TeamsTeamIdDistanceRouteImport } from './routes/teams.$teamId_.distance'
 import { Route as ApiPublicHooksBetReviewRouteImport } from './routes/api/public/hooks/bet-review'
+import { Route as ApiPublicHooksEloRouteImport } from './routes/api/public/hooks/elo'
+import { Route as ApiPublicHooksHistoryRouteImport } from './routes/api/public/hooks/history'
 import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/public/hooks/ingest-fixtures'
 import { Route as ApiPublicHooksKickoffRefreshRouteImport } from './routes/api/public/hooks/kickoff-refresh'
 import { Route as ApiPublicHooksLiveRefreshRouteImport } from './routes/api/public/hooks/live-refresh'
+import { Route as ApiPublicHooksMatchPicksRouteImport } from './routes/api/public/hooks/match-picks'
 import { Route as ApiPublicHooksMatchStatsRouteImport } from './routes/api/public/hooks/match-stats'
 import { Route as ApiPublicHooksRefreshIntelRouteImport } from './routes/api/public/hooks/refresh-intel'
 import { Route as ApiPublicHooksTrainModelsRouteImport } from './routes/api/public/hooks/train-models'
@@ -160,6 +163,16 @@ const ApiPublicHooksBetReviewRoute = ApiPublicHooksBetReviewRouteImport.update({
   path: '/api/public/hooks/bet-review',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksEloRoute = ApiPublicHooksEloRouteImport.update({
+  id: '/api/public/hooks/elo',
+  path: '/api/public/hooks/elo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksHistoryRoute = ApiPublicHooksHistoryRouteImport.update({
+  id: '/api/public/hooks/history',
+  path: '/api/public/hooks/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksIngestFixturesRoute =
   ApiPublicHooksIngestFixturesRouteImport.update({
     id: '/api/public/hooks/ingest-fixtures',
@@ -176,6 +189,12 @@ const ApiPublicHooksLiveRefreshRoute =
   ApiPublicHooksLiveRefreshRouteImport.update({
     id: '/api/public/hooks/live-refresh',
     path: '/api/public/hooks/live-refresh',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksMatchPicksRoute =
+  ApiPublicHooksMatchPicksRouteImport.update({
+    id: '/api/public/hooks/match-picks',
+    path: '/api/public/hooks/match-picks',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksMatchStatsRoute =
@@ -222,9 +241,12 @@ export interface FileRoutesByFullPath {
   '/players/$playerId/stats': typeof PlayersPlayerIdStatsRoute
   '/teams/$teamId/distance': typeof TeamsTeamIdDistanceRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
+  '/api/public/hooks/elo': typeof ApiPublicHooksEloRoute
+  '/api/public/hooks/history': typeof ApiPublicHooksHistoryRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
+  '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
@@ -254,9 +276,12 @@ export interface FileRoutesByTo {
   '/players/$playerId/stats': typeof PlayersPlayerIdStatsRoute
   '/teams/$teamId/distance': typeof TeamsTeamIdDistanceRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
+  '/api/public/hooks/elo': typeof ApiPublicHooksEloRoute
+  '/api/public/hooks/history': typeof ApiPublicHooksHistoryRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
+  '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
@@ -287,9 +312,12 @@ export interface FileRoutesById {
   '/players/$playerId_/stats': typeof PlayersPlayerIdStatsRoute
   '/teams/$teamId_/distance': typeof TeamsTeamIdDistanceRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
+  '/api/public/hooks/elo': typeof ApiPublicHooksEloRoute
+  '/api/public/hooks/history': typeof ApiPublicHooksHistoryRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
+  '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
@@ -321,9 +349,12 @@ export interface FileRouteTypes {
     | '/players/$playerId/stats'
     | '/teams/$teamId/distance'
     | '/api/public/hooks/bet-review'
+    | '/api/public/hooks/elo'
+    | '/api/public/hooks/history'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
+    | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
@@ -353,9 +384,12 @@ export interface FileRouteTypes {
     | '/players/$playerId/stats'
     | '/teams/$teamId/distance'
     | '/api/public/hooks/bet-review'
+    | '/api/public/hooks/elo'
+    | '/api/public/hooks/history'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
+    | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
@@ -385,9 +419,12 @@ export interface FileRouteTypes {
     | '/players/$playerId_/stats'
     | '/teams/$teamId_/distance'
     | '/api/public/hooks/bet-review'
+    | '/api/public/hooks/elo'
+    | '/api/public/hooks/history'
     | '/api/public/hooks/ingest-fixtures'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
+    | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
@@ -418,9 +455,12 @@ export interface RootRouteChildren {
   PlayersPlayerIdStatsRoute: typeof PlayersPlayerIdStatsRoute
   TeamsTeamIdDistanceRoute: typeof TeamsTeamIdDistanceRoute
   ApiPublicHooksBetReviewRoute: typeof ApiPublicHooksBetReviewRoute
+  ApiPublicHooksEloRoute: typeof ApiPublicHooksEloRoute
+  ApiPublicHooksHistoryRoute: typeof ApiPublicHooksHistoryRoute
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
   ApiPublicHooksKickoffRefreshRoute: typeof ApiPublicHooksKickoffRefreshRoute
   ApiPublicHooksLiveRefreshRoute: typeof ApiPublicHooksLiveRefreshRoute
+  ApiPublicHooksMatchPicksRoute: typeof ApiPublicHooksMatchPicksRoute
   ApiPublicHooksMatchStatsRoute: typeof ApiPublicHooksMatchStatsRoute
   ApiPublicHooksRefreshIntelRoute: typeof ApiPublicHooksRefreshIntelRoute
   ApiPublicHooksTrainModelsRoute: typeof ApiPublicHooksTrainModelsRoute
@@ -596,6 +636,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksBetReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/elo': {
+      id: '/api/public/hooks/elo'
+      path: '/api/public/hooks/elo'
+      fullPath: '/api/public/hooks/elo'
+      preLoaderRoute: typeof ApiPublicHooksEloRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/history': {
+      id: '/api/public/hooks/history'
+      path: '/api/public/hooks/history'
+      fullPath: '/api/public/hooks/history'
+      preLoaderRoute: typeof ApiPublicHooksHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/ingest-fixtures': {
       id: '/api/public/hooks/ingest-fixtures'
       path: '/api/public/hooks/ingest-fixtures'
@@ -615,6 +669,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/live-refresh'
       fullPath: '/api/public/hooks/live-refresh'
       preLoaderRoute: typeof ApiPublicHooksLiveRefreshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/match-picks': {
+      id: '/api/public/hooks/match-picks'
+      path: '/api/public/hooks/match-picks'
+      fullPath: '/api/public/hooks/match-picks'
+      preLoaderRoute: typeof ApiPublicHooksMatchPicksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/match-stats': {
@@ -666,9 +727,12 @@ const rootRouteChildren: RootRouteChildren = {
   PlayersPlayerIdStatsRoute: PlayersPlayerIdStatsRoute,
   TeamsTeamIdDistanceRoute: TeamsTeamIdDistanceRoute,
   ApiPublicHooksBetReviewRoute: ApiPublicHooksBetReviewRoute,
+  ApiPublicHooksEloRoute: ApiPublicHooksEloRoute,
+  ApiPublicHooksHistoryRoute: ApiPublicHooksHistoryRoute,
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
   ApiPublicHooksKickoffRefreshRoute: ApiPublicHooksKickoffRefreshRoute,
   ApiPublicHooksLiveRefreshRoute: ApiPublicHooksLiveRefreshRoute,
+  ApiPublicHooksMatchPicksRoute: ApiPublicHooksMatchPicksRoute,
   ApiPublicHooksMatchStatsRoute: ApiPublicHooksMatchStatsRoute,
   ApiPublicHooksRefreshIntelRoute: ApiPublicHooksRefreshIntelRoute,
   ApiPublicHooksTrainModelsRoute: ApiPublicHooksTrainModelsRoute,

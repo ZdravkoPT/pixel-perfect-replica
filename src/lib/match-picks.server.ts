@@ -51,7 +51,72 @@ export async function computeMatchPicks() {
   }
 
   // ---- form + rest days -------------------------------------------------------
-  const pastRows = ((past.data ?? []) as Array<Past & { id: string }>).filter((p) => p.home_score !== null && p.away_score !== null);
+  const pastRows: Past[] = ((past.data ?? []) as Past[]).filter((p) => p.home_score !== null && p.away_score !== null);
+
+  // ---- long history (football-data.co.uk) for form, H2H, corners and cards --
+  const histSince = new Date(now.getTime() - 3 * 365 * 86400e3).toISOString().slice(0, 10);
+  const { data: hist } = await sb.from("historical_results")
+    .select("match_date, home_team_id, away_team_id, home_goals, away_goals, home_corners, away_corners, home_yellow, away_yellow, home_red, away_red")
+    .or(`home_team_id.in.(${teamList}),away_team_id.in.(${teamList})`)
+    .gte("match_date", histSince).order("match_date", { ascending: false }).limit(8000);
+  const seen = new Set(pastRows.map((p) => `${p.kickoff_at.slice(0, 10)}|${p.home_team_id}|${p.away_team_id}`));
+  type SetPiece = { cf: number | null; ca: number | null; cards: number | null };
+  const setPieces = new Map<string, SetPiece[]>();
+  for (const h of hist ?? []) {
+    for (const [tid, cf, ca] of [[h.home_team_id, h.home_corners, h.away_corners], [h.away_team_id, h.away_corners, h.home_corners]] as const) {
+      if (!tid || !teamIds.includes(tid)) continue;
+      const l = setPieces.get(tid) ?? [];
+      if (l.length < 12) {
+        const cards = h.home_yellow === null || h.away_yellow === null ? null
+          : h.home_yellow + h.away_yellow + (h.home_red ?? 0) + (h.away_red ?? 0);
+        l.push({ cf, ca, cards });
+        setPieces.set(tid, l);
+      }
+    }
+    if (!h.home_team_id || !h.away_team_id) continue;
+    const key = `${h.match_date}|${h.home_team_id}|${h.away_team_id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pastRows.push({ home_team_id: h.home_team_id, away_team_id: h.away_team_id, home_score: h.home_goals, away_score: h.away_goals, kickoff_at: `${h.match_date}T15:00:00Z` });
+  }
+  pastRows.sort((a, b) => b.kickoff_at.localeCompare(a.kickoff_at));
+
+  // ---- Elo ratings (club + national) ----------------------------------------
+  const { data: elos } = await sb.from("elo_ratings").select("team_id, rating").in("team_id", teamIds);
+  const eloBy = new Map<string, number>();
+  for (const e of elos ?? []) if (e.team_id) eloBy.set(e.team_id, Number(e.rating));
+
+  // ---- referee cards per game ------------------------------------------------
+  const { data: offs } = await sb.from("match_officials").select("match_id, referee_id").in("match_id", ids).eq("role", "referee");
+  const refIds = [...new Set((offs ?? []).map((o) => o.referee_id))];
+  const { data: refStats } = refIds.length
+    ? await sb.from("referee_stats").select("referee_id, yellow_per_game, red_per_game, matches").in("referee_id", refIds)
+    : { data: [] as Array<{ referee_id: string; yellow_per_game: number | null; red_per_game: number | null; matches: number }> };
+  const refAvgBy = new Map<string, number>();
+  for (const r of refStats ?? []) if (r.yellow_per_game !== null && r.matches >= 5) refAvgBy.set(r.referee_id, Number(r.yellow_per_game) + Number(r.red_per_game ?? 0));
+  const refByMatch = new Map<string, number>();
+  for (const o of offs ?? []) { const v = refAvgBy.get(o.referee_id); if (v !== undefined) refByMatch.set(o.match_id, v); }
+
+  const setPieceInputs = (h: string, a: string, matchId: string) => {
+    const hl = setPieces.get(h) ?? [], al = setPieces.get(a) ?? [];
+    const cor = (l: SetPiece[]) => l.filter((x) => x.cf !== null && x.ca !== null) as Array<{ cf: number; ca: number; cards: number | null }>;
+    const hc = cor(hl), ac = cor(al);
+    const m = (l: number[]) => l.reduce((x, y) => x + y, 0) / l.length;
+    const corners = hc.length >= 5 && ac.length >= 5 ? {
+      expected: (m(hc.map((x) => x.cf)) + m(ac.map((x) => x.ca))) / 2 + (m(ac.map((x) => x.cf)) + m(hc.map((x) => x.ca))) / 2,
+      overShare: [...hc, ...ac].filter((x) => x.cf + x.ca > 9.5).length / (hc.length + ac.length),
+      samples: Math.min(hc.length, ac.length),
+    } : null;
+    const hk = hl.map((x) => x.cards).filter((x): x is number => x !== null);
+    const ak = al.map((x) => x.cards).filter((x): x is number => x !== null);
+    const cards = hk.length >= 5 && ak.length >= 5 ? {
+      expected: (m(hk) + m(ak)) / 2,
+      overShare: [...hk, ...ak].filter((x) => x > 4.5).length / (hk.length + ak.length),
+      samples: Math.min(hk.length, ak.length),
+      refereeAvg: refByMatch.get(matchId) ?? null,
+    } : null;
+    return { corners, cards };
+  };
   const perTeam = new Map<string, Array<{ gf: number; ga: number }>>();
   const lastPlayed = new Map<string, string>();
   for (const p of pastRows) {
@@ -180,6 +245,8 @@ export async function computeMatchPicks() {
       home: extras(r.home_team_id, r.kickoff_at), away: extras(r.away_team_id, r.kickoff_at),
       h2h: h2hOf(r.home_team_id, r.away_team_id),
       calibration,
+      elo: eloBy.has(r.home_team_id) && eloBy.has(r.away_team_id) ? { home: eloBy.get(r.home_team_id)!, away: eloBy.get(r.away_team_id)!, neutral: false } : null,
+      ...setPieceInputs(r.home_team_id, r.away_team_id, r.id),
     });
     const base = { matchId: r.id, fixture: `${homeName} vs ${awayName}`, league: r.league?.name ?? null, kickoffAt: r.kickoff_at };
     if (result.pick) picks.push({ ...base, ...result.pick, confidence: result.confidence!, reasons: result.reasons });
