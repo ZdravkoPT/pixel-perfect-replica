@@ -22,6 +22,7 @@ const NAV_GROUPS = [
     items: [
       { to: "/value", label: "Value board", icon: TrendingUp },
       { to: "/ai-bets", label: "AI bet builder", icon: Sparkles },
+      { to: "/track-record", label: "Track record", icon: BarChart3 },
       { to: "/analytics", label: "Model analytics", icon: Brain },
     ],
   },
