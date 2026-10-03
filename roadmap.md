@@ -1,7 +1,7 @@
 # Roadmap (product review #5)
 
-- [ ] Health fix: find why pick grading stalled + job health page
-- [ ] Player form score (0-100)
+- [x] Health fix: stale games swept by live refresh, picks voided after 7 days, System health on Diagnostics
+- [~] Player form score (0-100) — on player pages; still to add to line-ups + picks reason line
 - [ ] Team style profiles
 - [ ] Pick explainer card + share image
 - [ ] Followed teams digest ("My day")

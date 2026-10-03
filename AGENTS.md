@@ -14,3 +14,4 @@ Match-center presentation uses stored confirmed/projected lineup rows and live F
 - External history/ratings (football-data.co.uk results, eloratings.net/clubelo Elo) are imported into their own tables and linked to our teams via `src/lib/team-resolver.server.ts`; unlinked names stay null rather than guessed.
 - Goal-model selection is a weekly walk-forward competition (`src/lib/model-competition.server.ts`) over `historical_results`; the winner's current team ratings in `model_competitions` feed Match Picks as one extra signal — never hardcode a model choice.
 - Squad market values are summed from FotMob per-player values (`src/lib/market-values.server.ts`) because Transfermarkt blocks automated access; a club needs 11+ valued current players or stays unvalued.
+- Player form score lives in src/lib/models/player-form.ts (pure, shared by pages and picks) — one formula everywhere.
