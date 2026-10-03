@@ -277,6 +277,9 @@ export function scoreMatch(input: PickInput): PickResult {
       reasons.push(`Recent form: ${input.homeName} ${hf.last5 || "–"} (${hf.gf.toFixed(1)} scored, ${hf.ga.toFixed(1)} conceded) vs ${input.awayName} ${af.last5 || "–"} (${af.gf.toFixed(1)} / ${af.ga.toFixed(1)}).`);
     }
   }
+  if (c && champFor(pick.code) !== null) {
+    reasons.push(`Best-tested model (${c.name.replace("_", "-")}, league history): ${pct(c.home)} / ${pct(c.draw)} / ${pct(c.away)}.`);
+  }
   if (input.elo && e && ["home", "away", "dc_home", "dc_away", "dc_nodraw"].includes(pick.code)) {
     reasons.push(`Elo ratings ${Math.round(input.elo.home)} vs ${Math.round(input.elo.away)}${input.elo.neutral ? " (neutral venue)" : ""}: ${pct(e.home)} / ${pct(e.draw)} / ${pct(e.away)}.`);
   }
