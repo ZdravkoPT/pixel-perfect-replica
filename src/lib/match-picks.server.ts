@@ -152,6 +152,14 @@ export async function computeMatchPicks() {
     const l = sotBy.get(s.team_id) ?? [];
     if (l.length < 10) { l.push(s.shots_on_target); sotBy.set(s.team_id, l); }
   }
+  const { data: xgRows } = await sb.from("team_xg").select("team_id, xg, xg_against, created_at")
+    .in("team_id", teamIds).order("created_at", { ascending: false }).limit(3000);
+  const xgBy = new Map<string, { f: number[]; a: number[] }>();
+  for (const r of xgRows ?? []) {
+    if (r.xg === null || r.xg_against === null) continue;
+    const e = xgBy.get(r.team_id) ?? { f: [], a: [] };
+    if (e.f.length < 10) { e.f.push(Number(r.xg)); e.a.push(Number(r.xg_against)); xgBy.set(r.team_id, e); }
+  }
 
   const injBy = new Map<string, number>();
   for (const i of injuries.data ?? []) if (i.team_id) injBy.set(i.team_id, (injBy.get(i.team_id) ?? 0) + 1);
@@ -188,6 +196,8 @@ export async function computeMatchPicks() {
     const load = c ? mean(c.l) : null;
     return {
       shotsOnTarget: mean(sotBy.get(tid) ?? []),
+      xgFor: (xgBy.get(tid)?.f.length ?? 0) >= 3 ? mean(xgBy.get(tid)!.f) : null,
+      xgAgainst: (xgBy.get(tid)?.a.length ?? 0) >= 3 ? mean(xgBy.get(tid)!.a) : null,
       corners: null,
       injuries: injBy.get(tid) ?? 0,
       avgSharpness: sharp === null ? null : sharp > 1 ? sharp / 100 : sharp,
