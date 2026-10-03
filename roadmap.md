@@ -5,6 +5,6 @@
 - [ ] Injuries & suspensions list per team with return dates
 - [ ] Global search + browser notifications
 - [ ] Own shot xG model + xT player value
-- [ ] Pi-ratings and Glicko in model competition; calibration chart
+- [x] Pi-ratings and Glicko in model competition; calibration chart
 - [ ] Referee page and deep head-to-head page
 - [ ] Follow lower leagues' fixtures
