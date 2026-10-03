@@ -35,8 +35,8 @@ export async function computeMatchPicks() {
       .eq("status", "FINISHED").gte("kickoff_at", since)
       .or(`home_team_id.in.(${teamList}),away_team_id.in.(${teamList})`)
       .order("kickoff_at", { ascending: false }).limit(5000),
-    sb.from("injuries").select("team_id").in("team_id", teamIds).is("resolved_at", null),
-    sb.from("player_conditions").select("team_id, sharpness, load_index").in("team_id", teamIds),
+    sb.from("injuries").select("team_id, player_id, player:players(name)").in("team_id", teamIds).is("resolved_at", null),
+    sb.from("player_conditions").select("player_id, team_id, sharpness, load_index, minutes_share").in("team_id", teamIds),
     sb.from("coach_spells").select("team_id, coach_id, coach:coaches(name)").in("team_id", teamIds).eq("is_current", true),
     sb.from("ai_bet_log").select("pick_code, probability, result, slip_type, signals").in("result", ["hit", "miss"])
       .gte("kickoff_at", new Date(now.getTime() - 70 * 86400e3).toISOString()).limit(5000),
@@ -175,6 +175,24 @@ export async function computeMatchPicks() {
     if (c.load_index !== null) e.l.push(Number(c.load_index));
     condBy.set(c.team_id, e);
   }
+  // player importance: minutes share of each unavailable player
+  const shareBy = new Map<string, number>();
+  const condTeams = new Set<string>();
+  for (const c of conditions.data ?? []) {
+    if (c.team_id) condTeams.add(c.team_id);
+    if (c.minutes_share !== null) { const v = Number(c.minutes_share); shareBy.set(c.player_id, v > 1.5 ? v / 100 : Math.min(v, 1)); }
+  }
+  const missBy = new Map<string, { share: number; keys: string[] }>();
+  const seenInj = new Set<string>();
+  for (const i of (injuries.data ?? []) as Array<{ team_id: string | null; player_id: string; player: { name?: string } | null }>) {
+    if (!i.team_id || seenInj.has(i.player_id)) continue;
+    seenInj.add(i.player_id);
+    const e = missBy.get(i.team_id) ?? { share: 0, keys: [] };
+    const sh = shareBy.get(i.player_id) ?? 0;
+    e.share += sh;
+    if (sh >= 0.5 && i.player?.name) e.keys.push(i.player.name);
+    missBy.set(i.team_id, e);
+  }
   const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 
   const coachIds = [...new Set((spells.data ?? []).map((s) => s.coach_id))];
@@ -210,6 +228,11 @@ export async function computeMatchPicks() {
       restDays: last ? Math.round((new Date(kickoff).getTime() - new Date(last).getTime()) / 86400e3) : null,
       coachWinRate: coachBy.get(tid)?.rate ?? null,
       coachName: coachBy.get(tid)?.name ?? null,
+      missingShare: condTeams.has(tid) ? Number((missBy.get(tid)?.share ?? 0).toFixed(2)) : null,
+      keyAbsent: missBy.get(tid)?.keys ?? [],
+      games14: pastRows.length ? pastRows.filter((p) => (p.home_team_id === tid || p.away_team_id === tid)
+        && new Date(p.kickoff_at).getTime() < new Date(kickoff).getTime()
+        && new Date(kickoff).getTime() - new Date(p.kickoff_at).getTime() <= 14 * 86400e3).length : null,
     };
   };
 
