@@ -22,6 +22,8 @@ import { Route as ValueRouteImport } from './routes/value'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as CoachesIndexRouteImport } from './routes/coaches.index'
 import { Route as CoachesCoachIdRouteImport } from './routes/coaches.$coachId'
+import { Route as LeaguesIndexRouteImport } from './routes/leagues.index'
+import { Route as LeaguesLeagueIdRouteImport } from './routes/leagues.$leagueId'
 import { Route as MatchesMatchIdRouteImport } from './routes/matches.$matchId'
 import { Route as PlayersIndexRouteImport } from './routes/players.index'
 import { Route as PlayersPlayerIdRouteImport } from './routes/players.$playerId'
@@ -112,6 +114,16 @@ const CoachesIndexRoute = CoachesIndexRouteImport.update({
 const CoachesCoachIdRoute = CoachesCoachIdRouteImport.update({
   id: '/coaches/$coachId',
   path: '/coaches/$coachId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaguesIndexRoute = LeaguesIndexRouteImport.update({
+  id: '/leagues/',
+  path: '/leagues/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaguesLeagueIdRoute = LeaguesLeagueIdRouteImport.update({
+  id: '/leagues/$leagueId',
+  path: '/leagues/$leagueId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MatchesMatchIdRoute = MatchesMatchIdRouteImport.update({
@@ -270,11 +282,13 @@ export interface FileRoutesByFullPath {
   '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
+  '/leagues/$leagueId': typeof LeaguesLeagueIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/squads/$teamId': typeof SquadsTeamIdRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
   '/coaches/': typeof CoachesIndexRoute
+  '/leagues/': typeof LeaguesIndexRoute
   '/players/': typeof PlayersIndexRoute
   '/squads/': typeof SquadsIndexRoute
   '/coaches/$coachId/history': typeof CoachesCoachIdHistoryRoute
@@ -311,11 +325,13 @@ export interface FileRoutesByTo {
   '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
+  '/leagues/$leagueId': typeof LeaguesLeagueIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/squads/$teamId': typeof SquadsTeamIdRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
   '/coaches': typeof CoachesIndexRoute
+  '/leagues': typeof LeaguesIndexRoute
   '/players': typeof PlayersIndexRoute
   '/squads': typeof SquadsIndexRoute
   '/coaches/$coachId/history': typeof CoachesCoachIdHistoryRoute
@@ -353,11 +369,13 @@ export interface FileRoutesById {
   '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
+  '/leagues/$leagueId': typeof LeaguesLeagueIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
   '/squads/$teamId': typeof SquadsTeamIdRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
   '/coaches/': typeof CoachesIndexRoute
+  '/leagues/': typeof LeaguesIndexRoute
   '/players/': typeof PlayersIndexRoute
   '/squads/': typeof SquadsIndexRoute
   '/coaches/$coachId_/history': typeof CoachesCoachIdHistoryRoute
@@ -396,11 +414,13 @@ export interface FileRouteTypes {
     | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
+    | '/leagues/$leagueId'
     | '/matches/$matchId'
     | '/players/$playerId'
     | '/squads/$teamId'
     | '/teams/$teamId'
     | '/coaches/'
+    | '/leagues/'
     | '/players/'
     | '/squads/'
     | '/coaches/$coachId/history'
@@ -437,11 +457,13 @@ export interface FileRouteTypes {
     | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
+    | '/leagues/$leagueId'
     | '/matches/$matchId'
     | '/players/$playerId'
     | '/squads/$teamId'
     | '/teams/$teamId'
     | '/coaches'
+    | '/leagues'
     | '/players'
     | '/squads'
     | '/coaches/$coachId/history'
@@ -478,11 +500,13 @@ export interface FileRouteTypes {
     | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
+    | '/leagues/$leagueId'
     | '/matches/$matchId'
     | '/players/$playerId'
     | '/squads/$teamId'
     | '/teams/$teamId'
     | '/coaches/'
+    | '/leagues/'
     | '/players/'
     | '/squads/'
     | '/coaches/$coachId_/history'
@@ -520,11 +544,13 @@ export interface RootRouteChildren {
   ValueRoute: typeof ValueRoute
   WatchlistRoute: typeof WatchlistRoute
   CoachesCoachIdRoute: typeof CoachesCoachIdRoute
+  LeaguesLeagueIdRoute: typeof LeaguesLeagueIdRoute
   MatchesMatchIdRoute: typeof MatchesMatchIdRoute
   PlayersPlayerIdRoute: typeof PlayersPlayerIdRoute
   SquadsTeamIdRoute: typeof SquadsTeamIdRoute
   TeamsTeamIdRoute: typeof TeamsTeamIdRoute
   CoachesIndexRoute: typeof CoachesIndexRoute
+  LeaguesIndexRoute: typeof LeaguesIndexRoute
   PlayersIndexRoute: typeof PlayersIndexRoute
   SquadsIndexRoute: typeof SquadsIndexRoute
   CoachesCoachIdHistoryRoute: typeof CoachesCoachIdHistoryRoute
@@ -640,6 +666,20 @@ declare module '@tanstack/react-router' {
       path: '/coaches/$coachId'
       fullPath: '/coaches/$coachId'
       preLoaderRoute: typeof CoachesCoachIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leagues/': {
+      id: '/leagues/'
+      path: '/leagues'
+      fullPath: '/leagues/'
+      preLoaderRoute: typeof LeaguesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leagues/$leagueId': {
+      id: '/leagues/$leagueId'
+      path: '/leagues/$leagueId'
+      fullPath: '/leagues/$leagueId'
+      preLoaderRoute: typeof LeaguesLeagueIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/matches/$matchId': {
@@ -840,11 +880,13 @@ const rootRouteChildren: RootRouteChildren = {
   ValueRoute: ValueRoute,
   WatchlistRoute: WatchlistRoute,
   CoachesCoachIdRoute: CoachesCoachIdRoute,
+  LeaguesLeagueIdRoute: LeaguesLeagueIdRoute,
   MatchesMatchIdRoute: MatchesMatchIdRoute,
   PlayersPlayerIdRoute: PlayersPlayerIdRoute,
   SquadsTeamIdRoute: SquadsTeamIdRoute,
   TeamsTeamIdRoute: TeamsTeamIdRoute,
   CoachesIndexRoute: CoachesIndexRoute,
+  LeaguesIndexRoute: LeaguesIndexRoute,
   PlayersIndexRoute: PlayersIndexRoute,
   SquadsIndexRoute: SquadsIndexRoute,
   CoachesCoachIdHistoryRoute: CoachesCoachIdHistoryRoute,

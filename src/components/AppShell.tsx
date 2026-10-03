@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Activity, BarChart3, Brain, ClipboardList, GitCompare, LayoutGrid, LogOut, Radio, ShieldCheck, Shirt, Sparkles, Star, TrendingUp, Users } from "lucide-react";
+import { Activity, BarChart3, Brain, ClipboardList, GitCompare, LayoutGrid, LogOut, Radio, ShieldCheck, Shirt, Sparkles, Star, TrendingUp, Trophy, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 
