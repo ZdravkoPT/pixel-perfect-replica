@@ -54,6 +54,8 @@ export interface PickInput {
   away: TeamExtras;
   h2h: H2H | null;
   elo: { home: number; away: number; neutral: boolean } | null;
+  /** Probabilities from the weekly model-competition winner (league history). */
+  champion?: { name: string; home: number; draw: number; away: number; o25: number; btts: number } | null;
   corners: { expected: number; overShare: number; samples: number } | null;
   cards: { expected: number; overShare: number; samples: number; refereeAvg: number | null } | null;
   /** actual hit-rate / expected per market code, from settled past picks */
@@ -196,12 +198,32 @@ export function scoreMatch(input: PickInput): PickResult {
     defs.push({ code: "cards_under45", market: "Cards", selection: "Under 4.5 cards", m: 1 - o, f: 1 - input.cards.overShare, h: r === null ? null : 1 - r });
   }
 
+  const c = input.champion ?? null;
+  const champFor = (code: string): number | null => {
+    if (!c) return null;
+    const goalsReal = c.name !== "elo";
+    switch (code) {
+      case "home": return c.home;
+      case "away": return c.away;
+      case "dc_home": return c.home + c.draw;
+      case "dc_away": return c.away + c.draw;
+      case "dc_nodraw": return c.home + c.away;
+      case "over25": return goalsReal ? c.o25 : null;
+      case "under25": return goalsReal ? 1 - c.o25 : null;
+      case "btts": return goalsReal ? c.btts : null;
+      case "btts_no": return goalsReal ? 1 - c.btts : null;
+      default: return null;
+    }
+  };
+
   const reliability = input.lineupStatus === "confirmed" ? 1 : input.lineupStatus === "projected" ? 0.97 : 0.94;
   const scores: MarketScore[] = defs.map((d) => {
     const parts: Array<[number, number]> = [[d.m, 0.5]];
     if (d.f !== null) parts.push([d.f, 0.3]);
     if (d.h !== null) parts.push([d.h, 0.2]);
     if (d.e !== undefined && d.e !== null) parts.push([d.e, 0.25]);
+    const cv = champFor(d.code);
+    if (cv !== null) parts.push([cv, 0.3]);
     const w = parts.reduce((a, [, x]) => a + x, 0);
     let p = parts.reduce((a, [v, x]) => a + v * x, 0) / w;
     const cal = input.calibration[d.code];

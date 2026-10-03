@@ -40,6 +40,7 @@ import { Route as ApiPublicHooksKickoffRefreshRouteImport } from './routes/api/p
 import { Route as ApiPublicHooksLiveRefreshRouteImport } from './routes/api/public/hooks/live-refresh'
 import { Route as ApiPublicHooksMatchPicksRouteImport } from './routes/api/public/hooks/match-picks'
 import { Route as ApiPublicHooksMatchStatsRouteImport } from './routes/api/public/hooks/match-stats'
+import { Route as ApiPublicHooksModelCompetitionRouteImport } from './routes/api/public/hooks/model-competition'
 import { Route as ApiPublicHooksRefreshIntelRouteImport } from './routes/api/public/hooks/refresh-intel'
 import { Route as ApiPublicHooksTrainModelsRouteImport } from './routes/api/public/hooks/train-models'
 
@@ -203,6 +204,12 @@ const ApiPublicHooksMatchStatsRoute =
     path: '/api/public/hooks/match-stats',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksModelCompetitionRoute =
+  ApiPublicHooksModelCompetitionRouteImport.update({
+    id: '/api/public/hooks/model-competition',
+    path: '/api/public/hooks/model-competition',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksRefreshIntelRoute =
   ApiPublicHooksRefreshIntelRouteImport.update({
     id: '/api/public/hooks/refresh-intel',
@@ -248,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
+  '/api/public/hooks/model-competition': typeof ApiPublicHooksModelCompetitionRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -283,6 +291,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
+  '/api/public/hooks/model-competition': typeof ApiPublicHooksModelCompetitionRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -319,6 +328,7 @@ export interface FileRoutesById {
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
+  '/api/public/hooks/model-competition': typeof ApiPublicHooksModelCompetitionRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
+    | '/api/public/hooks/model-competition'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   fileRoutesByTo: FileRoutesByTo
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
+    | '/api/public/hooks/model-competition'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   id:
@@ -426,6 +438,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
+    | '/api/public/hooks/model-competition'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   fileRoutesById: FileRoutesById
@@ -462,6 +475,7 @@ export interface RootRouteChildren {
   ApiPublicHooksLiveRefreshRoute: typeof ApiPublicHooksLiveRefreshRoute
   ApiPublicHooksMatchPicksRoute: typeof ApiPublicHooksMatchPicksRoute
   ApiPublicHooksMatchStatsRoute: typeof ApiPublicHooksMatchStatsRoute
+  ApiPublicHooksModelCompetitionRoute: typeof ApiPublicHooksModelCompetitionRoute
   ApiPublicHooksRefreshIntelRoute: typeof ApiPublicHooksRefreshIntelRoute
   ApiPublicHooksTrainModelsRoute: typeof ApiPublicHooksTrainModelsRoute
 }
@@ -685,6 +699,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksMatchStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/model-competition': {
+      id: '/api/public/hooks/model-competition'
+      path: '/api/public/hooks/model-competition'
+      fullPath: '/api/public/hooks/model-competition'
+      preLoaderRoute: typeof ApiPublicHooksModelCompetitionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/refresh-intel': {
       id: '/api/public/hooks/refresh-intel'
       path: '/api/public/hooks/refresh-intel'
@@ -734,6 +755,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksLiveRefreshRoute: ApiPublicHooksLiveRefreshRoute,
   ApiPublicHooksMatchPicksRoute: ApiPublicHooksMatchPicksRoute,
   ApiPublicHooksMatchStatsRoute: ApiPublicHooksMatchStatsRoute,
+  ApiPublicHooksModelCompetitionRoute: ApiPublicHooksModelCompetitionRoute,
   ApiPublicHooksRefreshIntelRoute: ApiPublicHooksRefreshIntelRoute,
   ApiPublicHooksTrainModelsRoute: ApiPublicHooksTrainModelsRoute,
 }
