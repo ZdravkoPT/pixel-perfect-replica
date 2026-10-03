@@ -151,6 +151,8 @@ function PlayerProfile() {
           from provider data.
         </p>
 
+        <PlayerFormCard playerId={playerId} />
+
         <PlayerConditionPanel condition={(data.condition ?? null) as never} />
 
         {career ? (
