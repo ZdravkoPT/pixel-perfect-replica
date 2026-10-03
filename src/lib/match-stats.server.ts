@@ -48,6 +48,61 @@ export function parseBoxScore(facts: MatchFacts) {
   return any ? { home, away } : null;
 }
 
+/** Real expected goals per side from FotMob's stat groups; null when the feed has none. */
+export function parseXg(facts: MatchFacts): { home: number; away: number } | null {
+  for (const group of facts.statGroups) {
+    for (const item of group.items) {
+      const t = item.title.toLowerCase();
+      if (t === "expected goals (xg)" || t === "expected goals" || t === "xg") {
+        const h = num(item.home), a = num(item.away);
+        if (h != null && a != null) return { home: h, away: a };
+      }
+    }
+  }
+  return null;
+}
+
+async function saveXg(
+  db: Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"],
+  m: { id: string; home_team_id: string; away_team_id: string },
+  xg: { home: number; away: number },
+) {
+  await db.from("team_xg").upsert(
+    [
+      { match_id: m.id, team_id: m.home_team_id, xg: xg.home, xg_against: xg.away, source: "fotmob" },
+      { match_id: m.id, team_id: m.away_team_id, xg: xg.away, xg_against: xg.home, source: "fotmob" },
+    ],
+    { onConflict: "match_id,team_id" },
+  );
+}
+
+/** Backfills xG for finished matches that already have a FotMob id but no xG row. */
+export async function backfillXg(opts: { limit?: number } = {}) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { FotmobProvider } = await import("./providers/fotmob.server");
+  const fotmob = new FotmobProvider();
+  const { data: have } = await supabaseAdmin.from("team_xg").select("match_id").limit(20000);
+  const done = new Set((have ?? []).map((r) => r.match_id));
+  const { data: srcs } = await supabaseAdmin
+    .from("match_sources")
+    .select("match_id, provider_match_id, match:matches!inner(id, status, home_team_id, away_team_id)")
+    .eq("source_id", "fotmob")
+    .eq("match.status", "FINISHED")
+    .limit(5000);
+  const todo = (srcs ?? []).filter((s) => !done.has(s.match_id)).slice(0, opts.limit ?? 60);
+  let saved = 0, missing = 0;
+  for (const s of todo) {
+    const m = (s as unknown as { match: { id: string; home_team_id: string; away_team_id: string } }).match;
+    try {
+      const res = await fotmob.getMatchFacts(s.provider_match_id);
+      const xg = res.ok ? parseXg(res.data) : null;
+      if (xg) { await saveXg(supabaseAdmin, m, xg); saved += 1; } else missing += 1;
+      await new Promise((r) => setTimeout(r, 120));
+    } catch { missing += 1; }
+  }
+  return { candidates: todo.length, saved, missing };
+}
+
 export async function ingestMatchStats(opts: { days?: number; limit?: number; triggeredBy?: string } = {}) {
   const days = opts.days ?? 60;
   const limit = opts.limit ?? 80;
@@ -110,6 +165,8 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
         ],
         { onConflict: "match_id,team_id" },
       );
+      const xg = res.ok ? parseXg(res.data) : null;
+      if (xg) await saveXg(supabaseAdmin, m, xg);
       imported += 1;
       await new Promise((r) => setTimeout(r, 120));
     } catch {
