@@ -38,7 +38,7 @@ export const getMatchPicks = createServerFn({ method: "GET" }).handler(async () 
     id: string; kickoff_at: string; home_team_id: string; away_team_id: string;
     league: { name: string } | null; home: { name: string } | null; away: { name: string } | null;
   }>;
-  if (!rows.length) return { picks: [], noBets: [], track: [], generatedAt: now.toISOString() };
+  if (!rows.length) return { picks: [], noBets: [], track: [], summary: null, generatedAt: now.toISOString() };
 
   const ids = rows.map((r) => r.id);
   const teamIds = [...new Set(rows.flatMap((r) => [r.home_team_id, r.away_team_id]))];
