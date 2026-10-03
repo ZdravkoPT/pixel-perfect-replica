@@ -1470,6 +1470,39 @@ export type Database = {
           },
         ]
       }
+      model_competitions: {
+        Row: {
+          error: string | null
+          id: string
+          ratings: Json
+          results: Json
+          run_at: string
+          samples: number
+          triggered_by: string
+          winner: string | null
+        }
+        Insert: {
+          error?: string | null
+          id?: string
+          ratings?: Json
+          results?: Json
+          run_at?: string
+          samples?: number
+          triggered_by?: string
+          winner?: string | null
+        }
+        Update: {
+          error?: string | null
+          id?: string
+          ratings?: Json
+          results?: Json
+          run_at?: string
+          samples?: number
+          triggered_by?: string
+          winner?: string | null
+        }
+        Relationships: []
+      }
       model_training_runs: {
         Row: {
           duration_ms: number | null
