@@ -230,8 +230,8 @@ export const simulateSeason = createServerFn({ method: "GET" })
     const poi = (l: number) => { const L = Math.exp(-l); let k = 0, p = 1; do { k++; p *= Math.random(); } while (p > L); return k - 1; };
     const RUNS = 10000;
     const idx = new Map(ids.map((id, i) => [id, i]));
-    const base = ids.map((id) => T.get(id)!.pts);
-    const gd0 = ids.map((id) => T.get(id)!.gf - T.get(id)!.ga);
+    const base: number[] = ids.map((id) => T.get(id)!.pts);
+    const gd0: number[] = ids.map((id) => T.get(id)!.gf - T.get(id)!.ga);
     const title = new Array(n).fill(0), top4 = new Array(n).fill(0), rel = new Array(n).fill(0), exp = new Array(n).fill(0);
     const pts = new Array(n).fill(0), gd = new Array(n).fill(0), order = ids.map((_, i) => i);
     for (let r = 0; r < RUNS; r++) {
@@ -245,7 +245,7 @@ export const simulateSeason = createServerFn({ method: "GET" })
       order.forEach((ti, pos) => { if (pos === 0) title[ti]++; if (pos < 4) top4[ti]++; if (pos >= n - 3) rel[ti]++; exp[ti] += pts[ti]; });
     }
     const rows: SimRow[] = ids.map((id, i) => ({
-      teamId: id, name: T.get(id)!.name, pts: base[i], expPts: exp[i] / RUNS, title: title[i] / RUNS, top4: top4[i] / RUNS, relegation: rel[i] / RUNS,
+      teamId: id, name: T.get(id)!.name, pts: base[i]!, expPts: exp[i] / RUNS, title: title[i] / RUNS, top4: top4[i] / RUNS, relegation: rel[i] / RUNS,
     })).sort((a, b) => b.expPts - a.expPts);
     return { rows, remaining: fixtures.length, runs: RUNS };
   });
