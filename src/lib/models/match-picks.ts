@@ -24,6 +24,7 @@ export interface TeamExtras {
   shotsOnTarget: number | null; // avg per game, real box scores
   xgFor?: number | null; // avg real xG created per game (last 10 with data)
   xgAgainst?: number | null;
+  squadValue?: number | null; // EUR, current squad
   corners: number | null;
   injuries: number; // current injured/suspended
   avgSharpness: number | null; // 0-1 of expected starters
@@ -120,6 +121,9 @@ export function scoreMatch(input: PickInput): PickResult {
     if (team.xgFor != null && opp.xgAgainst != null) {
       // attack quality vs this opponent's chances conceded, centred on ~1.35 xG
       m *= 1 + clamp((team.xgFor + opp.xgAgainst) / 2 / 1.35 - 1, -0.12, 0.12) * 0.6;
+    }
+    if (team.squadValue && opp.squadValue) {
+      m *= 1 + clamp(Math.log(team.squadValue / opp.squadValue), -1.5, 1.5) * 0.04;
     }
     if (team.coachWinRate !== null && opp.coachWinRate !== null) {
       m *= 1 + clamp(team.coachWinRate - opp.coachWinRate, -0.2, 0.2) * 0.15;
@@ -289,6 +293,10 @@ export function scoreMatch(input: PickInput): PickResult {
   if (home.injuries || away.injuries) reasons.push(`Unavailable players: ${input.homeName} ${home.injuries}, ${input.awayName} ${away.injuries}.`);
   if (home.coachWinRate !== null && away.coachWinRate !== null && Math.abs(home.coachWinRate - away.coachWinRate) >= 0.08) {
     reasons.push(`Managers' career win rate: ${home.coachName ?? "home"} ${pct(home.coachWinRate)} vs ${away.coachName ?? "away"} ${pct(away.coachWinRate)}.`);
+  }
+  if (home.squadValue && away.squadValue && Math.max(home.squadValue, away.squadValue) / Math.min(home.squadValue, away.squadValue) >= 1.5) {
+    const f = (v: number) => (v >= 1e9 ? `€${(v / 1e9).toFixed(2)}bn` : `€${Math.round(v / 1e6)}m`);
+    reasons.push(`Squad market value: ${input.homeName} ${f(home.squadValue)} vs ${input.awayName} ${f(away.squadValue)}.`);
   }
   if (home.xgFor != null && away.xgFor != null && home.xgAgainst != null && away.xgAgainst != null) {
     reasons.push(`xG per game (for/against): ${input.homeName} ${home.xgFor.toFixed(2)}/${home.xgAgainst.toFixed(2)}, ${input.awayName} ${away.xgFor.toFixed(2)}/${away.xgAgainst.toFixed(2)}.`);
