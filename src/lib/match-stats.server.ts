@@ -116,7 +116,7 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
   const { data: done } = await supabaseAdmin
     .from("team_match_stats")
     .select("match_id")
-    .eq("payload->>players", "true")
+    .eq("payload->>shots", "true")
     .gte("created_at", new Date(Date.now() - 400 * 86400_000).toISOString())
     .limit(20000);
   const have = new Set((done ?? []).map((r) => r.match_id));
@@ -167,14 +167,15 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
       }
       await supabaseAdmin.from("team_match_stats").upsert(
         [
-          { match_id: m.id, team_id: m.home_team_id, is_home: true, ...box.home, payload: { source: "fotmob", players: true } },
-          { match_id: m.id, team_id: m.away_team_id, is_home: false, ...box.away, payload: { source: "fotmob", players: true } },
+          { match_id: m.id, team_id: m.home_team_id, is_home: true, ...box.home, payload: { source: "fotmob", players: true, shots: true } },
+          { match_id: m.id, team_id: m.away_team_id, is_home: false, ...box.away, payload: { source: "fotmob", players: true, shots: true } },
         ],
         { onConflict: "match_id,team_id" },
       );
       const xg = res.ok ? parseXg(res.data) : null;
       if (xg) await saveXg(supabaseAdmin, m, xg);
       if (res.ok) playersSaved += await savePlayerStats(supabaseAdmin, m, res.data);
+      if (res.ok) await saveShots(supabaseAdmin, m, res.data);
       imported += 1;
       await new Promise((r) => setTimeout(r, 120));
     } catch {
@@ -218,4 +219,26 @@ async function savePlayerStats(
   if (!out.length) return 0;
   await db.from("player_match_stats").upsert(out, { onConflict: "match_id,player_id" });
   return out.length;
+}
+
+async function saveShots(
+  db: any,
+  m: { id: string; home_team_id: string; away_team_id: string },
+  facts: import("./providers/fotmob.server").MatchFacts,
+) {
+  const shots = (facts.shots ?? []).filter((s) => !s.ownGoal);
+  if (!shots.length) return;
+  const fm = [...new Set(shots.map((s) => s.playerId).filter(Boolean))] as string[];
+  const { data: known } = fm.length ? await db.from("players").select("id, provider_ids").in("provider_ids->>fotmob", fm) : { data: [] };
+  const byFm = new Map<string, string>((known ?? []).map((k: any) => [String(k.provider_ids?.fotmob), k.id]));
+  const { scoreShot, loadShotModel } = await import("./shot-xg.server");
+  const model = await loadShotModel(db);
+  await db.from("match_shots").delete().eq("match_id", m.id);
+  await db.from("match_shots").insert(shots.map((s) => ({
+    match_id: m.id, team_id: s.side === "home" ? m.home_team_id : m.away_team_id,
+    player_id: s.playerId ? byFm.get(s.playerId) ?? null : null, player_name: s.player,
+    minute: s.minute, x: s.x, y: s.y, situation: s.situation, shot_type: s.shotType,
+    outcome: s.outcome, is_goal: s.outcome === "Goal", on_target: s.onTarget, provider_xg: s.xg,
+    model_xg: model ? scoreShot(model, { x: s.x, y: s.y, situation: s.situation ?? null, shot_type: s.shotType ?? null }) : null,
+  })));
 }

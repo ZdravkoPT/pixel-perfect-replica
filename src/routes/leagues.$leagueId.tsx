@@ -86,6 +86,26 @@ function LeaguePage() {
           <LeaderList title="Cards (red = 2)" rows={data.cards} unit="pts" />
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Chances created for themselves · our xG model</p>
+          {data.xgLeaders.length === 0 ? <p className="mt-3 text-xs text-muted-foreground">No shots stored yet.</p> : (
+            <table className="mt-3 w-full text-sm">
+              <thead className="text-xs text-muted-foreground"><tr><th className="text-left">Player</th><th className="text-right">Shots</th><th className="text-right">xG</th><th className="text-right">Goals</th><th className="text-right">Goals − xG</th></tr></thead>
+              <tbody>
+                {data.xgLeaders.map((p) => (
+                  <tr key={p.playerId} className="border-t border-border/50">
+                    <td className="py-1.5"><Link to="/players/$playerId" params={{ playerId: p.playerId }} className="hover:underline">{p.name}</Link></td>
+                    <td className="text-right tabular-nums">{p.shots}</td>
+                    <td className="text-right tabular-nums">{p.xg.toFixed(1)}</td>
+                    <td className="text-right tabular-nums">{p.goals}</td>
+                    <td className="text-right tabular-nums">{(p.goals - p.xg) > 0 ? "+" : ""}{(p.goals - p.xg).toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">Positive = finishing better than the chances suggest.</p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4">
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             Team of the week{data.totwWeek ? ` · week ending ${new Date(data.totwWeek).toLocaleDateString()}` : ""}
           </p>
