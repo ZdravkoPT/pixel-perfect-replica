@@ -20,7 +20,7 @@ export const Route = createFileRoute("/referees/$refereeId")({
   component: RefereePage,
 });
 
-function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
+function Stat({ label, value, note }: { label: string; value: string; note?: string | undefined }) {
   return (
     <div className="rounded-lg border border-border bg-card p-3">
       <div className="text-xs text-muted-foreground">{label}</div>

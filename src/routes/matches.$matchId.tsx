@@ -137,10 +137,10 @@ function MatchDetail() {
       subtitle={`${match.league?.name ?? "Unknown league"} · ${kickoff.toLocaleString()}`}
     >
       <div className="mb-3 flex flex-wrap gap-3 text-xs">
-        {typeof match.home_team_id === "string" && typeof match.away_team_id === "string" && (
-          <Link to="/h2h/$teamA/$teamB" params={{ teamA: match.home_team_id, teamB: match.away_team_id }} className="text-primary hover:underline">Full head-to-head →</Link>
+        {typeof match["home_team_id"] === "string" && typeof match["away_team_id"] === "string" && (
+          <Link to="/h2h/$teamA/$teamB" params={{ teamA: match["home_team_id"], teamB: match["away_team_id"] }} className="text-primary hover:underline">Full head-to-head →</Link>
         )}
-        <RefereeLink matchId={String(match.id)} />
+        <RefereeLink matchId={String(match["id"])} />
       </div>
       <Tabs defaultValue="Overview">
         <TabsList className="flex h-auto flex-wrap justify-start">
