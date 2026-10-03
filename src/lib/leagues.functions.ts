@@ -157,3 +157,18 @@ export const getTeamAbsences = createServerFn({ method: "GET" })
     }
     return out;
   });
+
+export const searchAll = createServerFn({ method: "GET" })
+  .inputValidator((input: { q: string }) => ({ q: String(input.q ?? "").trim().slice(0, 60) }))
+  .handler(async ({ data }) => {
+    if (data.q.length < 2) return { teams: [], players: [], coaches: [], leagues: [] };
+    const supabase = publicClient();
+    const like = `%${data.q.replace(/[%_,()]/g, " ")}%`;
+    const [t, p, c, l] = await Promise.all([
+      supabase.from("teams").select("id, name, country, crest_url").ilike("name", like).limit(12),
+      supabase.from("players").select("id, name, position, nationality, photo_url").ilike("name", like).limit(20),
+      supabase.from("coaches").select("id, name, nationality").ilike("name", like).limit(8),
+      supabase.from("leagues").select("id, name, country, logo_url").ilike("name", like).limit(8),
+    ]);
+    return { teams: t.data ?? [], players: p.data ?? [], coaches: c.data ?? [], leagues: l.data ?? [] };
+  });
