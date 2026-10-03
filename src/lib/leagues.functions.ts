@@ -223,7 +223,12 @@ export const simulateSeason = createServerFn({ method: "GET" })
     const lh = hg / games.length, la = ag / games.length, avg = (lh + la) / 2;
     // Prior = long-run strength from the weekly model competition (league history); this season's goals pull away from it.
     const { data: comp } = await sb.from("model_competitions").select("ratings").order("run_at", { ascending: false }).limit(1).maybeSingle();
-    const ratings = (comp?.ratings ?? {}) as Record<string, { lh: number; la: number; dgf: number; dga: number }>;
+    const allR = (comp?.ratings ?? {}) as Record<string, { league: string; lh: number; la: number; dgf: number; dga: number }>;
+    // Only trust priors earned in this same league (promoted clubs' lower-league dominance doesn't carry over).
+    const lc = new Map<string, number>();
+    for (const id of T.keys()) { const l = allR[id]?.league; if (l) lc.set(l, (lc.get(l) ?? 0) + 1); }
+    const main = [...lc.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    const ratings = Object.fromEntries([...T.keys()].filter((id) => allR[id]?.league === main).map((id) => [id, allR[id]!]));
     const K = 10;
     const str = new Map([...T].map(([id, t]) => {
       const p = t.hp + t.ap, r = ratings[id];
