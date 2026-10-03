@@ -7,6 +7,9 @@ const LABEL: Record<string, string> = {
   elo: "Elo ratings",
   poisson: "Poisson strengths",
   baseline: "League averages only",
+  bivariate: "Bivariate Poisson (linked scores)",
+  zero_inflated: "Zero-inflated Poisson (extra 0-0)",
+  ensemble: "Blend: Dixon-Coles + Elo",
 };
 
 /** Latest weekly walk-forward model competition over imported league history. */
