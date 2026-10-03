@@ -71,6 +71,13 @@
       "when": 1791012951717,
       "tag": "0009_historical_xg",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791015601236,
+      "tag": "0010_match_shots",
+      "breakpoints": true
     }
   ]
 }

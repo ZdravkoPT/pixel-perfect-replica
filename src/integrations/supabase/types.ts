@@ -1385,6 +1385,85 @@ export type Database = {
         }
         Relationships: []
       }
+      match_shots: {
+        Row: {
+          created_at: string
+          id: string
+          is_goal: boolean
+          match_id: string
+          minute: number | null
+          model_xg: number | null
+          on_target: boolean
+          outcome: string
+          player_id: string | null
+          player_name: string | null
+          provider_xg: number | null
+          shot_type: string | null
+          situation: string | null
+          team_id: string | null
+          x: number
+          y: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_goal?: boolean
+          match_id: string
+          minute?: number | null
+          model_xg?: number | null
+          on_target?: boolean
+          outcome: string
+          player_id?: string | null
+          player_name?: string | null
+          provider_xg?: number | null
+          shot_type?: string | null
+          situation?: string | null
+          team_id?: string | null
+          x: number
+          y: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_goal?: boolean
+          match_id?: string
+          minute?: number | null
+          model_xg?: number | null
+          on_target?: boolean
+          outcome?: string
+          player_id?: string | null
+          player_name?: string | null
+          provider_xg?: number | null
+          shot_type?: string | null
+          situation?: string | null
+          team_id?: string | null
+          x?: number
+          y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_shots_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_shots_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_shots_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_sources: {
         Row: {
           id: string
