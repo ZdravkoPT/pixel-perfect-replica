@@ -103,7 +103,7 @@ export async function backfillXg(opts: { limit?: number } = {}) {
   return { candidates: todo.length, saved, missing };
 }
 
-export async function ingestMatchStats(opts: { days?: number; limit?: number; triggeredBy?: string } = {}) {
+export async function ingestMatchStats(opts: { days?: number; limit?: number; triggeredBy?: string; budgetMs?: number } = {}) {
   const days = opts.days ?? 60;
   const limit = opts.limit ?? 80;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -129,7 +129,10 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
   const todo = (matches ?? []).filter((m) => !have.has(m.id)).slice(0, limit);
   let imported = 0;
   let missing = 0;
+  const deadline = Date.now() + (opts.budgetMs ?? 75_000);
+  let skipped = 0;
   for (const m of todo) {
+    if (Date.now() > deadline) { skipped++; continue; }
     try {
       const home = (m as unknown as { home: { name: string } | null }).home?.name ?? "";
       const away = (m as unknown as { away: { name: string } | null }).away?.name ?? "";
@@ -173,5 +176,5 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
       missing += 1;
     }
   }
-  return { candidates: todo.length, imported, missing, triggeredBy: opts.triggeredBy ?? "manual" };
+  return { candidates: todo.length, imported, missing, skipped, triggeredBy: opts.triggeredBy ?? "manual" };
 }

@@ -21,7 +21,7 @@ export async function computeMatchPicks() {
     id: string; kickoff_at: string; home_team_id: string; away_team_id: string;
     league: { name: string } | null; home: { name: string } | null; away: { name: string } | null;
   }>;
-  if (!rows.length) return { picks: [], noBets: [], track: [], summary: null, generatedAt: now.toISOString() };
+  if (!rows.length) return { picks: [], noBets: [], track: [], signalTrack: [], summary: null, generatedAt: now.toISOString() };
 
   const ids = rows.map((r) => r.id);
   const teamIds = [...new Set(rows.flatMap((r) => [r.home_team_id, r.away_team_id]))];
@@ -290,6 +290,7 @@ export async function computeMatchPicks() {
       home: extras(r.home_team_id, r.kickoff_at), away: extras(r.away_team_id, r.kickoff_at),
       h2h: h2hOf(r.home_team_id, r.away_team_id),
       calibration,
+      sourceWeights,
       elo: eloBy.has(r.home_team_id) && eloBy.has(r.away_team_id) ? { home: eloBy.get(r.home_team_id)!, away: eloBy.get(r.away_team_id)!, neutral: false } : null,
       champion: cp ? { name: comp!.winner!, ...cp } : null,
       ...setPieceInputs(r.home_team_id, r.away_team_id, r.id),
@@ -307,7 +308,7 @@ export async function computeMatchPicks() {
       matchId: p.matchId, fixture: p.fixture, league: p.league, kickoffAt: p.kickoffAt,
       slipType: "match_pick", market: p.market, pickCode: p.code, selection: p.selection,
       probability: Number(p.probability.toFixed(4)), fairOdds: Number((1 / p.probability).toFixed(2)),
-      facts: p.reasons, opinion: null,
+      facts: p.reasons, opinion: null, signals: p.sources ?? null,
     })));
   } catch {
     // logging is best-effort
@@ -319,7 +320,7 @@ export async function computeMatchPicks() {
     ? { picks: settledPicks.length, hits: settledPicks.filter((h) => h.result === "hit").length, expected: settledPicks.reduce((a, h) => a + Number(h.probability), 0) / settledPicks.length }
     : null;
 
-  return { picks, noBets, track, summary, generatedAt: now.toISOString() };
+  return { picks, noBets, track, signalTrack, summary, generatedAt: now.toISOString() };
 }
 
 /** Computes picks and stores them for instant page loads. */
