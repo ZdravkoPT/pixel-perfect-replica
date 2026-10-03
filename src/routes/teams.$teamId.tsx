@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Cell } from "@/components/CoachDossier";
 import { getTeamStats } from "@/lib/intel.functions";
 import { TeamFormChart } from "@/components/TeamFormChart";
+import { useQuery } from "@tanstack/react-query";
+import { getTeamAbsences } from "@/lib/leagues.functions";
 
 const teamStatsQuery = (teamId: string) =>
   queryOptions({ queryKey: ["team-stats", teamId], queryFn: () => getTeamStats({ data: { teamId } }) });
@@ -88,6 +90,8 @@ function TeamStatsPage() {
           <SplitBlock label="Away" s={data.away} />
         </div>
 
+        <Absences teamId={teamId} />
+
         <section>
           <h2 className="text-sm font-semibold">Form by season</h2>
           <div className="mt-3"><TeamFormChart seasons={data.seasons} /></div>
@@ -111,5 +115,34 @@ function TeamStatsPage() {
         </section>
       </div>
     </AppShell>
+  );
+}
+
+function Absences({ teamId }: { teamId: string }) {
+  const { data } = useQuery({ queryKey: ["team-absences", teamId], queryFn: () => getTeamAbsences({ data: { teamId } }) });
+  return (
+    <section>
+      <h2 className="text-sm font-semibold">Injuries &amp; suspensions</h2>
+      {!data ? <p className="mt-2 text-xs text-muted-foreground">Loading…</p> : data.length === 0 ? (
+        <p className="mt-2 text-xs text-muted-foreground">No known absences.</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-border rounded-lg border border-border bg-card text-sm">
+          {data.map((a) => (
+            <li key={a.playerId + a.kind} className="flex items-center justify-between gap-3 p-3">
+              <div className="min-w-0">
+                <Link to="/players/$playerId" params={{ playerId: a.playerId }} className="font-medium hover:underline">{a.name}</Link>
+                <p className="truncate text-xs text-muted-foreground">{a.reason}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge variant={a.kind === "suspension" ? "destructive" : "secondary"}>{a.kind === "suspension" ? "Suspended" : "Injured"}</Badge>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {a.expectedReturn ? `back ~${new Date(a.expectedReturn).toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : "return unknown"}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
