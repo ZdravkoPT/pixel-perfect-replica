@@ -77,7 +77,8 @@ async function saveXg(
 }
 
 /** Backfills xG for finished matches that already have a FotMob id but no xG row. */
-export async function backfillXg(opts: { limit?: number } = {}) {
+export async function backfillXg(opts: { limit?: number; budgetMs?: number } = {}) {
+  const deadline = Date.now() + (opts.budgetMs ?? 60_000);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { FotmobProvider } = await import("./providers/fotmob.server");
   const fotmob = new FotmobProvider();
@@ -92,6 +93,7 @@ export async function backfillXg(opts: { limit?: number } = {}) {
   const todo = (srcs ?? []).filter((s) => !done.has(s.match_id)).slice(0, opts.limit ?? 60);
   let saved = 0, missing = 0;
   for (const s of todo) {
+    if (Date.now() > deadline) break;
     const m = (s as unknown as { match: { id: string; home_team_id: string; away_team_id: string } }).match;
     try {
       const res = await fotmob.getMatchFacts(s.provider_match_id);

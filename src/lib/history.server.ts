@@ -75,3 +75,45 @@ export async function importHistory(opts: { seasons?: number } = {}) {
   }
   return { ok: errors.length === 0, upserted: inserted, errors: errors.slice(0, 20) };
 }
+
+/**
+ * Every international match result (martj42/international_results on GitHub).
+ * Stored as league_code "INT" so national-team form and head-to-head use it.
+ */
+export async function importInternational(opts: { years?: number } = {}) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const res = await fetch("https://raw.githubusercontent.com/martj42/international_results/master/results.csv");
+  if (!res.ok) return { ok: false, upserted: 0, linked: 0, errors: [`source ${res.status}`] };
+  const resolve = await buildTeamResolver(supabaseAdmin);
+  const since = `${new Date().getUTCFullYear() - (opts.years ?? 8)}-01-01`;
+  const text = await res.text();
+  const lines = text.split(/\r?\n/).slice(1);
+  const rows: Array<Record<string, unknown>> = [];
+  const seen = new Set<string>();
+  let linked = 0;
+  for (const line of lines) {
+    // date,home_team,away_team,home_score,away_score,tournament,city,country,neutral
+    const c = line.split(",");
+    if (c.length < 9 || c[0]! < since) continue;
+    const hg = int(c[3]), ag = int(c[4]);
+    if (hg === null || ag === null) continue;
+    const key = `${c[0]}|${c[1]}|${c[2]}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const h = resolve(c[1]!, { national: true }), a = resolve(c[2]!, { national: true });
+    if (h && a) linked++;
+    rows.push({
+      league_code: "INT", season: c[0]!.slice(0, 4), match_date: c[0],
+      home_name: c[1], away_name: c[2], home_team_id: h, away_team_id: a,
+      home_goals: hg, away_goals: ag, referee: null, source: "martj42/international_results",
+    });
+  }
+  let upserted = 0;
+  const errors: string[] = [];
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await supabaseAdmin.from("historical_results")
+      .upsert(rows.slice(i, i + 500) as never, { onConflict: "league_code,match_date,home_name,away_name" });
+    if (error) errors.push(error.message); else upserted += Math.min(500, rows.length - i);
+  }
+  return { ok: errors.length === 0, upserted, linked, errors: errors.slice(0, 5) };
+}
