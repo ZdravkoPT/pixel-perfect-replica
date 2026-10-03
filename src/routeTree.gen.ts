@@ -28,11 +28,14 @@ import { Route as LeaguesLeagueIdRouteImport } from './routes/leagues.$leagueId'
 import { Route as MatchesMatchIdRouteImport } from './routes/matches.$matchId'
 import { Route as PlayersIndexRouteImport } from './routes/players.index'
 import { Route as PlayersPlayerIdRouteImport } from './routes/players.$playerId'
+import { Route as RefereesIndexRouteImport } from './routes/referees.index'
+import { Route as RefereesRefereeIdRouteImport } from './routes/referees.$refereeId'
 import { Route as SquadsIndexRouteImport } from './routes/squads.index'
 import { Route as SquadsTeamIdRouteImport } from './routes/squads.$teamId'
 import { Route as TeamsTeamIdRouteImport } from './routes/teams.$teamId'
 import { Route as CoachesCoachIdHistoryRouteImport } from './routes/coaches.$coachId_.history'
 import { Route as CoachesCoachIdStatsRouteImport } from './routes/coaches.$coachId_.stats'
+import { Route as H2hTeamATeamBRouteImport } from './routes/h2h.$teamA.$teamB'
 import { Route as PlayersPlayerIdStatsRouteImport } from './routes/players.$playerId_.stats'
 import { Route as TeamsTeamIdDistanceRouteImport } from './routes/teams.$teamId_.distance'
 import { Route as ApiPublicHooksBetReviewRouteImport } from './routes/api/public/hooks/bet-review'
@@ -147,6 +150,16 @@ const PlayersPlayerIdRoute = PlayersPlayerIdRouteImport.update({
   path: '/players/$playerId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RefereesIndexRoute = RefereesIndexRouteImport.update({
+  id: '/referees/',
+  path: '/referees/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefereesRefereeIdRoute = RefereesRefereeIdRouteImport.update({
+  id: '/referees/$refereeId',
+  path: '/referees/$refereeId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SquadsIndexRoute = SquadsIndexRouteImport.update({
   id: '/squads/',
   path: '/squads/',
@@ -170,6 +183,11 @@ const CoachesCoachIdHistoryRoute = CoachesCoachIdHistoryRouteImport.update({
 const CoachesCoachIdStatsRoute = CoachesCoachIdStatsRouteImport.update({
   id: '/coaches/$coachId_/stats',
   path: '/coaches/$coachId/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const H2hTeamATeamBRoute = H2hTeamATeamBRouteImport.update({
+  id: '/h2h/$teamA/$teamB',
+  path: '/h2h/$teamA/$teamB',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayersPlayerIdStatsRoute = PlayersPlayerIdStatsRouteImport.update({
@@ -292,14 +310,17 @@ export interface FileRoutesByFullPath {
   '/leagues/$leagueId': typeof LeaguesLeagueIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
+  '/referees/$refereeId': typeof RefereesRefereeIdRoute
   '/squads/$teamId': typeof SquadsTeamIdRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
   '/coaches/': typeof CoachesIndexRoute
   '/leagues/': typeof LeaguesIndexRoute
   '/players/': typeof PlayersIndexRoute
+  '/referees/': typeof RefereesIndexRoute
   '/squads/': typeof SquadsIndexRoute
   '/coaches/$coachId/history': typeof CoachesCoachIdHistoryRoute
   '/coaches/$coachId/stats': typeof CoachesCoachIdStatsRoute
+  '/h2h/$teamA/$teamB': typeof H2hTeamATeamBRoute
   '/players/$playerId/stats': typeof PlayersPlayerIdStatsRoute
   '/teams/$teamId/distance': typeof TeamsTeamIdDistanceRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
@@ -336,14 +357,17 @@ export interface FileRoutesByTo {
   '/leagues/$leagueId': typeof LeaguesLeagueIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
+  '/referees/$refereeId': typeof RefereesRefereeIdRoute
   '/squads/$teamId': typeof SquadsTeamIdRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
   '/coaches': typeof CoachesIndexRoute
   '/leagues': typeof LeaguesIndexRoute
   '/players': typeof PlayersIndexRoute
+  '/referees': typeof RefereesIndexRoute
   '/squads': typeof SquadsIndexRoute
   '/coaches/$coachId/history': typeof CoachesCoachIdHistoryRoute
   '/coaches/$coachId/stats': typeof CoachesCoachIdStatsRoute
+  '/h2h/$teamA/$teamB': typeof H2hTeamATeamBRoute
   '/players/$playerId/stats': typeof PlayersPlayerIdStatsRoute
   '/teams/$teamId/distance': typeof TeamsTeamIdDistanceRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
@@ -381,14 +405,17 @@ export interface FileRoutesById {
   '/leagues/$leagueId': typeof LeaguesLeagueIdRoute
   '/matches/$matchId': typeof MatchesMatchIdRoute
   '/players/$playerId': typeof PlayersPlayerIdRoute
+  '/referees/$refereeId': typeof RefereesRefereeIdRoute
   '/squads/$teamId': typeof SquadsTeamIdRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
   '/coaches/': typeof CoachesIndexRoute
   '/leagues/': typeof LeaguesIndexRoute
   '/players/': typeof PlayersIndexRoute
+  '/referees/': typeof RefereesIndexRoute
   '/squads/': typeof SquadsIndexRoute
   '/coaches/$coachId_/history': typeof CoachesCoachIdHistoryRoute
   '/coaches/$coachId_/stats': typeof CoachesCoachIdStatsRoute
+  '/h2h/$teamA/$teamB': typeof H2hTeamATeamBRoute
   '/players/$playerId_/stats': typeof PlayersPlayerIdStatsRoute
   '/teams/$teamId_/distance': typeof TeamsTeamIdDistanceRoute
   '/api/public/hooks/bet-review': typeof ApiPublicHooksBetReviewRoute
@@ -427,14 +454,17 @@ export interface FileRouteTypes {
     | '/leagues/$leagueId'
     | '/matches/$matchId'
     | '/players/$playerId'
+    | '/referees/$refereeId'
     | '/squads/$teamId'
     | '/teams/$teamId'
     | '/coaches/'
     | '/leagues/'
     | '/players/'
+    | '/referees/'
     | '/squads/'
     | '/coaches/$coachId/history'
     | '/coaches/$coachId/stats'
+    | '/h2h/$teamA/$teamB'
     | '/players/$playerId/stats'
     | '/teams/$teamId/distance'
     | '/api/public/hooks/bet-review'
@@ -471,14 +501,17 @@ export interface FileRouteTypes {
     | '/leagues/$leagueId'
     | '/matches/$matchId'
     | '/players/$playerId'
+    | '/referees/$refereeId'
     | '/squads/$teamId'
     | '/teams/$teamId'
     | '/coaches'
     | '/leagues'
     | '/players'
+    | '/referees'
     | '/squads'
     | '/coaches/$coachId/history'
     | '/coaches/$coachId/stats'
+    | '/h2h/$teamA/$teamB'
     | '/players/$playerId/stats'
     | '/teams/$teamId/distance'
     | '/api/public/hooks/bet-review'
@@ -515,14 +548,17 @@ export interface FileRouteTypes {
     | '/leagues/$leagueId'
     | '/matches/$matchId'
     | '/players/$playerId'
+    | '/referees/$refereeId'
     | '/squads/$teamId'
     | '/teams/$teamId'
     | '/coaches/'
     | '/leagues/'
     | '/players/'
+    | '/referees/'
     | '/squads/'
     | '/coaches/$coachId_/history'
     | '/coaches/$coachId_/stats'
+    | '/h2h/$teamA/$teamB'
     | '/players/$playerId_/stats'
     | '/teams/$teamId_/distance'
     | '/api/public/hooks/bet-review'
@@ -560,14 +596,17 @@ export interface RootRouteChildren {
   LeaguesLeagueIdRoute: typeof LeaguesLeagueIdRoute
   MatchesMatchIdRoute: typeof MatchesMatchIdRoute
   PlayersPlayerIdRoute: typeof PlayersPlayerIdRoute
+  RefereesRefereeIdRoute: typeof RefereesRefereeIdRoute
   SquadsTeamIdRoute: typeof SquadsTeamIdRoute
   TeamsTeamIdRoute: typeof TeamsTeamIdRoute
   CoachesIndexRoute: typeof CoachesIndexRoute
   LeaguesIndexRoute: typeof LeaguesIndexRoute
   PlayersIndexRoute: typeof PlayersIndexRoute
+  RefereesIndexRoute: typeof RefereesIndexRoute
   SquadsIndexRoute: typeof SquadsIndexRoute
   CoachesCoachIdHistoryRoute: typeof CoachesCoachIdHistoryRoute
   CoachesCoachIdStatsRoute: typeof CoachesCoachIdStatsRoute
+  H2hTeamATeamBRoute: typeof H2hTeamATeamBRoute
   PlayersPlayerIdStatsRoute: typeof PlayersPlayerIdStatsRoute
   TeamsTeamIdDistanceRoute: typeof TeamsTeamIdDistanceRoute
   ApiPublicHooksBetReviewRoute: typeof ApiPublicHooksBetReviewRoute
@@ -723,6 +762,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayersPlayerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/referees/': {
+      id: '/referees/'
+      path: '/referees'
+      fullPath: '/referees/'
+      preLoaderRoute: typeof RefereesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/referees/$refereeId': {
+      id: '/referees/$refereeId'
+      path: '/referees/$refereeId'
+      fullPath: '/referees/$refereeId'
+      preLoaderRoute: typeof RefereesRefereeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/squads/': {
       id: '/squads/'
       path: '/squads'
@@ -756,6 +809,13 @@ declare module '@tanstack/react-router' {
       path: '/coaches/$coachId/stats'
       fullPath: '/coaches/$coachId/stats'
       preLoaderRoute: typeof CoachesCoachIdStatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/h2h/$teamA/$teamB': {
+      id: '/h2h/$teamA/$teamB'
+      path: '/h2h/$teamA/$teamB'
+      fullPath: '/h2h/$teamA/$teamB'
+      preLoaderRoute: typeof H2hTeamATeamBRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/players/$playerId_/stats': {
@@ -904,14 +964,17 @@ const rootRouteChildren: RootRouteChildren = {
   LeaguesLeagueIdRoute: LeaguesLeagueIdRoute,
   MatchesMatchIdRoute: MatchesMatchIdRoute,
   PlayersPlayerIdRoute: PlayersPlayerIdRoute,
+  RefereesRefereeIdRoute: RefereesRefereeIdRoute,
   SquadsTeamIdRoute: SquadsTeamIdRoute,
   TeamsTeamIdRoute: TeamsTeamIdRoute,
   CoachesIndexRoute: CoachesIndexRoute,
   LeaguesIndexRoute: LeaguesIndexRoute,
   PlayersIndexRoute: PlayersIndexRoute,
+  RefereesIndexRoute: RefereesIndexRoute,
   SquadsIndexRoute: SquadsIndexRoute,
   CoachesCoachIdHistoryRoute: CoachesCoachIdHistoryRoute,
   CoachesCoachIdStatsRoute: CoachesCoachIdStatsRoute,
+  H2hTeamATeamBRoute: H2hTeamATeamBRoute,
   PlayersPlayerIdStatsRoute: PlayersPlayerIdStatsRoute,
   TeamsTeamIdDistanceRoute: TeamsTeamIdDistanceRoute,
   ApiPublicHooksBetReviewRoute: ApiPublicHooksBetReviewRoute,
