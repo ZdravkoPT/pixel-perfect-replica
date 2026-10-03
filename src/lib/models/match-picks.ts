@@ -156,6 +156,15 @@ export function scoreMatch(input: PickInput): PickResult {
   };
   lh *= adj(home, away);
   la *= adj(away, home);
+  const cx = input.context;
+  if (cx) {
+    // heavy rain / strong wind historically lowers scoring; long trips weigh on the away side
+    let g = 1;
+    if (cx.rainMm != null && cx.rainMm >= 2) g *= 0.96;
+    if (cx.windKmh != null && cx.windKmh >= 30) g *= 0.96;
+    lh *= g; la *= g;
+    if (cx.awayTravelKm != null && cx.awayTravelKm >= 1500) la *= 0.98;
+  }
   const model = scoreGrid(lh, la);
 
   // ---- form-based probabilities per market ---------------------------------
@@ -319,6 +328,8 @@ export function scoreMatch(input: PickInput): PickResult {
   if (home.injuries || away.injuries) reasons.push(`Unavailable players: ${input.homeName} ${home.injuries}, ${input.awayName} ${away.injuries}.`);
   const keys = [...(home.keyAbsent ?? []).map((n) => `${n} (${input.homeName})`), ...(away.keyAbsent ?? []).map((n) => `${n} (${input.awayName})`)];
   if (keys.length) reasons.push(`Key regulars missing: ${keys.slice(0, 4).join(", ")}.`);
+  if (cx && ((cx.rainMm ?? 0) >= 2 || (cx.windKmh ?? 0) >= 30)) reasons.push(`Kickoff forecast: ${cx.tempC != null ? `${Math.round(cx.tempC)}°C, ` : ""}${(cx.rainMm ?? 0).toFixed(1)} mm rain, wind ${Math.round(cx.windKmh ?? 0)} km/h.`);
+  if (cx?.awayTravelKm != null && cx.awayTravelKm >= 1500) reasons.push(`${input.awayName} travel about ${cx.awayTravelKm.toLocaleString("en")} km to this game.`);
   if ((home.games14 ?? 0) >= 4 || (away.games14 ?? 0) >= 4) reasons.push(`Games in last 14 days: ${input.homeName} ${home.games14 ?? "?"}, ${input.awayName} ${away.games14 ?? "?"}.`);
   if (home.table && away.table && Math.abs(home.table.pos - away.table.pos) >= 5) {
     const ord = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;
