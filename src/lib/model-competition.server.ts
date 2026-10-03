@@ -6,10 +6,10 @@
  */
 type Row = {
   league_code: string; match_date: string; home_name: string; away_name: string;
-  home_team_id: string | null; away_team_id: string | null; home_goals: number; away_goals: number;
+  home_team_id: string | null; away_team_id: string | null; home_goals: number; away_goals: number; home_xg: number | null; away_xg: number | null;
 };
 export type Probs = { home: number; draw: number; away: number; o25: number; btts: number };
-export type ModelName = "baseline" | "poisson" | "dixon_coles" | "elo" | "bivariate" | "zero_inflated" | "ensemble";
+export type ModelName = "baseline" | "poisson" | "dixon_coles" | "elo" | "bivariate" | "zero_inflated" | "ensemble" | "xg_dixon_coles";
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 function pmf(k: number, l: number) { let f = 1; for (let i = 2; i <= k; i++) f *= i; return Math.exp(-l) * Math.pow(l, k) / f; }
@@ -74,7 +74,7 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
   const rows: Row[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabaseAdmin.from("historical_results")
-      .select("league_code, match_date, home_name, away_name, home_team_id, away_team_id, home_goals, away_goals")
+      .select("league_code, match_date, home_name, away_name, home_team_id, away_team_id, home_goals, away_goals, home_xg, away_xg")
       .not("home_goals", "is", null).not("away_goals", "is", null)
       .order("match_date").order("id").range(from, from + 999);
     if (error) throw new Error(error.message);
@@ -87,10 +87,11 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
   const lg = new Map<string, League>();
   const ew = new Map<string, Ew>();
   const dc = new Map<string, Dc>();
+  const dx = new Map<string, Dc>(); // Dixon-Coles on goals blended 50/50 with xG when known
   const elo = new Map<string, number>();
   const ids = new Map<string, string>();
   const XI = 0.0019; // per-day decay (Dixon-Coles)
-  const names: ModelName[] = ["baseline", "poisson", "dixon_coles", "elo", "bivariate", "zero_inflated", "ensemble"];
+  const names: ModelName[] = ["baseline", "poisson", "dixon_coles", "elo", "bivariate", "zero_inflated", "ensemble", "xg_dixon_coles"];
   const score = Object.fromEntries(names.map((n) => [n, { ll: 0, brier: 0, hits: 0, n: 0 }]));
 
   for (const r of rows) {
@@ -101,9 +102,10 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
     const t = new Date(r.match_date).getTime();
     const eh = ew.get(hk), ea = ew.get(ak);
     const dh = dc.get(hk), da = dc.get(ak);
+    const xh = dx.get(hk), xa = dx.get(ak);
     const rh = elo.get(hk) ?? 1500, ra = elo.get(ak) ?? 1500;
 
-    if (t >= evalFrom && L.n >= 60 && eh && ea && eh.n >= 6 && ea.n >= 6 && dh && da) {
+    if (t >= evalFrom && L.n >= 60 && eh && ea && eh.n >= 6 && ea.n >= 6 && dh && da && xh && xa) {
       const lh = L.h / L.n, la = L.a / L.n, all = (lh + la) / 2;
       const dcl = (() => {
         const hgf = dh.gf / dh.w, hga = dh.ga / dh.w, agf = da.gf / da.w, aga = da.ga / da.w;
@@ -120,6 +122,9 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
         bivariate: bivariateProbs(dcl[0], dcl[1]),
         zero_inflated: zeroInflatedProbs(dcl[0], dcl[1]),
         ensemble: avgProbs(goalProbs(dcl[0], dcl[1], -0.1), eloProbs(rh, ra, L.d / L.n)),
+        xg_dixon_coles: goalProbs(
+          clamp(xh.gf / xh.w / all * (xa.ga / xa.w) / all * lh, 0.2, 4.5),
+          clamp(xa.gf / xa.w / all * (xh.ga / xh.w) / all * la, 0.2, 4.5), -0.1),
       };
       const out = r.home_goals > r.away_goals ? "home" : r.home_goals === r.away_goals ? "draw" : "away";
       for (const n of names) {
@@ -149,6 +154,14 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
       dc.set(k, { gf: (e?.gf ?? 0) * f + gf, ga: (e?.ga ?? 0) * f + ga, w: (e?.w ?? 0) * f + 1, last: t });
     };
     upDc(hk, r.home_goals, r.away_goals); upDc(ak, r.away_goals, r.home_goals);
+    const hp = r.home_xg != null && r.away_xg != null ? (r.home_goals + Number(r.home_xg)) / 2 : r.home_goals;
+    const ap = r.home_xg != null && r.away_xg != null ? (r.away_goals + Number(r.away_xg)) / 2 : r.away_goals;
+    const upDx = (k: string, gf: number, ga: number) => {
+      const e = dx.get(k);
+      const f = e ? Math.exp(-XI * (t - e.last) / 86400e3) : 0;
+      dx.set(k, { gf: (e?.gf ?? 0) * f + gf, ga: (e?.ga ?? 0) * f + ga, w: (e?.w ?? 0) * f + 1, last: t });
+    };
+    upDx(hk, hp, ap); upDx(ak, ap, hp);
     const we = 1 / (1 + Math.pow(10, -(rh - ra + 60) / 400));
     const res = r.home_goals > r.away_goals ? 1 : r.home_goals === r.away_goals ? 0.5 : 0;
     const gd = Math.abs(r.home_goals - r.away_goals);
@@ -163,13 +176,13 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
   const winner = results[0]!.model;
 
   // Current ratings for linked teams (latest league wins if a team moved).
-  const ratings: Record<string, { league: string; lh: number; la: number; gf: number; ga: number; dgf: number; dga: number; elo: number; drawRate: number }> = {};
+  const ratings: Record<string, { league: string; lh: number; la: number; gf: number; ga: number; dgf: number; dga: number; xgf: number; xga: number; elo: number; drawRate: number }> = {};
   for (const [key, teamId] of ids) {
     const league = key.split("|")[0]!;
-    const L = lg.get(league)!, e = ew.get(key), d = dc.get(key);
-    if (!e || !d || e.n < 6) continue;
+    const L = lg.get(league)!, e = ew.get(key), d = dc.get(key), x = dx.get(key);
+    if (!e || !d || !x || e.n < 6) continue;
     ratings[teamId] = {
-      league, lh: L.h / L.n, la: L.a / L.n, gf: e.gf, ga: e.ga, dgf: d.gf / d.w, dga: d.ga / d.w,
+      league, lh: L.h / L.n, la: L.a / L.n, gf: e.gf, ga: e.ga, dgf: d.gf / d.w, dga: d.ga / d.w, xgf: x.gf / x.w, xga: x.ga / x.w,
       elo: elo.get(key) ?? 1500, drawRate: L.d / L.n,
     };
   }
@@ -181,7 +194,7 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
   return { winner, results, linkedTeams: Object.keys(ratings).length };
 }
 
-type Rating = { lh: number; la: number; gf: number; ga: number; dgf: number; dga: number; elo: number; drawRate: number };
+type Rating = { lh: number; la: number; gf: number; ga: number; dgf: number; dga: number; xgf?: number; xga?: number; elo: number; drawRate: number };
 
 /** Winner-model probabilities for a fixture, or null when either team lacks ratings. */
 export function championProbs(winner: string, h: Rating | undefined, a: Rating | undefined): Probs | null {
@@ -197,6 +210,10 @@ export function championProbs(winner: string, h: Rating | undefined, a: Rating |
     const g = goalProbs(dh, da, -0.1);
     // Elo has no goal view: keep goal markets from the goal model only.
     return { ...avgProbs(g, e), o25: g.o25, btts: g.btts };
+  }
+  if (winner === "xg_dixon_coles") {
+    if (h.xgf == null || h.xga == null || a.xgf == null || a.xga == null) return null;
+    return goalProbs(clamp(h.xgf / all * a.xga / all * lh, 0.2, 4.5), clamp(a.xgf / all * h.xga / all * la, 0.2, 4.5), -0.1);
   }
   if (winner === "poisson") return goalProbs(clamp(h.gf / all * a.ga / all * lh, 0.2, 4.5), clamp(a.gf / all * h.ga / all * la, 0.2, 4.5));
   return null;
