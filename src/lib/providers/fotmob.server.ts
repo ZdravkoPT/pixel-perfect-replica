@@ -519,6 +519,10 @@ export class FotmobProvider {
         xg: typeof s.expectedGoals === "number" ? s.expectedGoals : null,
         outcome: String(s.eventType ?? ""),
         onTarget: s.isOnTarget === true,
+        playerId: s.playerId != null ? String(s.playerId) : null,
+        situation: s.situation ? String(s.situation) : null,
+        shotType: s.shotType ? String(s.shotType) : null,
+        ownGoal: s.isOwnGoal === true,
       });
     }
 
@@ -893,6 +897,10 @@ export interface MatchFacts {
     xg: number | null;
     outcome: string;
     onTarget: boolean;
+    playerId?: string | null;
+    situation?: string | null;
+    shotType?: string | null;
+    ownGoal?: boolean;
   }>;
   /** Positive = home pressure, negative = away pressure. */
   momentum?: Array<{ minute: number; value: number }>;
