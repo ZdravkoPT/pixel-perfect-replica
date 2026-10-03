@@ -11,6 +11,7 @@ const NAV_GROUPS = [
       { to: "/", label: "Fixtures", icon: LayoutGrid },
       { to: "/live", label: "Live", icon: Radio },
       { to: "/watchlist", label: "Watchlist", icon: Star },
+      { to: "/leagues", label: "Leagues", icon: Trophy },
     ],
   },
   {
