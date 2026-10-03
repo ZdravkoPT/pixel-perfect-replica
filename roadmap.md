@@ -10,4 +10,4 @@
 - [x] Stadium locations, kickoff weather (Open-Meteo), away travel distance — hourly
 - [x] Player importance weighting for absences
 - [x] Bivariate, zero-inflated and blended models in the competition
-- [ ] Understat xG history
+- [x] Understat xG history (top-5 leagues, weekly) + xG Dixon-Coles in competition
