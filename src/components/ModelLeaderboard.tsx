@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-type Result = { model: string; samples: number; logLoss: number; brier: number; accuracy: number };
+type Result = { model: string; samples: number; logLoss: number; brier: number; accuracy: number; rps?: number; calibration?: { predicted: number; actual: number; n: number }[] };
 const LABEL: Record<string, string> = {
   dixon_coles: "Dixon-Coles (time-weighted)",
   elo: "Elo ratings",
@@ -11,6 +12,8 @@ const LABEL: Record<string, string> = {
   zero_inflated: "Zero-inflated Poisson (extra 0-0)",
   xg_dixon_coles: "Dixon-Coles on goals + xG (Understat)",
   ensemble: "Blend: Dixon-Coles + Elo",
+  pi_ratings: "Pi-ratings (home/away strength)",
+  glicko: "Glicko (Elo with uncertainty)",
 };
 
 /** Latest weekly walk-forward model competition over imported league history. */
@@ -37,7 +40,7 @@ export function ModelLeaderboard() {
       </div>
       <table className="w-full text-xs">
         <thead className="text-muted-foreground">
-          <tr><th className="text-left font-normal">#</th><th className="text-left font-normal">Model</th><th className="text-right font-normal">Right result</th><th className="text-right font-normal">Error score (lower is better)</th></tr>
+          <tr><th className="text-left font-normal">#</th><th className="text-left font-normal">Model</th><th className="text-right font-normal">Right result</th><th className="text-right font-normal">Error score (lower is better)</th><th className="text-right font-normal">Ranked score</th></tr>
         </thead>
         <tbody className="font-mono">
           {results.map((r, i) => (
@@ -46,10 +49,36 @@ export function ModelLeaderboard() {
               <td className="font-sans">{LABEL[r.model] ?? r.model}</td>
               <td className="text-right">{Math.round(r.accuracy * 100)}%</td>
               <td className="text-right">{r.logLoss.toFixed(3)}</td>
+              <td className="text-right">{r.rps != null ? r.rps.toFixed(3) : "—"}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      {(() => {
+        const cal = results.find((r) => r.model === data.winner)?.calibration;
+        if (!cal?.length) return null;
+        const pts = cal.map((c) => ({ predicted: Math.round(c.predicted * 100), actual: Math.round(c.actual * 100), ideal: Math.round(c.predicted * 100), n: c.n }));
+        return (
+          <div className="space-y-1 pt-2">
+            <h3 className="text-xs font-semibold">How honest are the winner's percentages?</h3>
+            <p className="text-xs text-muted-foreground">When the winning model said "X% chance", how often it really happened. Closer to the dashed line is better.</p>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={pts} margin={{ top: 8, right: 8, bottom: 8, left: -16 }}>
+                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+                  <XAxis dataKey="predicted" type="number" domain={[0, 100]} unit="%" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
+                  <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
+                  <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", fontSize: 11 }}
+                    formatter={(v: number, k: string) => [`${v}%`, k === "actual" ? "Happened" : "Said"]} labelFormatter={(l) => `Said ${l}%`} />
+                  <Line dataKey="ideal" stroke="var(--muted-foreground)" strokeDasharray="4 4" dot={false} />
+                  <Line dataKey="actual" stroke="var(--primary)" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      })()}
+      <p className="text-xs text-muted-foreground">Ranked score = how far off the home/draw/away forecast was, counting a near-miss (draw instead of win) as less wrong. Lower is better.</p>
     </section>
   );
 }
