@@ -11,14 +11,14 @@ export async function computeMatchPicks() {
 
   const { data: fixtures } = await sb
     .from("matches")
-    .select("id, kickoff_at, home_team_id, away_team_id, league:leagues(name), home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)")
+    .select("id, kickoff_at, home_team_id, away_team_id, league_id, season_id, league:leagues(name), home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)")
     .eq("status", "SCHEDULED")
     .gte("kickoff_at", now.toISOString())
     .lte("kickoff_at", end.toISOString())
     .order("kickoff_at")
     .limit(80);
   const rows = (fixtures ?? []) as unknown as Array<{
-    id: string; kickoff_at: string; home_team_id: string; away_team_id: string;
+    id: string; kickoff_at: string; home_team_id: string; away_team_id: string; league_id: string | null; season_id: string | null;
     league: { name: string } | null; home: { name: string } | null; away: { name: string } | null;
   }>;
   if (!rows.length) return { picks: [], noBets: [], track: [], signalTrack: [], summary: null, generatedAt: now.toISOString() };
@@ -297,6 +297,36 @@ export async function computeMatchPicks() {
   const { championProbs } = await import("./model-competition.server");
   const compRatings = (comp?.ratings ?? {}) as Record<string, Parameters<typeof championProbs>[1] & object>;
 
+  // ---- league table built from our own finished league games this season (no data = no line) ----
+  const seasonIds = [...new Set(rows.map((r) => r.season_id).filter((x): x is string => !!x))];
+  const tableBy = new Map<string, Map<string, { pos: number; pts: number; played: number; size: number }>>();
+  if (seasonIds.length) {
+    const { data: sg } = await sb.from("matches").select("season_id, home_team_id, away_team_id, home_score, away_score")
+      .in("season_id", seasonIds).eq("status", "FINISHED").not("home_score", "is", null).limit(10000);
+    const agg = new Map<string, Map<string, { pts: number; gd: number; played: number }>>();
+    for (const g of sg ?? []) {
+      if (!g.season_id || g.home_score === null || g.away_score === null) continue;
+      const t = agg.get(g.season_id) ?? new Map();
+      const add = (id: string, f: number, a: number) => {
+        const e = t.get(id) ?? { pts: 0, gd: 0, played: 0 };
+        e.played++; e.gd += f - a; e.pts += f > a ? 3 : f === a ? 1 : 0; t.set(id, e);
+      };
+      add(g.home_team_id, g.home_score, g.away_score); add(g.away_team_id, g.away_score, g.home_score);
+      agg.set(g.season_id, t);
+    }
+    for (const [sid, t] of agg) {
+      if (t.size < 8) continue; // cups / tiny samples: no table
+      const sorted = [...t.entries()].sort((a, b) => b[1].pts - a[1].pts || b[1].gd - a[1].gd);
+      const m = new Map<string, { pos: number; pts: number; played: number; size: number }>();
+      sorted.forEach(([id, e], i) => m.set(id, { pos: i + 1, pts: e.pts, played: e.played, size: sorted.length }));
+      tableBy.set(sid, m);
+    }
+  }
+  const tableOf = (sid: string | null, tid: string) => {
+    const e = sid ? tableBy.get(sid)?.get(tid) : undefined;
+    return e && e.played >= 5 ? e : null;
+  };
+
   const picks = [];
   const noBets = [];
   for (const r of rows) {
@@ -310,7 +340,7 @@ export async function computeMatchPicks() {
       lambdaHome: lam?.lh ?? null, lambdaAway: lam?.la ?? null,
       lineupStatus: lineupStatus.get(r.id) ?? "none",
       homeForm: formOf(r.home_team_id), awayForm: formOf(r.away_team_id),
-      home: extras(r.home_team_id, r.kickoff_at), away: extras(r.away_team_id, r.kickoff_at),
+      home: { ...extras(r.home_team_id, r.kickoff_at), table: tableOf(r.season_id, r.home_team_id) }, away: { ...extras(r.away_team_id, r.kickoff_at), table: tableOf(r.season_id, r.away_team_id) },
       h2h: h2hOf(r.home_team_id, r.away_team_id),
       calibration,
       sourceWeights,

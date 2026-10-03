@@ -38,6 +38,8 @@ export interface TeamExtras {
   keyAbsent?: string[];
   /** competitive games played in the 14 days before kickoff */
   games14?: number | null;
+  /** current league position from this season's finished games (null when no table) */
+  table?: { pos: number; pts: number; played: number; size: number } | null;
 }
 
 export interface H2H {
@@ -127,6 +129,11 @@ export function scoreMatch(input: PickInput): PickResult {
       m *= 1 - clamp(team.injuries, 0, 6) * 0.025; // missing players (count only)
     }
     if (team.games14 != null && team.games14 >= 4) m *= 0.97; // fixture congestion
+    if (team.table && opp.table && team.table.size === opp.table.size) {
+      // table gap (points per game), small bounded nudge
+      const gap = team.table.pts / team.table.played - opp.table.pts / opp.table.played;
+      m *= 1 + clamp(gap, -1.5, 1.5) * 0.03;
+    }
     if (team.avgSharpness !== null) m *= 0.95 + team.avgSharpness * 0.1;
     if (team.avgLoad !== null && team.avgLoad > 0.8) m *= 0.97;
     if (team.restDays !== null && opp.restDays !== null) m *= 1 + clamp(team.restDays - opp.restDays, -4, 4) * 0.008;
@@ -311,6 +318,10 @@ export function scoreMatch(input: PickInput): PickResult {
   const keys = [...(home.keyAbsent ?? []).map((n) => `${n} (${input.homeName})`), ...(away.keyAbsent ?? []).map((n) => `${n} (${input.awayName})`)];
   if (keys.length) reasons.push(`Key regulars missing: ${keys.slice(0, 4).join(", ")}.`);
   if ((home.games14 ?? 0) >= 4 || (away.games14 ?? 0) >= 4) reasons.push(`Games in last 14 days: ${input.homeName} ${home.games14 ?? "?"}, ${input.awayName} ${away.games14 ?? "?"}.`);
+  if (home.table && away.table && Math.abs(home.table.pos - away.table.pos) >= 5) {
+    const ord = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;
+    reasons.push(`League table: ${input.homeName} ${ord(home.table.pos)} (${home.table.pts} pts) vs ${input.awayName} ${ord(away.table.pos)} (${away.table.pts} pts).`);
+  }
   if (home.coachWinRate !== null && away.coachWinRate !== null && Math.abs(home.coachWinRate - away.coachWinRate) >= 0.08) {
     reasons.push(`Managers' career win rate: ${home.coachName ?? "home"} ${pct(home.coachWinRate)} vs ${away.coachName ?? "away"} ${pct(away.coachWinRate)}.`);
   }

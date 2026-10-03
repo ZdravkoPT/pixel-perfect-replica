@@ -6,7 +6,8 @@
 - [x] International results history (martj42) — 8,247 matches, weekly refresh
 - [ ] openfootball lower-league results
 - [x] Fixture congestion (games in 14 days)
-- [ ] Travel distance, weather (Open-Meteo), standings motivation
+- [x] League-table strength (built from our own results)
+- [ ] Travel distance, weather — blocked: no stadium locations stored
 - [x] Player importance weighting for absences
 - [x] Bivariate, zero-inflated and blended models in the competition
 - [ ] Understat xG history
