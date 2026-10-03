@@ -1,0 +1,1 @@
+COMMENT ON TABLE public.odds_snapshots IS 'DEPRECATED: bookmaker odds feature removed; not read or written by the app.';
