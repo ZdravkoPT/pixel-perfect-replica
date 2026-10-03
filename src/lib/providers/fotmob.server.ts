@@ -502,7 +502,56 @@ export class FotmobProvider {
       });
     }
 
-    return ok({ info, statGroups, events, form, h2h });
+    const general = (result.data["general"] ?? {}) as Record<string, any>;
+    const homeTeamId = general["homeTeam"]?.id ?? null;
+    const sideOf = (teamId: unknown): "home" | "away" =>
+      String(teamId) === String(homeTeamId) ? "home" : "away";
+
+    const shots: MatchFacts["shots"] = [];
+    for (const s of ((content["shotmap"] ?? {})["shots"] ?? []) as any[]) {
+      if (typeof s?.x !== "number" || typeof s?.y !== "number") continue;
+      shots.push({
+        side: sideOf(s.teamId),
+        player: s.playerName ?? null,
+        minute: typeof s.min === "number" ? s.min : null,
+        x: s.x,
+        y: s.y,
+        xg: typeof s.expectedGoals === "number" ? s.expectedGoals : null,
+        outcome: String(s.eventType ?? ""),
+        onTarget: s.isOnTarget === true,
+      });
+    }
+
+    const momentum: MatchFacts["momentum"] = [];
+    for (const m of (((content["momentum"] ?? {})["main"] ?? {})["data"] ?? []) as any[]) {
+      if (typeof m?.minute === "number" && typeof m?.value === "number") {
+        momentum.push({ minute: m.minute, value: m.value });
+      }
+    }
+
+    const playerRatings: MatchFacts["playerRatings"] = [];
+    for (const p of Object.values((content["playerStats"] ?? {}) as Record<string, any>)) {
+      const top = ((p?.stats ?? []) as any[]).find((g) => g?.key === "top_stats")?.stats ?? {};
+      const rating = top["FotMob rating"]?.stat?.value;
+      if (typeof rating !== "number") continue;
+      const val = (k: string) => {
+        const v = top[k]?.stat?.value;
+        return typeof v === "number" ? v : null;
+      };
+      playerRatings.push({
+        side: sideOf(p.teamId),
+        name: String(p.name ?? ""),
+        shirt: p.shirtNumber ? String(p.shirtNumber) : null,
+        rating,
+        minutes: val("Minutes played"),
+        goals: val("Goals"),
+        assists: val("Assists"),
+        xg: val("Expected goals (xG)"),
+      });
+    }
+    playerRatings.sort((a, b) => b.rating - a.rating);
+
+    return ok({ info, statGroups, events, form, h2h, shots, momentum, playerRatings });
   }
 
   /** Resolves a FotMob team id from a club name (free search endpoint). */
@@ -833,6 +882,29 @@ export interface MatchFacts {
   }>;
   form: string[][];
   h2h: Array<{ date: string; home: string; away: string; score: string; league: string }>;
+  /** Shot map in FotMob pitch coords (x 0–105 toward goal, y 0–68). */
+  shots?: Array<{
+    side: "home" | "away";
+    player: string | null;
+    minute: number | null;
+    x: number;
+    y: number;
+    xg: number | null;
+    outcome: string;
+    onTarget: boolean;
+  }>;
+  /** Positive = home pressure, negative = away pressure. */
+  momentum?: Array<{ minute: number; value: number }>;
+  playerRatings?: Array<{
+    side: "home" | "away";
+    name: string;
+    shirt: string | null;
+    rating: number;
+    minutes: number | null;
+    goals: number | null;
+    assists: number | null;
+    xg: number | null;
+  }>;
 }
 
 export interface InPlayFeed {
