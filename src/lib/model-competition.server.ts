@@ -9,7 +9,7 @@ type Row = {
   home_team_id: string | null; away_team_id: string | null; home_goals: number; away_goals: number;
 };
 export type Probs = { home: number; draw: number; away: number; o25: number; btts: number };
-export type ModelName = "baseline" | "poisson" | "dixon_coles" | "elo";
+export type ModelName = "baseline" | "poisson" | "dixon_coles" | "elo" | "bivariate" | "zero_inflated" | "ensemble";
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 function pmf(k: number, l: number) { let f = 1; for (let i = 2; i <= k; i++) f *= i; return Math.exp(-l) * Math.pow(l, k) / f; }
@@ -31,6 +31,31 @@ export function goalProbs(lh: number, la: number, rho = 0): Probs {
   }
   return { home: h / tot, draw: d / tot, away: a / tot, o25: o / tot, btts: b / tot };
 }
+
+/** Bivariate Poisson (Karlis & Ntzoufras): shared component l3 links both teams' goals. */
+export function bivariateProbs(lh: number, la: number, l3 = 0.12): Probs {
+  const l1 = Math.max(0.05, lh - l3), l2 = Math.max(0.05, la - l3);
+  let h = 0, d = 0, a = 0, o = 0, b = 0, tot = 0;
+  for (let i = 0; i <= 10; i++) for (let j = 0; j <= 10; j++) {
+    let p = 0;
+    for (let k = 0; k <= Math.min(i, j); k++) p += pmf(i - k, l1) * pmf(j - k, l2) * pmf(k, l3);
+    tot += p;
+    if (i > j) h += p; else if (i === j) d += p; else a += p;
+    if (i + j > 2) o += p;
+    if (i > 0 && j > 0) b += p;
+  }
+  return { home: h / tot, draw: d / tot, away: a / tot, o25: o / tot, btts: b / tot };
+}
+
+/** Zero-inflated Poisson: extra probability mass w on a 0-0 draw. */
+export function zeroInflatedProbs(lh: number, la: number, w = 0.04): Probs {
+  const g = goalProbs(lh, la, 0);
+  return { home: g.home * (1 - w), draw: g.draw * (1 - w) + w, away: g.away * (1 - w), o25: g.o25 * (1 - w), btts: g.btts * (1 - w) };
+}
+
+const avgProbs = (x: Probs, y: Probs): Probs => ({
+  home: (x.home + y.home) / 2, draw: (x.draw + y.draw) / 2, away: (x.away + y.away) / 2, o25: (x.o25 + y.o25) / 2, btts: (x.btts + y.btts) / 2,
+});
 
 export function eloProbs(rh: number, ra: number, drawRate = 0.26): Probs {
   const we = 1 / (1 + Math.pow(10, -(rh - ra + 60) / 400));
@@ -65,7 +90,7 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
   const elo = new Map<string, number>();
   const ids = new Map<string, string>();
   const XI = 0.0019; // per-day decay (Dixon-Coles)
-  const names: ModelName[] = ["baseline", "poisson", "dixon_coles", "elo"];
+  const names: ModelName[] = ["baseline", "poisson", "dixon_coles", "elo", "bivariate", "zero_inflated", "ensemble"];
   const score = Object.fromEntries(names.map((n) => [n, { ll: 0, brier: 0, hits: 0, n: 0 }]));
 
   for (const r of rows) {
@@ -80,6 +105,10 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
 
     if (t >= evalFrom && L.n >= 60 && eh && ea && eh.n >= 6 && ea.n >= 6 && dh && da) {
       const lh = L.h / L.n, la = L.a / L.n, all = (lh + la) / 2;
+      const dcl = (() => {
+        const hgf = dh.gf / dh.w, hga = dh.ga / dh.w, agf = da.gf / da.w, aga = da.ga / da.w;
+        return [clamp(hgf / all * aga / all * lh, 0.2, 4.5), clamp(agf / all * hga / all * la, 0.2, 4.5)] as const;
+      })();
       const preds: Record<ModelName, Probs> = {
         baseline: { home: L.hw / L.n, draw: L.d / L.n, away: L.aw / L.n, o25: 0.5, btts: 0.5 },
         poisson: goalProbs(clamp(eh.gf / all * ea.ga / all * lh, 0.2, 4.5), clamp(ea.gf / all * eh.ga / all * la, 0.2, 4.5)),
@@ -88,6 +117,9 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
           return goalProbs(clamp(hgf / all * aga / all * lh, 0.2, 4.5), clamp(agf / all * hga / all * la, 0.2, 4.5), -0.1);
         })(),
         elo: eloProbs(rh, ra, L.d / L.n),
+        bivariate: bivariateProbs(dcl[0], dcl[1]),
+        zero_inflated: zeroInflatedProbs(dcl[0], dcl[1]),
+        ensemble: avgProbs(goalProbs(dcl[0], dcl[1], -0.1), eloProbs(rh, ra, L.d / L.n)),
       };
       const out = r.home_goals > r.away_goals ? "home" : r.home_goals === r.away_goals ? "draw" : "away";
       for (const n of names) {
@@ -157,6 +189,15 @@ export function championProbs(winner: string, h: Rating | undefined, a: Rating |
   const lh = (h.lh + a.lh) / 2, la = (h.la + a.la) / 2, all = (lh + la) / 2;
   if (winner === "elo") return eloProbs(h.elo, a.elo, (h.drawRate + a.drawRate) / 2);
   if (winner === "dixon_coles") return goalProbs(clamp(h.dgf / all * a.dga / all * lh, 0.2, 4.5), clamp(a.dgf / all * h.dga / all * la, 0.2, 4.5), -0.1);
+  const dh = clamp(h.dgf / all * a.dga / all * lh, 0.2, 4.5), da = clamp(a.dgf / all * h.dga / all * la, 0.2, 4.5);
+  if (winner === "bivariate") return bivariateProbs(dh, da);
+  if (winner === "zero_inflated") return zeroInflatedProbs(dh, da);
+  if (winner === "ensemble") {
+    const e = eloProbs(h.elo, a.elo, (h.drawRate + a.drawRate) / 2);
+    const g = goalProbs(dh, da, -0.1);
+    // Elo has no goal view: keep goal markets from the goal model only.
+    return { ...avgProbs(g, e), o25: g.o25, btts: g.btts };
+  }
   if (winner === "poisson") return goalProbs(clamp(h.gf / all * a.ga / all * lh, 0.2, 4.5), clamp(a.gf / all * h.ga / all * la, 0.2, 4.5));
   return null;
 }
