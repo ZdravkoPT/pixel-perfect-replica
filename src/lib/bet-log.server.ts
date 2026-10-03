@@ -109,11 +109,38 @@ export async function settlePendingPicks(): Promise<{ settled: number }> {
     }
     if (match.status !== "FINISHED") continue;
     if (match.home_score === null || match.away_score === null) continue;
-    const result = gradePick(row.pick_code, Number(match.home_score), Number(match.away_score));
+    let extra: { total_corners?: number; total_cards?: number } = {};
+    let result: "hit" | "miss" | "void";
+    const sp = /^(corners|cards)_(over|under)(\d+)$/.exec(row.pick_code);
+    if (sp) {
+      const { data: stats } = await supabaseAdmin
+        .from("team_match_stats")
+        .select("corners, yellow_cards, red_cards")
+        .eq("match_id", row.match_id);
+      const complete = (stats ?? []).length === 2 &&
+        (stats ?? []).every((s) => (sp[1] === "corners" ? s.corners !== null : s.yellow_cards !== null));
+      if (!complete) {
+        // Box score not imported yet; give up after 4 days and void the pick.
+        const { data: m } = await supabaseAdmin.from("matches").select("kickoff_at").eq("id", row.match_id).maybeSingle();
+        if (!m || Date.now() - new Date(m.kickoff_at).getTime() < 4 * 86400e3) continue;
+        result = "void";
+      } else {
+        const total = (stats ?? []).reduce(
+          (a, s) => a + (sp[1] === "corners" ? Number(s.corners) : Number(s.yellow_cards) + Number(s.red_cards ?? 0)),
+          0,
+        );
+        extra = sp[1] === "corners" ? { total_corners: total } : { total_cards: total };
+        const line = Number(sp[3]) / 10;
+        result = (sp[2] === "over" ? total > line : total < line) ? "hit" : "miss";
+      }
+    } else {
+      result = gradePick(row.pick_code, Number(match.home_score), Number(match.away_score));
+    }
     await supabaseAdmin
       .from("ai_bet_log")
       .update({
         result,
+        ...extra,
         home_score: match.home_score,
         away_score: match.away_score,
         settled_at: new Date().toISOString(),
