@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Activity, BarChart3, Brain, ClipboardList, GitCompare, LayoutGrid, LogOut, Radio, ShieldCheck, Shirt, Sparkles, Star, TrendingUp, Trophy, Users } from "lucide-react";
+import { Activity, BarChart3, Brain, ClipboardList, GitCompare, LayoutGrid, LogOut, Radio, ShieldCheck, Shirt, Sparkles, Search, Star, TrendingUp, Trophy, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { GoalAlerts } from "@/components/GoalAlerts";
 
 const NAV_GROUPS = [
   {
@@ -12,6 +13,7 @@ const NAV_GROUPS = [
       { to: "/live", label: "Live", icon: Radio },
       { to: "/watchlist", label: "Watchlist", icon: Star },
       { to: "/leagues", label: "Leagues", icon: Trophy },
+      { to: "/search", label: "Search", icon: Search },
     ],
   },
   {
@@ -91,6 +93,7 @@ export function AppShell({
           <div className="border-t border-border/60 px-4 py-4">
             {user ? (
               <div className="space-y-2">
+                <GoalAlerts />
                 <p className="truncate font-mono text-[11px] text-muted-foreground">{user.email}</p>
                 <Button variant="outline" size="sm" className="w-full" onClick={() => signOut()}>
                   <LogOut className="mr-2 h-3.5 w-3.5" />
