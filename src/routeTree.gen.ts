@@ -40,6 +40,7 @@ import { Route as ApiPublicHooksInternationalRouteImport } from './routes/api/pu
 import { Route as ApiPublicHooksKickoffRefreshRouteImport } from './routes/api/public/hooks/kickoff-refresh'
 import { Route as ApiPublicHooksLiveRefreshRouteImport } from './routes/api/public/hooks/live-refresh'
 import { Route as ApiPublicHooksMarketValuesRouteImport } from './routes/api/public/hooks/market-values'
+import { Route as ApiPublicHooksMatchContextRouteImport } from './routes/api/public/hooks/match-context'
 import { Route as ApiPublicHooksMatchPicksRouteImport } from './routes/api/public/hooks/match-picks'
 import { Route as ApiPublicHooksMatchStatsRouteImport } from './routes/api/public/hooks/match-stats'
 import { Route as ApiPublicHooksModelCompetitionRouteImport } from './routes/api/public/hooks/model-competition'
@@ -207,6 +208,12 @@ const ApiPublicHooksMarketValuesRoute =
     path: '/api/public/hooks/market-values',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksMatchContextRoute =
+  ApiPublicHooksMatchContextRouteImport.update({
+    id: '/api/public/hooks/match-context',
+    path: '/api/public/hooks/match-context',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksMatchPicksRoute =
   ApiPublicHooksMatchPicksRouteImport.update({
     id: '/api/public/hooks/match-picks',
@@ -276,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/market-values': typeof ApiPublicHooksMarketValuesRoute
+  '/api/public/hooks/match-context': typeof ApiPublicHooksMatchContextRoute
   '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
   '/api/public/hooks/model-competition': typeof ApiPublicHooksModelCompetitionRoute
@@ -315,6 +323,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/market-values': typeof ApiPublicHooksMarketValuesRoute
+  '/api/public/hooks/match-context': typeof ApiPublicHooksMatchContextRoute
   '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
   '/api/public/hooks/model-competition': typeof ApiPublicHooksModelCompetitionRoute
@@ -355,6 +364,7 @@ export interface FileRoutesById {
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/market-values': typeof ApiPublicHooksMarketValuesRoute
+  '/api/public/hooks/match-context': typeof ApiPublicHooksMatchContextRoute
   '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
   '/api/public/hooks/model-competition': typeof ApiPublicHooksModelCompetitionRoute
@@ -396,6 +406,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/market-values'
+    | '/api/public/hooks/match-context'
     | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
     | '/api/public/hooks/model-competition'
@@ -435,6 +446,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/market-values'
+    | '/api/public/hooks/match-context'
     | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
     | '/api/public/hooks/model-competition'
@@ -474,6 +486,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/market-values'
+    | '/api/public/hooks/match-context'
     | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
     | '/api/public/hooks/model-competition'
@@ -514,6 +527,7 @@ export interface RootRouteChildren {
   ApiPublicHooksKickoffRefreshRoute: typeof ApiPublicHooksKickoffRefreshRoute
   ApiPublicHooksLiveRefreshRoute: typeof ApiPublicHooksLiveRefreshRoute
   ApiPublicHooksMarketValuesRoute: typeof ApiPublicHooksMarketValuesRoute
+  ApiPublicHooksMatchContextRoute: typeof ApiPublicHooksMatchContextRoute
   ApiPublicHooksMatchPicksRoute: typeof ApiPublicHooksMatchPicksRoute
   ApiPublicHooksMatchStatsRoute: typeof ApiPublicHooksMatchStatsRoute
   ApiPublicHooksModelCompetitionRoute: typeof ApiPublicHooksModelCompetitionRoute
@@ -741,6 +755,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksMarketValuesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/match-context': {
+      id: '/api/public/hooks/match-context'
+      path: '/api/public/hooks/match-context'
+      fullPath: '/api/public/hooks/match-context'
+      preLoaderRoute: typeof ApiPublicHooksMatchContextRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/match-picks': {
       id: '/api/public/hooks/match-picks'
       path: '/api/public/hooks/match-picks'
@@ -818,6 +839,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksKickoffRefreshRoute: ApiPublicHooksKickoffRefreshRoute,
   ApiPublicHooksLiveRefreshRoute: ApiPublicHooksLiveRefreshRoute,
   ApiPublicHooksMarketValuesRoute: ApiPublicHooksMarketValuesRoute,
+  ApiPublicHooksMatchContextRoute: ApiPublicHooksMatchContextRoute,
   ApiPublicHooksMatchPicksRoute: ApiPublicHooksMatchPicksRoute,
   ApiPublicHooksMatchStatsRoute: ApiPublicHooksMatchStatsRoute,
   ApiPublicHooksModelCompetitionRoute: ApiPublicHooksModelCompetitionRoute,

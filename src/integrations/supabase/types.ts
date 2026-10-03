@@ -1183,6 +1183,59 @@ export type Database = {
           },
         ]
       }
+      match_context: {
+        Row: {
+          away_travel_km: number | null
+          city: string | null
+          country: string | null
+          fetched_at: string
+          lat: number | null
+          lon: number | null
+          match_id: string
+          precip_mm: number | null
+          temp_c: number | null
+          venue_name: string | null
+          weather_at: string | null
+          wind_kmh: number | null
+        }
+        Insert: {
+          away_travel_km?: number | null
+          city?: string | null
+          country?: string | null
+          fetched_at?: string
+          lat?: number | null
+          lon?: number | null
+          match_id: string
+          precip_mm?: number | null
+          temp_c?: number | null
+          venue_name?: string | null
+          weather_at?: string | null
+          wind_kmh?: number | null
+        }
+        Update: {
+          away_travel_km?: number | null
+          city?: string | null
+          country?: string | null
+          fetched_at?: string
+          lat?: number | null
+          lon?: number | null
+          match_id?: string
+          precip_mm?: number | null
+          temp_c?: number | null
+          venue_name?: string | null
+          weather_at?: string | null
+          wind_kmh?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_context_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: true
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_features: {
         Row: {
           away_attack: number | null

@@ -7,7 +7,7 @@
 - [ ] openfootball lower-league results
 - [x] Fixture congestion (games in 14 days)
 - [x] League-table strength (built from our own results)
-- [ ] Travel distance, weather — blocked: no stadium locations stored
+- [x] Stadium locations, kickoff weather (Open-Meteo), away travel distance — hourly
 - [x] Player importance weighting for absences
 - [x] Bivariate, zero-inflated and blended models in the competition
 - [ ] Understat xG history

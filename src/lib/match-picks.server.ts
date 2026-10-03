@@ -327,6 +327,9 @@ export async function computeMatchPicks() {
     return e && e.played >= 5 ? e : null;
   };
 
+  const { data: ctxRows } = await sb.from("match_context").select("match_id, temp_c, precip_mm, wind_kmh, away_travel_km, venue_name").in("match_id", ids);
+  const ctxBy = new Map((ctxRows ?? []).map((c) => [c.match_id, c]));
+
   const picks = [];
   const noBets = [];
   for (const r of rows) {
@@ -346,6 +349,10 @@ export async function computeMatchPicks() {
       sourceWeights,
       elo: eloBy.has(r.home_team_id) && eloBy.has(r.away_team_id) ? { home: eloBy.get(r.home_team_id)!, away: eloBy.get(r.away_team_id)!, neutral: false } : null,
       champion: cp ? { name: comp!.winner!, ...cp } : null,
+      context: (() => { const c = ctxBy.get(r.id); return c ? {
+        rainMm: c.precip_mm === null ? null : Number(c.precip_mm), windKmh: c.wind_kmh === null ? null : Number(c.wind_kmh),
+        tempC: c.temp_c === null ? null : Number(c.temp_c), awayTravelKm: c.away_travel_km === null ? null : Number(c.away_travel_km),
+      } : null; })(),
       ...setPieceInputs(r.home_team_id, r.away_team_id, r.id),
     });
     const base = { matchId: r.id, fixture: `${homeName} vs ${awayName}`, league: r.league?.name ?? null, kickoffAt: r.kickoff_at };
