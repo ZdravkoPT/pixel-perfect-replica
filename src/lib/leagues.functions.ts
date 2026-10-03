@@ -194,11 +194,17 @@ export const simulateSeason = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const sb = publicClient();
     const { data: season } = await sb.from("seasons").select("id").eq("league_id", data.leagueId).eq("is_current", true).maybeSingle();
-    if (!season) return { rows: [] as SimRow[], remaining: 0, runs: 0 };
-    const { data: ms } = await sb.from("matches")
+    let q = sb.from("matches")
       .select("home_team_id, away_team_id, home_score, away_score, stage, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)")
-      .eq("season_id", season.id).eq("status", "FINISHED").not("home_score", "is", null).limit(1000);
-    const games = (ms ?? []).filter((m) => !m.stage || /REGULAR|LEAGUE/i.test(m.stage));
+      .eq("league_id", data.leagueId).eq("status", "FINISHED").not("home_score", "is", null).limit(1000);
+    q = season ? q.eq("season_id", season.id) : q.gte("kickoff_at", new Date(Date.now() - 300 * 86400_000).toISOString());
+    const { data: ms } = await q;
+    let games = (ms ?? []).filter((m) => !m.stage || /REGULAR|LEAGUE/i.test(m.stage));
+    // drop clubs with very few games (left over from another season / promotion mix-ups)
+    const cnt = new Map<string, number>();
+    for (const g of games) for (const t of [g.home_team_id, g.away_team_id]) cnt.set(t, (cnt.get(t) ?? 0) + 1);
+    const med = [...cnt.values()].sort((a, b) => a - b)[Math.floor(cnt.size / 2)] ?? 0;
+    games = games.filter((g) => (cnt.get(g.home_team_id) ?? 0) >= med / 2 && (cnt.get(g.away_team_id) ?? 0) >= med / 2);
     const T = new Map<string, { name: string; pts: number; gf: number; ga: number; hgf: number; hga: number; agf: number; aga: number; hp: number; ap: number }>();
     const get = (id: string, n: string | undefined) => {
       let t = T.get(id); if (!t) { t = { name: n ?? "?", pts: 0, gf: 0, ga: 0, hgf: 0, hga: 0, agf: 0, aga: 0, hp: 0, ap: 0 }; T.set(id, t); } return t;
