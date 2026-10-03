@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
-import { getLeagueDetail, type Leader } from "@/lib/leagues.functions";
+import { getLeagueDetail, simulateSeason, type Leader } from "@/lib/leagues.functions";
 
 const leagueQuery = (leagueId: string) =>
   queryOptions({ queryKey: ["league", leagueId], queryFn: () => getLeagueDetail({ data: { leagueId } }) });
@@ -80,6 +80,7 @@ function LeaguePage() {
             </table>
           )}
         </div>
+        {data.standings.length > 0 && <SeasonSim leagueId={leagueId} />}
         <div className="grid gap-4 md:grid-cols-3">
           <LeaderList title="Top scorers" rows={data.scorers} unit="G" />
           <LeaderList title="Top assists" rows={data.assists} unit="A" />
@@ -123,5 +124,36 @@ function LeaguePage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function SeasonSim({ leagueId }: { leagueId: string }) {
+  const { data, isLoading } = useQuery({ queryKey: ["season-sim", leagueId], queryFn: () => simulateSeason({ data: { leagueId } }), staleTime: 30 * 60_000 });
+  const pct = (x: number) => (x === 0 ? "–" : x < 0.005 ? "<1%" : `${Math.round(x * 100)}%`);
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Season simulator</p>
+      {isLoading ? <p className="mt-3 text-xs text-muted-foreground">Simulating the rest of the season…</p>
+        : !data?.rows.length ? <p className="mt-3 text-xs text-muted-foreground">Not enough games played this season to simulate yet.</p> : (
+        <>
+          <p className="mt-1 text-xs text-muted-foreground">The {data.remaining} remaining games played {data.runs.toLocaleString()} times, using each club's long-run strength from past seasons, updated with this season's goals.</p>
+          <table className="mt-3 w-full text-sm">
+            <thead className="text-xs text-muted-foreground"><tr><th className="text-left font-normal">Team</th><th className="text-right font-normal">Pts now</th><th className="text-right font-normal">Final pts</th><th className="text-right font-normal">Title</th><th className="text-right font-normal">Top 4</th><th className="text-right font-normal">Relegation</th></tr></thead>
+            <tbody>
+              {data.rows.map((r) => (
+                <tr key={r.teamId} className="border-t border-border/50">
+                  <td className="py-1.5"><Link to="/teams/$teamId" params={{ teamId: r.teamId }} className="hover:underline">{r.name}</Link></td>
+                  <td className="text-right tabular-nums">{r.pts}</td>
+                  <td className="text-right tabular-nums">{r.expPts.toFixed(0)}</td>
+                  <td className="text-right tabular-nums text-primary">{pct(r.title)}</td>
+                  <td className="text-right tabular-nums">{pct(r.top4)}</td>
+                  <td className="text-right tabular-nums text-destructive">{pct(r.relegation)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
   );
 }

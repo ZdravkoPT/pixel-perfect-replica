@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
+import { PrematchChecklist } from "@/components/PrematchChecklist";
+import { LiveWinChance } from "@/components/LiveWinChance";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -142,6 +144,9 @@ function MatchDetail() {
         )}
         <RefereeLink matchId={String(match["id"])} />
       </div>
+      {!finished && !inPlay && <PrematchChecklist matchId={String(match["id"])} />}
+      {inPlay && <LiveWinChance matchId={String(match["id"])} homeName={homeName} awayName={awayName}
+        homeScore={match.home_score ?? 0} awayScore={match.away_score ?? 0} minute={typeof match["minute"] === "number" ? match["minute"] as number : null} />}
       <Tabs defaultValue="Overview">
         <TabsList className="flex h-auto flex-wrap justify-start">
           {TABS.map((tab) => (

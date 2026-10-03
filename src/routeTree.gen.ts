@@ -19,6 +19,7 @@ import { Route as FixturesRouteImport } from './routes/fixtures'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as ProvidersRouteImport } from './routes/providers'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as TrackRecordRouteImport } from './routes/track-record'
 import { Route as ValueRouteImport } from './routes/value'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as CoachesIndexRouteImport } from './routes/coaches.index'
@@ -103,6 +104,11 @@ const ProvidersRoute = ProvidersRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackRecordRoute = TrackRecordRouteImport.update({
+  id: '/track-record',
+  path: '/track-record',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ValueRoute = ValueRouteImport.update({
@@ -304,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/live': typeof LiveRoute
   '/providers': typeof ProvidersRoute
   '/search': typeof SearchRoute
+  '/track-record': typeof TrackRecordRoute
   '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
@@ -351,6 +358,7 @@ export interface FileRoutesByTo {
   '/live': typeof LiveRoute
   '/providers': typeof ProvidersRoute
   '/search': typeof SearchRoute
+  '/track-record': typeof TrackRecordRoute
   '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
@@ -399,6 +407,7 @@ export interface FileRoutesById {
   '/live': typeof LiveRoute
   '/providers': typeof ProvidersRoute
   '/search': typeof SearchRoute
+  '/track-record': typeof TrackRecordRoute
   '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
   '/coaches/$coachId': typeof CoachesCoachIdRoute
@@ -448,6 +457,7 @@ export interface FileRouteTypes {
     | '/live'
     | '/providers'
     | '/search'
+    | '/track-record'
     | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
@@ -495,6 +505,7 @@ export interface FileRouteTypes {
     | '/live'
     | '/providers'
     | '/search'
+    | '/track-record'
     | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
@@ -542,6 +553,7 @@ export interface FileRouteTypes {
     | '/live'
     | '/providers'
     | '/search'
+    | '/track-record'
     | '/value'
     | '/watchlist'
     | '/coaches/$coachId'
@@ -590,6 +602,7 @@ export interface RootRouteChildren {
   LiveRoute: typeof LiveRoute
   ProvidersRoute: typeof ProvidersRoute
   SearchRoute: typeof SearchRoute
+  TrackRecordRoute: typeof TrackRecordRoute
   ValueRoute: typeof ValueRoute
   WatchlistRoute: typeof WatchlistRoute
   CoachesCoachIdRoute: typeof CoachesCoachIdRoute
@@ -697,6 +710,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/track-record': {
+      id: '/track-record'
+      path: '/track-record'
+      fullPath: '/track-record'
+      preLoaderRoute: typeof TrackRecordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/value': {
@@ -958,6 +978,7 @@ const rootRouteChildren: RootRouteChildren = {
   LiveRoute: LiveRoute,
   ProvidersRoute: ProvidersRoute,
   SearchRoute: SearchRoute,
+  TrackRecordRoute: TrackRecordRoute,
   ValueRoute: ValueRoute,
   WatchlistRoute: WatchlistRoute,
   CoachesCoachIdRoute: CoachesCoachIdRoute,
