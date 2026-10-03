@@ -84,9 +84,7 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
         baseline: { home: L.hw / L.n, draw: L.d / L.n, away: L.aw / L.n, o25: 0.5, btts: 0.5 },
         poisson: goalProbs(clamp(eh.gf / all * ea.ga / all * lh, 0.2, 4.5), clamp(ea.gf / all * eh.ga / all * la, 0.2, 4.5)),
         dixon_coles: (() => {
-          const decay = (s: Dc) => Math.exp(-XI * (t - s.last) / 86400e3);
           const hgf = dh.gf / dh.w, hga = dh.ga / dh.w, agf = da.gf / da.w, aga = da.ga / da.w;
-          void decay;
           return goalProbs(clamp(hgf / all * aga / all * lh, 0.2, 4.5), clamp(agf / all * hga / all * la, 0.2, 4.5), -0.1);
         })(),
         elo: eloProbs(rh, ra, L.d / L.n),
