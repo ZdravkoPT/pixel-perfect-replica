@@ -116,6 +116,7 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
   const { data: done } = await supabaseAdmin
     .from("team_match_stats")
     .select("match_id")
+    .eq("payload->>players", "true")
     .gte("created_at", new Date(Date.now() - 400 * 86400_000).toISOString())
     .limit(20000);
   const have = new Set((done ?? []).map((r) => r.match_id));
@@ -133,6 +134,7 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
   let missing = 0;
   const deadline = Date.now() + (opts.budgetMs ?? 75_000);
   let skipped = 0;
+  let playersSaved = 0;
   for (const m of todo) {
     if (Date.now() > deadline) { skipped++; continue; }
     try {
@@ -165,18 +167,55 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
       }
       await supabaseAdmin.from("team_match_stats").upsert(
         [
-          { match_id: m.id, team_id: m.home_team_id, is_home: true, ...box.home, payload: { source: "fotmob" } },
-          { match_id: m.id, team_id: m.away_team_id, is_home: false, ...box.away, payload: { source: "fotmob" } },
+          { match_id: m.id, team_id: m.home_team_id, is_home: true, ...box.home, payload: { source: "fotmob", players: true } },
+          { match_id: m.id, team_id: m.away_team_id, is_home: false, ...box.away, payload: { source: "fotmob", players: true } },
         ],
         { onConflict: "match_id,team_id" },
       );
       const xg = res.ok ? parseXg(res.data) : null;
       if (xg) await saveXg(supabaseAdmin, m, xg);
+      if (res.ok) playersSaved += await savePlayerStats(supabaseAdmin, m, res.data);
       imported += 1;
       await new Promise((r) => setTimeout(r, 120));
     } catch {
       missing += 1;
     }
   }
-  return { candidates: todo.length, imported, missing, skipped, triggeredBy: opts.triggeredBy ?? "manual" };
+  return { candidates: todo.length, imported, missing, skipped, playersSaved, triggeredBy: opts.triggeredBy ?? "manual" };
+}
+
+/** Per-player match lines from FotMob, linked only to players we already know by FotMob id. */
+async function savePlayerStats(
+  db: any,
+  m: { id: string; home_team_id: string; away_team_id: string },
+  facts: import("./providers/fotmob.server").MatchFacts,
+): Promise<number> {
+  const rows = (facts.playerRatings ?? []).filter((p) => p.playerId);
+  if (!rows.length) return 0;
+  const { data: known } = await db
+    .from("players").select("id, provider_ids")
+    .in("provider_ids->>fotmob", rows.map((r) => r.playerId));
+  const byFm = new Map<string, string>();
+  for (const k of known ?? []) byFm.set(String((k.provider_ids ?? {}).fotmob), k.id);
+  const cards = new Map<string, { y: number; r: number }>();
+  for (const e of facts.events ?? []) {
+    if (!/card/i.test(e.type) || !e.player) continue;
+    const c = cards.get(e.player) ?? { y: 0, r: 0 };
+    if (/red/i.test(e.detail ?? "")) c.r++; else c.y++;
+    cards.set(e.player, c);
+  }
+  const out = rows.flatMap((p) => {
+    const pid = byFm.get(String(p.playerId));
+    if (!pid) return [];
+    const c = cards.get(p.name) ?? { y: 0, r: 0 };
+    return [{
+      match_id: m.id, player_id: pid, team_id: p.side === "home" ? m.home_team_id : m.away_team_id,
+      minutes: p.minutes ?? 0, goals: p.goals ?? 0, assists: p.assists ?? 0,
+      yellow_cards: Math.min(c.y, 2), red_cards: Math.min(c.r, 1), rating: p.rating,
+      payload: { source: "fotmob", xg: p.xg },
+    }];
+  });
+  if (!out.length) return 0;
+  await db.from("player_match_stats").upsert(out, { onConflict: "match_id,player_id" });
+  return out.length;
 }

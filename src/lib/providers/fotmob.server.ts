@@ -540,6 +540,7 @@ export class FotmobProvider {
       };
       playerRatings.push({
         side: sideOf(p.teamId),
+        playerId: p.id != null ? String(p.id) : null,
         name: String(p.name ?? ""),
         shirt: p.shirtNumber ? String(p.shirtNumber) : null,
         rating,
@@ -897,6 +898,7 @@ export interface MatchFacts {
   momentum?: Array<{ minute: number; value: number }>;
   playerRatings?: Array<{
     side: "home" | "away";
+    playerId?: string | null;
     name: string;
     shirt: string | null;
     rating: number;
