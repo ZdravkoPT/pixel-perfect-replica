@@ -22,6 +22,8 @@ export interface TeamForm {
 
 export interface TeamExtras {
   shotsOnTarget: number | null; // avg per game, real box scores
+  xgFor?: number | null; // avg real xG created per game (last 10 with data)
+  xgAgainst?: number | null;
   corners: number | null;
   injuries: number; // current injured/suspended
   avgSharpness: number | null; // 0-1 of expected starters
@@ -112,6 +114,10 @@ export function scoreMatch(input: PickInput): PickResult {
     if (team.restDays !== null && opp.restDays !== null) m *= 1 + clamp(team.restDays - opp.restDays, -4, 4) * 0.008;
     if (team.shotsOnTarget !== null && opp.shotsOnTarget !== null) {
       m *= 1 + clamp((team.shotsOnTarget - opp.shotsOnTarget) / 10, -0.08, 0.08);
+    }
+    if (team.xgFor != null && opp.xgAgainst != null) {
+      // attack quality vs this opponent's chances conceded, centred on ~1.35 xG
+      m *= 1 + clamp((team.xgFor + opp.xgAgainst) / 2 / 1.35 - 1, -0.12, 0.12) * 0.6;
     }
     if (team.coachWinRate !== null && opp.coachWinRate !== null) {
       m *= 1 + clamp(team.coachWinRate - opp.coachWinRate, -0.2, 0.2) * 0.15;
@@ -258,6 +264,9 @@ export function scoreMatch(input: PickInput): PickResult {
   if (home.injuries || away.injuries) reasons.push(`Unavailable players: ${input.homeName} ${home.injuries}, ${input.awayName} ${away.injuries}.`);
   if (home.coachWinRate !== null && away.coachWinRate !== null && Math.abs(home.coachWinRate - away.coachWinRate) >= 0.08) {
     reasons.push(`Managers' career win rate: ${home.coachName ?? "home"} ${pct(home.coachWinRate)} vs ${away.coachName ?? "away"} ${pct(away.coachWinRate)}.`);
+  }
+  if (home.xgFor != null && away.xgFor != null && home.xgAgainst != null && away.xgAgainst != null) {
+    reasons.push(`xG per game (for/against): ${input.homeName} ${home.xgFor.toFixed(2)}/${home.xgAgainst.toFixed(2)}, ${input.awayName} ${away.xgFor.toFixed(2)}/${away.xgAgainst.toFixed(2)}.`);
   }
   if (home.shotsOnTarget !== null && away.shotsOnTarget !== null) {
     reasons.push(`Shots on target per game: ${home.shotsOnTarget.toFixed(1)} vs ${away.shotsOnTarget.toFixed(1)}.`);
