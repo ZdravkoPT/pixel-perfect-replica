@@ -133,3 +133,27 @@ export const getLeagueDetail = createServerFn({ method: "GET" })
       scorers: top("goals"), assists: top("assists"), cards: top("cards"), totw, totwWeek, statMatches: new Set(stats.map((s) => s.match_id)).size,
     };
   });
+
+export type Absence = { playerId: string; name: string; reason: string; expectedReturn: string | null; kind: "injury" | "suspension" };
+
+export const getTeamAbsences = createServerFn({ method: "GET" })
+  .inputValidator((input: { teamId: string }) => input)
+  .handler(async ({ data }): Promise<Absence[]> => {
+    const supabase = publicClient();
+    const [{ data: inj }, { data: last }] = await Promise.all([
+      supabase.from("injuries").select("player_id, reason, expected_return, player:players(name)")
+        .eq("team_id", data.teamId).is("resolved_at", null).order("expected_return", { ascending: true, nullsFirst: false }),
+      supabase.from("matches").select("id").or(`home_team_id.eq.${data.teamId},away_team_id.eq.${data.teamId}`)
+        .eq("status", "FINISHED").order("kickoff_at", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    const out: Absence[] = (inj ?? []).map((r) => ({
+      playerId: r.player_id, name: (r.player as { name: string } | null)?.name ?? "?",
+      reason: r.reason ?? "Injured", expectedReturn: r.expected_return, kind: "injury",
+    }));
+    if (last) {
+      const { data: reds } = await supabase.from("player_match_stats").select("player_id, player:players(name)")
+        .eq("match_id", last.id).eq("team_id", data.teamId).gt("red_cards", 0);
+      for (const r of reds ?? []) out.push({ playerId: r.player_id, name: (r.player as { name: string } | null)?.name ?? "?", reason: "Red card in last match — likely suspended", expectedReturn: null, kind: "suspension" });
+    }
+    return out;
+  });
