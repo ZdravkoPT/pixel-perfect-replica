@@ -13,7 +13,9 @@ export const Route = createFileRoute("/api/public/hooks/match-stats")({
         const { ingestMatchStats, backfillXg } = await import("@/lib/match-stats.server");
         const stats = await ingestMatchStats({ limit, triggeredBy: "cron", budgetMs: 70_000 });
         const xg = await backfillXg({ limit, budgetMs: 25_000 });
-        return Response.json({ ...stats, xg });
+        const { syncInjuries } = await import("@/lib/injuries.server");
+        const injuries = await syncInjuries().catch((e) => ({ error: String(e) }));
+        return Response.json({ ...stats, xg, injuries });
       },
     },
   },
