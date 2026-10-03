@@ -1,6 +1,6 @@
 # Roadmap (product review #4)
 
-- [ ] Follow lower leagues' fixtures so their clubs get picks
+- [x] Follow lower leagues' fixtures so their clubs get picks
 - [x] Pick track record page + weak-market warnings that raise the bar
 - [x] Motivation & rotation signal (title race, relegation, nothing to play for, cup within 3 days)
 - [x] Season simulator on league pages (title / top-4 / relegation chances)
