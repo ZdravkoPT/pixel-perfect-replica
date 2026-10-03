@@ -1,11 +1,10 @@
-# Roadmap (product review #4)
+# Roadmap (product review #5)
 
-- [x] Follow lower leagues' fixtures so their clubs get picks
-- [x] Pick track record page + weak-market warnings that raise the bar
-- [x] Motivation & rotation signal (title race, relegation, nothing to play for, cup within 3 days)
-- [x] Season simulator on league pages (title / top-4 / relegation chances)
-- [x] Before-kickoff checklist on match page
-- [x] Live win chance during matches
-- [ ] Player form scores + team style profiles
-- [ ] Followed teams digest + share card for a pick
+- [ ] Health fix: find why pick grading stalled + job health page
+- [ ] Player form score (0-100)
+- [ ] Team style profiles
+- [ ] Pick explainer card + share image
+- [ ] Followed teams digest ("My day")
+- [ ] Personal bet tracker
 - [ ] Openfootball extra leagues + ClubElo history file
+- [ ] Polish: cache leaderboard, merge duplicate players, mobile check
