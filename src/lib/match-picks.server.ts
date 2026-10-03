@@ -326,8 +326,13 @@ export async function computeMatchPicks() {
     for (const [sid, t] of agg) {
       if (t.size < 8) continue; // cups / tiny samples: no table
       const sorted = [...t.entries()].sort((a, b) => b[1].pts - a[1].pts || b[1].gd - a[1].gd);
-      const m = new Map<string, { pos: number; pts: number; played: number; size: number }>();
-      sorted.forEach(([id, e], i) => m.set(id, { pos: i + 1, pts: e.pts, played: e.played, size: sorted.length }));
+      const m = new Map<string, NonNullable<TeamExtras["table"]>>();
+      const ptsAt = (pos: number) => sorted[Math.min(sorted.length, Math.max(1, pos)) - 1]![1].pts;
+      const n = sorted.length;
+      sorted.forEach(([id, e], i) => m.set(id, {
+        pos: i + 1, pts: e.pts, played: e.played, size: n,
+        leaderPts: ptsAt(1), fourthPts: ptsAt(4), dropPts: ptsAt(n - 2), safePts: ptsAt(n - 3),
+      }));
       tableBy.set(sid, m);
     }
   }
@@ -338,6 +343,12 @@ export async function computeMatchPicks() {
 
   const { data: ctxRows } = await sb.from("match_context").select("match_id, temp_c, precip_mm, wind_kmh, away_travel_km, venue_name").in("match_id", ids);
   const ctxBy = new Map((ctxRows ?? []).map((c) => [c.match_id, c]));
+
+  // another competition's game within 3 days after kickoff -> likely rotation
+  const cupSoon = (r: (typeof rows)[number], tid: string) => rows.some((o) => o.id !== r.id && o.league_id !== r.league_id
+    && (o.home_team_id === tid || o.away_team_id === tid)
+    && new Date(o.kickoff_at).getTime() > new Date(r.kickoff_at).getTime()
+    && new Date(o.kickoff_at).getTime() - new Date(r.kickoff_at).getTime() <= 3 * 86400e3);
 
   const picks = [];
   const noBets = [];
@@ -352,7 +363,8 @@ export async function computeMatchPicks() {
       lambdaHome: lam?.lh ?? null, lambdaAway: lam?.la ?? null,
       lineupStatus: lineupStatus.get(r.id) ?? "none",
       homeForm: formOf(r.home_team_id), awayForm: formOf(r.away_team_id),
-      home: { ...extras(r.home_team_id, r.kickoff_at), table: tableOf(r.season_id, r.home_team_id) }, away: { ...extras(r.away_team_id, r.kickoff_at), table: tableOf(r.season_id, r.away_team_id) },
+      home: { ...extras(r.home_team_id, r.kickoff_at), table: tableOf(r.season_id, r.home_team_id), cupSoon: cupSoon(r, r.home_team_id) },
+      away: { ...extras(r.away_team_id, r.kickoff_at), table: tableOf(r.season_id, r.away_team_id), cupSoon: cupSoon(r, r.away_team_id) },
       h2h: h2hOf(r.home_team_id, r.away_team_id),
       calibration,
       sourceWeights,

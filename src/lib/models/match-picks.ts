@@ -39,7 +39,23 @@ export interface TeamExtras {
   /** competitive games played in the 14 days before kickoff */
   games14?: number | null;
   /** current league position from this season's finished games (null when no table) */
-  table?: { pos: number; pts: number; played: number; size: number } | null;
+  table?: { pos: number; pts: number; played: number; size: number; leaderPts?: number; fourthPts?: number; dropPts?: number; safePts?: number } | null;
+  /** plays another competition within 3 days after this game */
+  cupSoon?: boolean;
+}
+
+export type Motivation = "title" | "europe" | "relegation" | "nothing" | null;
+/** What a team is playing for, from this season's table (late season only). */
+export function motivationOf(t: TeamExtras["table"]): Motivation {
+  if (!t || t.leaderPts == null || t.fourthPts == null || t.dropPts == null || t.safePts == null) return null;
+  const left = Math.max(0, 2 * (t.size - 1) - t.played);
+  if (left > 12 || left === 0) return null;
+  const reach = 3 * left;
+  if (t.pos <= 3 && t.leaderPts - t.pts <= Math.min(reach, 6)) return "title";
+  if (t.pos >= t.size - 4 && t.pts - t.dropPts <= 6 && t.safePts + reach >= t.pts) return "relegation";
+  if (t.pos >= 3 && t.pos <= 7 && Math.abs(t.fourthPts - t.pts) <= 4) return "europe";
+  if (t.pts + reach < t.fourthPts && t.pts - t.dropPts > reach) return "nothing";
+  return null;
 }
 
 export interface H2H {
@@ -133,6 +149,9 @@ export function scoreMatch(input: PickInput): PickResult {
       m *= 1 - clamp(team.injuries, 0, 6) * 0.025; // missing players (count only)
     }
     if (team.games14 != null && team.games14 >= 4) m *= 0.97; // fixture congestion
+    const mot = motivationOf(team.table), oppMot = motivationOf(opp.table);
+    if (mot === "nothing" && oppMot && oppMot !== "nothing") m *= 0.97; // opponent has more at stake
+    if (team.cupSoon) m *= 0.98; // likely rotation
     if (team.table && opp.table && team.table.size === opp.table.size) {
       // table gap (points per game), small bounded nudge
       const gap = team.table.pts / team.table.played - opp.table.pts / opp.table.played;
@@ -336,6 +355,14 @@ export function scoreMatch(input: PickInput): PickResult {
   if (home.table && away.table && Math.abs(home.table.pos - away.table.pos) >= 5) {
     const ord = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;
     reasons.push(`League table: ${input.homeName} ${ord(home.table.pos)} (${home.table.pts} pts) vs ${input.awayName} ${ord(away.table.pos)} (${away.table.pts} pts).`);
+  }
+  {
+    const label: Record<string, string> = { title: "title race", europe: "fight for the top 4", relegation: "relegation fight", nothing: "nothing left to play for" };
+    const parts = [[input.homeName, motivationOf(home.table)], [input.awayName, motivationOf(away.table)]]
+      .filter(([, m]) => m).map(([n, m]) => `${n}: ${label[m as string]}`);
+    if (parts.length) reasons.push(`What's at stake: ${parts.join("; ")}.`);
+    const cup = [home.cupSoon && input.homeName, away.cupSoon && input.awayName].filter(Boolean);
+    if (cup.length) reasons.push(`Another competition within 3 days (possible rotation): ${cup.join(", ")}.`);
   }
   if (home.coachWinRate !== null && away.coachWinRate !== null && Math.abs(home.coachWinRate - away.coachWinRate) >= 0.08) {
     reasons.push(`Managers' career win rate: ${home.coachName ?? "home"} ${pct(home.coachWinRate)} vs ${away.coachName ?? "away"} ${pct(away.coachWinRate)}.`);
