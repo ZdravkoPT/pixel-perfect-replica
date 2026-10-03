@@ -32,6 +32,12 @@ export interface TeamExtras {
   restDays: number | null;
   coachWinRate: number | null; // 0-1 career
   coachName: string | null;
+  /** share of the team's minutes held by currently unavailable players (0 = none); null when unknown */
+  missingShare?: number | null;
+  /** names of unavailable regulars (minutes share >= 50%) */
+  keyAbsent?: string[];
+  /** competitive games played in the 14 days before kickoff */
+  games14?: number | null;
 }
 
 export interface H2H {
@@ -114,7 +120,13 @@ export function scoreMatch(input: PickInput): PickResult {
   let la = input.lambdaAway;
   const adj = (team: TeamExtras, opp: TeamExtras) => {
     let m = 1;
-    m *= 1 - clamp(team.injuries, 0, 6) * 0.025; // missing players
+    if (team.missingShare != null) {
+      // weight each absence by how much that player actually plays (11 regulars = 11.0 share)
+      m *= 1 - clamp(team.missingShare, 0, 4) * 0.035;
+    } else {
+      m *= 1 - clamp(team.injuries, 0, 6) * 0.025; // missing players (count only)
+    }
+    if (team.games14 != null && team.games14 >= 4) m *= 0.97; // fixture congestion
     if (team.avgSharpness !== null) m *= 0.95 + team.avgSharpness * 0.1;
     if (team.avgLoad !== null && team.avgLoad > 0.8) m *= 0.97;
     if (team.restDays !== null && opp.restDays !== null) m *= 1 + clamp(team.restDays - opp.restDays, -4, 4) * 0.008;
@@ -296,6 +308,9 @@ export function scoreMatch(input: PickInput): PickResult {
   if (pick.code.startsWith("cards") && input.cards) reasons.push(`Expected cards ${input.cards.expected.toFixed(1)}${input.cards.refereeAvg !== null ? `, referee averages ${input.cards.refereeAvg.toFixed(1)}` : ""}; over 4.5 in ${pct(input.cards.overShare)} of recent games.`);
   if (hOk && h2h) reasons.push(`Head-to-head (last ${h2h.matches}): ${h2h.homeWins}W ${h2h.draws}D ${h2h.awayWins}L for ${input.homeName}, over 2.5 in ${pct(h2h.over25)}.`);
   if (home.injuries || away.injuries) reasons.push(`Unavailable players: ${input.homeName} ${home.injuries}, ${input.awayName} ${away.injuries}.`);
+  const keys = [...(home.keyAbsent ?? []).map((n) => `${n} (${input.homeName})`), ...(away.keyAbsent ?? []).map((n) => `${n} (${input.awayName})`)];
+  if (keys.length) reasons.push(`Key regulars missing: ${keys.slice(0, 4).join(", ")}.`);
+  if ((home.games14 ?? 0) >= 4 || (away.games14 ?? 0) >= 4) reasons.push(`Games in last 14 days: ${input.homeName} ${home.games14 ?? "?"}, ${input.awayName} ${away.games14 ?? "?"}.`);
   if (home.coachWinRate !== null && away.coachWinRate !== null && Math.abs(home.coachWinRate - away.coachWinRate) >= 0.08) {
     reasons.push(`Managers' career win rate: ${home.coachName ?? "home"} ${pct(home.coachWinRate)} vs ${away.coachName ?? "away"} ${pct(away.coachWinRate)}.`);
   }
