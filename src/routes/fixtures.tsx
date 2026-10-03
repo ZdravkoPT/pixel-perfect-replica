@@ -35,7 +35,7 @@ export const Route = createFileRoute("/fixtures")({
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(fixturesQuery),
-  errorComponent: ({ error }) => <AppShell title="Fixtures"><p className="text-sm text-destructive">{error.message}</p></AppShell>,
+  errorComponent: ({ error }) => <AppShell title="Fixtures"><p className="text-sm text-destructive">{(error as Error).message}</p></AppShell>,
   notFoundComponent: () => <AppShell title="Fixtures"><p className="text-sm">Not found.</p></AppShell>,
   component: FixturesPage,
 });
