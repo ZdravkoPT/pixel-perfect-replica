@@ -67,6 +67,8 @@ export async function trainShotModel() {
   await db.from("model_versions").update({ is_active: false }).eq("kind", "shot_xg");
   await db.from("model_versions").insert({ name: "Own shot xG (logistic)", kind: "shot_xg", version: (prev?.version ?? 0) + 1, params: model as never, metrics: metrics as never, training_samples: train.length, is_active: true });
   // rescore every stored shot with the new model
-  for (const r of rows) await db.from("match_shots").update({ model_xg: scoreShot(model, r) }).eq("id", r.id);
+  for (let i = 0; i < rows.length; i += 50) {
+    await Promise.all(rows.slice(i, i + 50).map((r) => db.from("match_shots").update({ model_xg: scoreShot(model, r) }).eq("id", r.id)));
+  }
   return { ok: true, ...metrics };
 }
