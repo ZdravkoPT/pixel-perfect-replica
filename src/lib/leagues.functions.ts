@@ -44,7 +44,7 @@ export const getLeagueDetail = createServerFn({ method: "GET" })
     if (!league) return { league: null };
 
     const { data: season } = await supabase
-      .from("seasons").select("id, year_label").eq("league_id", league.id).eq("is_current", true).maybeSingle();
+      .from("seasons").select("id, year_label").eq("league_id", league.id).eq("is_current", true).order("year_label", { ascending: false }).limit(1).maybeSingle();
 
     let mq = supabase
       .from("matches")
@@ -193,7 +193,7 @@ export const simulateSeason = createServerFn({ method: "GET" })
   .inputValidator((input: { leagueId: string }) => input)
   .handler(async ({ data }) => {
     const sb = publicClient();
-    const { data: season } = await sb.from("seasons").select("id").eq("league_id", data.leagueId).eq("is_current", true).maybeSingle();
+    const { data: season } = await sb.from("seasons").select("id").eq("league_id", data.leagueId).eq("is_current", true).order("year_label", { ascending: false }).limit(1).maybeSingle();
     let q = sb.from("matches")
       .select("home_team_id, away_team_id, home_score, away_score, stage, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)")
       .eq("league_id", data.leagueId).eq("status", "FINISHED").not("home_score", "is", null).limit(1000);
@@ -219,7 +219,7 @@ export const simulateSeason = createServerFn({ method: "GET" })
       played.add(`${m.home_team_id}|${m.away_team_id}`); hg += x; ag += y;
     }
     const n = T.size;
-    if (n < 8 || games.length < 5 * n / 2) return { rows: [] as SimRow[], remaining: 0, runs: 0 };
+    if (n < 8 || games.length < 1.5 * n) return { rows: [] as SimRow[], remaining: 0, runs: 0 };
     const lh = hg / games.length, la = ag / games.length, avg = (lh + la) / 2;
     const K = 6; // shrink strengths toward average until a team has ~6 games
     const str = new Map([...T].map(([id, t]) => {
