@@ -71,6 +71,8 @@ export interface PickInput {
   calibration: Record<string, number>;
   /** weight multiplier per source (model/form/h2h/elo/champion), learned from settled picks */
   sourceWeights?: Record<string, number>;
+  /** market codes whose recent settled picks hit under 60%: they need ≥0.70 to be picked */
+  weakMarkets?: string[];
   /** kickoff weather forecast + away travel (null when unknown) */
   context?: { rainMm: number | null; windKmh: number | null; tempC: number | null; awayTravelKm: number | null } | null;
 }
@@ -286,7 +288,7 @@ export function scoreMatch(input: PickInput): PickResult {
     return (s.probability - b) / (1 - b);
   };
   const eligible = scores
-    .filter((s) => s.agree === s.signals && s.signals >= 2 && s.probability >= 0.62 && lift(s) >= 0.15)
+    .filter((s) => s.agree === s.signals && s.signals >= 2 && s.probability >= (input.weakMarkets?.includes(s.code) ? 0.7 : 0.62) && lift(s) >= 0.15)
     .sort((a, b) => lift(b) * (1 + 0.04 * b.signals) - lift(a) * (1 + 0.04 * a.signals));
   const pick = eligible[0] ?? null;
 

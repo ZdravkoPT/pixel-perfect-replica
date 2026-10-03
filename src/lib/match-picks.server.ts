@@ -38,7 +38,7 @@ export async function computeMatchPicks() {
     sb.from("injuries").select("team_id, player_id, player:players(name)").in("team_id", teamIds).is("resolved_at", null),
     sb.from("player_conditions").select("player_id, team_id, sharpness, load_index, minutes_share").in("team_id", teamIds),
     sb.from("coach_spells").select("team_id, coach_id, coach:coaches(name)").in("team_id", teamIds).eq("is_current", true),
-    sb.from("ai_bet_log").select("pick_code, probability, result, slip_type, signals").in("result", ["hit", "miss"])
+    sb.from("ai_bet_log").select("pick_code, probability, result, slip_type, signals, kickoff_at").in("result", ["hit", "miss"])
       .gte("kickoff_at", new Date(now.getTime() - 70 * 86400e3).toISOString()).limit(5000),
   ]);
 
@@ -269,6 +269,15 @@ export async function computeMatchPicks() {
     .map(([code, e]) => ({ code, picks: e.n, hitRate: e.hit / e.n, expected: e.exp / e.n }))
     .sort((a, b) => b.picks - a.picks);
 
+  // ---- weak markets: last 30 settled picks of a market hit under 60% -> that market needs a higher bar ----
+  const byCode = new Map<string, boolean[]>();
+  for (const s of [...(settled.data ?? [])].sort((a, b) => String(b.kickoff_at).localeCompare(String(a.kickoff_at)))) {
+    const arr = byCode.get(s.pick_code) ?? [];
+    if (arr.length < 30) arr.push(s.result === "hit");
+    byCode.set(s.pick_code, arr);
+  }
+  const weakMarkets = [...byCode.entries()].filter(([, a]) => a.length >= 20 && a.filter(Boolean).length / a.length < 0.6).map(([c]) => c);
+
   // ---- per-source report: how often each source was right when it backed a settled pick ----
   const srcAgg = new Map<string, { n: number; right: number; exp: number }>();
   for (const s of settled.data ?? []) {
@@ -347,6 +356,7 @@ export async function computeMatchPicks() {
       h2h: h2hOf(r.home_team_id, r.away_team_id),
       calibration,
       sourceWeights,
+      weakMarkets,
       elo: eloBy.has(r.home_team_id) && eloBy.has(r.away_team_id) ? { home: eloBy.get(r.home_team_id)!, away: eloBy.get(r.away_team_id)!, neutral: false } : null,
       champion: cp ? { name: comp!.winner!, ...cp } : null,
       context: (() => { const c = ctxBy.get(r.id); return c ? {
