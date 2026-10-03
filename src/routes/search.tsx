@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { searchAll } from "@/lib/leagues.functions";
 
 export const Route = createFileRoute("/search")({
-  validateSearch: (s: Record<string, unknown>) => ({ q: typeof s.q === "string" ? s.q : "" }),
+  validateSearch: (s: Record<string, unknown>) => ({ q: typeof s["q"] === "string" ? s["q"] : "" }),
   head: () => ({
     meta: [
       { title: "Search | Football Intelligence" },

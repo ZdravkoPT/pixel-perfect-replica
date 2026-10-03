@@ -20,8 +20,8 @@ export function GoalAlerts() {
       try {
         const [{ favorites }, live] = await Promise.all([listFavorites(), listLiveMatches()]);
         const teams = new Set(favorites.filter((f) => f.entity_type === "team").map((f) => f.entity_id));
-        for (const m of [...live.live, ...live.finished] as Array<{ id: string; status: string; home_score: number | null; away_score: number | null; home_team_id: string; away_team_id: string; home: { name: string } | null; away: { name: string } | null }>) {
-          if (!teams.has(m.home_team_id) && !teams.has(m.away_team_id)) continue;
+        for (const m of [...live.live, ...live.finished] as unknown as Array<{ id: string; status: string; home_score: number | null; away_score: number | null; home: { id: string; name: string } | null; away: { id: string; name: string } | null }>) {
+          if (!teams.has(m.home?.id ?? "") && !teams.has(m.away?.id ?? "")) continue;
           const state = `${m.status}|${m.home_score ?? "-"}-${m.away_score ?? "-"}`;
           const prev = last.current.get(m.id);
           last.current.set(m.id, state);
