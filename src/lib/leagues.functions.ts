@@ -185,3 +185,67 @@ export const searchAll = createServerFn({ method: "GET" })
     ]);
     return { teams: t.data ?? [], players: p.data ?? [], coaches: c.data ?? [], leagues: l.data ?? [] };
   });
+
+export type SimRow = { teamId: string; name: string; pts: number; expPts: number; title: number; top4: number; relegation: number };
+
+/** Monte Carlo of the rest of a double round-robin season from current attack/defence strengths. */
+export const simulateSeason = createServerFn({ method: "GET" })
+  .inputValidator((input: { leagueId: string }) => input)
+  .handler(async ({ data }) => {
+    const sb = publicClient();
+    const { data: season } = await sb.from("seasons").select("id").eq("league_id", data.leagueId).eq("is_current", true).maybeSingle();
+    if (!season) return { rows: [] as SimRow[], remaining: 0, runs: 0 };
+    const { data: ms } = await sb.from("matches")
+      .select("home_team_id, away_team_id, home_score, away_score, stage, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)")
+      .eq("season_id", season.id).eq("status", "FINISHED").not("home_score", "is", null).limit(1000);
+    const games = (ms ?? []).filter((m) => !m.stage || /REGULAR|LEAGUE/i.test(m.stage));
+    const T = new Map<string, { name: string; pts: number; gf: number; ga: number; hgf: number; hga: number; agf: number; aga: number; hp: number; ap: number }>();
+    const get = (id: string, n: string | undefined) => {
+      let t = T.get(id); if (!t) { t = { name: n ?? "?", pts: 0, gf: 0, ga: 0, hgf: 0, hga: 0, agf: 0, aga: 0, hp: 0, ap: 0 }; T.set(id, t); } return t;
+    };
+    const played = new Set<string>();
+    let hg = 0, ag = 0;
+    for (const m of games) {
+      const h = get(m.home_team_id, (m.home as { name: string } | null)?.name), a = get(m.away_team_id, (m.away as { name: string } | null)?.name);
+      const x = m.home_score!, y = m.away_score!;
+      h.gf += x; h.ga += y; a.gf += y; a.ga += x; h.hp++; a.ap++;
+      h.pts += x > y ? 3 : x === y ? 1 : 0; a.pts += y > x ? 3 : x === y ? 1 : 0;
+      played.add(`${m.home_team_id}|${m.away_team_id}`); hg += x; ag += y;
+    }
+    const n = T.size;
+    if (n < 8 || games.length < 5 * n / 2) return { rows: [] as SimRow[], remaining: 0, runs: 0 };
+    const lh = hg / games.length, la = ag / games.length, avg = (lh + la) / 2;
+    const K = 6; // shrink strengths toward average until a team has ~6 games
+    const str = new Map([...T].map(([id, t]) => {
+      const p = t.hp + t.ap;
+      return [id, { att: (t.gf + K * avg) / (p + K) / avg, def: (t.ga + K * avg) / (p + K) / avg }];
+    }));
+    const ids = [...T.keys()];
+    const fixtures: [string, string, number, number][] = [];
+    for (const h of ids) for (const a of ids) {
+      if (h === a || played.has(`${h}|${a}`)) continue;
+      const sh = str.get(h)!, sa = str.get(a)!;
+      fixtures.push([h, a, Math.min(4.5, lh * sh.att * sa.def), Math.min(4.5, la * sa.att * sh.def)]);
+    }
+    const poi = (l: number) => { const L = Math.exp(-l); let k = 0, p = 1; do { k++; p *= Math.random(); } while (p > L); return k - 1; };
+    const RUNS = 10000;
+    const idx = new Map(ids.map((id, i) => [id, i]));
+    const base = ids.map((id) => T.get(id)!.pts);
+    const gd0 = ids.map((id) => T.get(id)!.gf - T.get(id)!.ga);
+    const title = new Array(n).fill(0), top4 = new Array(n).fill(0), rel = new Array(n).fill(0), exp = new Array(n).fill(0);
+    const pts = new Array(n).fill(0), gd = new Array(n).fill(0), order = ids.map((_, i) => i);
+    for (let r = 0; r < RUNS; r++) {
+      for (let i = 0; i < n; i++) { pts[i] = base[i]; gd[i] = gd0[i]; }
+      for (const [h, a, l1, l2] of fixtures) {
+        const x = poi(l1), y = poi(l2), hi = idx.get(h)!, ai = idx.get(a)!;
+        if (x > y) pts[hi] += 3; else if (x < y) pts[ai] += 3; else { pts[hi]++; pts[ai]++; }
+        gd[hi] += x - y; gd[ai] += y - x;
+      }
+      order.sort((p, q) => pts[q] - pts[p] || gd[q] - gd[p] || Math.random() - 0.5);
+      order.forEach((ti, pos) => { if (pos === 0) title[ti]++; if (pos < 4) top4[ti]++; if (pos >= n - 3) rel[ti]++; exp[ti] += pts[ti]; });
+    }
+    const rows: SimRow[] = ids.map((id, i) => ({
+      teamId: id, name: T.get(id)!.name, pts: base[i], expPts: exp[i] / RUNS, title: title[i] / RUNS, top4: top4[i] / RUNS, relegation: rel[i] / RUNS,
+    })).sort((a, b) => b.expPts - a.expPts);
+    return { rows, remaining: fixtures.length, runs: RUNS };
+  });
