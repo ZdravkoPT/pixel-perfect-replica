@@ -241,12 +241,20 @@ export async function computeMatchPicks() {
     .map(([code, e]) => ({ code, picks: e.n, hitRate: e.hit / e.n, expected: e.exp / e.n }))
     .sort((a, b) => b.picks - a.picks);
 
+  // ---- latest model-competition winner (walk-forward best on league history) ----
+  const { data: comp } = await sb.from("model_competitions").select("winner, ratings")
+    .order("run_at", { ascending: false }).limit(1).maybeSingle();
+  const { championProbs } = await import("./model-competition.server");
+  const compRatings = (comp?.ratings ?? {}) as Record<string, Parameters<typeof championProbs>[1] & object>;
+
   const picks = [];
   const noBets = [];
   for (const r of rows) {
     const homeName = r.home?.name ?? "Home";
     const awayName = r.away?.name ?? "Away";
     const lam = lambdas.get(r.id);
+    const cp = comp?.winner && comp.winner !== "baseline"
+      ? championProbs(comp.winner, compRatings[r.home_team_id], compRatings[r.away_team_id]) : null;
     const result = scoreMatch({
       homeName, awayName,
       lambdaHome: lam?.lh ?? null, lambdaAway: lam?.la ?? null,
@@ -256,6 +264,7 @@ export async function computeMatchPicks() {
       h2h: h2hOf(r.home_team_id, r.away_team_id),
       calibration,
       elo: eloBy.has(r.home_team_id) && eloBy.has(r.away_team_id) ? { home: eloBy.get(r.home_team_id)!, away: eloBy.get(r.away_team_id)!, neutral: false } : null,
+      champion: cp ? { name: comp!.winner!, ...cp } : null,
       ...setPieceInputs(r.home_team_id, r.away_team_id, r.id),
     });
     const base = { matchId: r.id, fixture: `${homeName} vs ${awayName}`, league: r.league?.name ?? null, kickoffAt: r.kickoff_at };

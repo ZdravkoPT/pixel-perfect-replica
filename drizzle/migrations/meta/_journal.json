@@ -43,6 +43,13 @@
       "when": 1791009420001,
       "tag": "0005_history_elo_picks",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791010091760,
+      "tag": "0006_model_competitions",
+      "breakpoints": true
     }
   ]
 }
