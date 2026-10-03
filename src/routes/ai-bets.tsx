@@ -7,6 +7,8 @@ import { useState } from "react";
 import { StakeCalculator, StakeSettings, type StakeInputs } from "@/components/StakeCalculator";
 import { getAiBets } from "@/lib/value.functions";
 import { MatchPicks } from "@/components/MatchPicks";
+/** The old one-ticket 20-match slip is retired in favour of per-match picks. */
+const SHOW_MEGA_SLIP = Boolean(Number("0"));
 
 const betsQuery = queryOptions({
   queryKey: ["ai-bets"],
@@ -282,7 +284,7 @@ function AiBetsPage() {
               </section>
             ) : null}
 
-            {false && data.megaSlip ? (
+            {SHOW_MEGA_SLIP && data.megaSlip ? (
               <section className="rounded-lg border border-border bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-sm font-semibold">
