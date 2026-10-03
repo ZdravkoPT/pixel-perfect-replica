@@ -790,6 +790,54 @@ export type Database = {
           },
         ]
       }
+      league_standings: {
+        Row: {
+          as_of: string
+          goal_diff: number | null
+          id: string
+          league_id: string | null
+          played: number
+          points: number
+          position: number
+          team_id: string
+        }
+        Insert: {
+          as_of?: string
+          goal_diff?: number | null
+          id?: string
+          league_id?: string | null
+          played?: number
+          points?: number
+          position: number
+          team_id: string
+        }
+        Update: {
+          as_of?: string
+          goal_diff?: number | null
+          id?: string
+          league_id?: string | null
+          played?: number
+          points?: number
+          position?: number
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_standings_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_standings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leagues: {
         Row: {
           canonical_id: string
@@ -950,6 +998,38 @@ export type Database = {
           },
           {
             foreignKeyName: "lineups_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_values: {
+        Row: {
+          fetched_at: string
+          id: string
+          source: string
+          squad_value_eur: number | null
+          team_id: string
+        }
+        Insert: {
+          fetched_at?: string
+          id?: string
+          source?: string
+          squad_value_eur?: number | null
+          team_id: string
+        }
+        Update: {
+          fetched_at?: string
+          id?: string
+          source?: string
+          squad_value_eur?: number | null
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_values_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -1317,6 +1397,53 @@ export type Database = {
           version?: number
         }
         Relationships: []
+      }
+      odds_snapshots: {
+        Row: {
+          bookmaker: string
+          captured_at: string
+          id: string
+          line: number | null
+          market: string
+          match_id: string
+          phase: string
+          price: number
+          selection: string
+          source: string
+        }
+        Insert: {
+          bookmaker: string
+          captured_at?: string
+          id?: string
+          line?: number | null
+          market: string
+          match_id: string
+          phase?: string
+          price: number
+          selection: string
+          source?: string
+        }
+        Update: {
+          bookmaker?: string
+          captured_at?: string
+          id?: string
+          line?: number | null
+          market?: string
+          match_id?: string
+          phase?: string
+          price?: number
+          selection?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "odds_snapshots_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       player_aliases: {
         Row: {
@@ -2427,6 +2554,51 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "team_tracking_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_xg: {
+        Row: {
+          created_at: string
+          id: string
+          match_id: string
+          source: string
+          team_id: string
+          xg: number | null
+          xg_against: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_id: string
+          source?: string
+          team_id: string
+          xg?: number | null
+          xg_against?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_id?: string
+          source?: string
+          team_id?: string
+          xg?: number | null
+          xg_against?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_xg_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_xg_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
