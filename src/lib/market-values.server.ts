@@ -43,7 +43,7 @@ export async function computeSquadValues() {
   const rows = [...byTeam].filter(([, e]) => e.n >= 11)
     .map(([team_id, e]) => ({ team_id, squad_value_eur: e.sum, source: "fotmob", fetched_at: new Date().toISOString() }));
   if (rows.length) {
-    const { error } = await supabaseAdmin.from("market_values").insert(rows);
+    const { error } = await supabaseAdmin.from("market_values").upsert(rows, { onConflict: "team_id,source" });
     if (error) throw new Error(error.message);
   }
   return { teamsValued: rows.length, playersWithValue: values.size };
