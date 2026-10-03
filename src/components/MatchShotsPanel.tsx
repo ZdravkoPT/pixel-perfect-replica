@@ -28,7 +28,7 @@ export function MatchShotsPanel({ matchId, homeName, awayName }: { matchId: stri
             <span>Shot map</span>
             <span>xG {xgSum("away")} · {awayName}</span>
           </div>
-          <svg viewBox={`0 0 ${W} ${H}`} className="w-full rounded-md bg-pitch">
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full rounded-md bg-pitch-header">
             <g stroke="var(--pitch-lines)" fill="none" strokeWidth={0.4}>
               <rect x={0} y={0} width={W} height={H} />
               <line x1={W / 2} y1={0} x2={W / 2} y2={H} />
