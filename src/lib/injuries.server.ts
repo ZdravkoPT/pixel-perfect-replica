@@ -11,7 +11,7 @@ export function parseReturn(n: Note | null): string | null {
   const er = n?.expectedReturn;
   const m = /([a-z]+)\s+(\d{4})/i.exec(er?.expectedReturnDateParam ?? "");
   if (!m) return null;
-  const mi = MONTHS.indexOf(m[1].toLowerCase());
+  const mi = MONTHS.indexOf((m[1] ?? "").toLowerCase());
   if (mi < 0) return null;
   const key = er?.expectedReturnKey ?? "";
   const day = key.includes("early") ? 5 : key.includes("late") ? 25 : 15;
