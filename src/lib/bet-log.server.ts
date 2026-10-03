@@ -8,7 +8,7 @@ export type LoggedPick = {
   fixture: string;
   league: string | null;
   kickoffAt: string;
-  slipType: "mega" | "builder" | "single";
+  slipType: "mega" | "builder" | "single" | "match_pick";
   market: string;
   pickCode: string;
   selection: string;
@@ -41,6 +41,10 @@ export function gradePick(pickCode: string, home: number, away: number): "hit" |
       return win(home !== away);
     case "btts":
       return win(home > 0 && away > 0);
+    case "home_scores":
+      return win(home > 0);
+    case "away_scores":
+      return win(away > 0);
     case "btts_no":
       return win(home === 0 || away === 0);
     default:

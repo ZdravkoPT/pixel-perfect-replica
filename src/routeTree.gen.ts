@@ -37,7 +37,6 @@ import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/p
 import { Route as ApiPublicHooksKickoffRefreshRouteImport } from './routes/api/public/hooks/kickoff-refresh'
 import { Route as ApiPublicHooksLiveRefreshRouteImport } from './routes/api/public/hooks/live-refresh'
 import { Route as ApiPublicHooksMatchStatsRouteImport } from './routes/api/public/hooks/match-stats'
-import { Route as ApiPublicHooksOddsRefreshRouteImport } from './routes/api/public/hooks/odds-refresh'
 import { Route as ApiPublicHooksRefreshIntelRouteImport } from './routes/api/public/hooks/refresh-intel'
 import { Route as ApiPublicHooksTrainModelsRouteImport } from './routes/api/public/hooks/train-models'
 
@@ -185,12 +184,6 @@ const ApiPublicHooksMatchStatsRoute =
     path: '/api/public/hooks/match-stats',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksOddsRefreshRoute =
-  ApiPublicHooksOddsRefreshRouteImport.update({
-    id: '/api/public/hooks/odds-refresh',
-    path: '/api/public/hooks/odds-refresh',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicHooksRefreshIntelRoute =
   ApiPublicHooksRefreshIntelRouteImport.update({
     id: '/api/public/hooks/refresh-intel',
@@ -233,7 +226,6 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
-  '/api/public/hooks/odds-refresh': typeof ApiPublicHooksOddsRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -266,7 +258,6 @@ export interface FileRoutesByTo {
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
-  '/api/public/hooks/odds-refresh': typeof ApiPublicHooksOddsRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -300,7 +291,6 @@ export interface FileRoutesById {
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
-  '/api/public/hooks/odds-refresh': typeof ApiPublicHooksOddsRefreshRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -335,7 +325,6 @@ export interface FileRouteTypes {
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/match-stats'
-    | '/api/public/hooks/odds-refresh'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   fileRoutesByTo: FileRoutesByTo
@@ -368,7 +357,6 @@ export interface FileRouteTypes {
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/match-stats'
-    | '/api/public/hooks/odds-refresh'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   id:
@@ -401,7 +389,6 @@ export interface FileRouteTypes {
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/match-stats'
-    | '/api/public/hooks/odds-refresh'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   fileRoutesById: FileRoutesById
@@ -435,7 +422,6 @@ export interface RootRouteChildren {
   ApiPublicHooksKickoffRefreshRoute: typeof ApiPublicHooksKickoffRefreshRoute
   ApiPublicHooksLiveRefreshRoute: typeof ApiPublicHooksLiveRefreshRoute
   ApiPublicHooksMatchStatsRoute: typeof ApiPublicHooksMatchStatsRoute
-  ApiPublicHooksOddsRefreshRoute: typeof ApiPublicHooksOddsRefreshRoute
   ApiPublicHooksRefreshIntelRoute: typeof ApiPublicHooksRefreshIntelRoute
   ApiPublicHooksTrainModelsRoute: typeof ApiPublicHooksTrainModelsRoute
 }
@@ -638,13 +624,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksMatchStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/odds-refresh': {
-      id: '/api/public/hooks/odds-refresh'
-      path: '/api/public/hooks/odds-refresh'
-      fullPath: '/api/public/hooks/odds-refresh'
-      preLoaderRoute: typeof ApiPublicHooksOddsRefreshRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/hooks/refresh-intel': {
       id: '/api/public/hooks/refresh-intel'
       path: '/api/public/hooks/refresh-intel'
@@ -691,7 +670,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksKickoffRefreshRoute: ApiPublicHooksKickoffRefreshRoute,
   ApiPublicHooksLiveRefreshRoute: ApiPublicHooksLiveRefreshRoute,
   ApiPublicHooksMatchStatsRoute: ApiPublicHooksMatchStatsRoute,
-  ApiPublicHooksOddsRefreshRoute: ApiPublicHooksOddsRefreshRoute,
   ApiPublicHooksRefreshIntelRoute: ApiPublicHooksRefreshIntelRoute,
   ApiPublicHooksTrainModelsRoute: ApiPublicHooksTrainModelsRoute,
 }
