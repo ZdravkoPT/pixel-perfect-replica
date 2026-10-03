@@ -16,6 +16,7 @@ export type LoggedPick = {
   fairOdds: number;
   facts?: string[];
   opinion?: string | null;
+  signals?: Array<{ name: string; p: number }> | null;
 };
 
 /** Decides whether a stored pick landed, given the final score. */
@@ -71,6 +72,7 @@ export async function logDailyPicks(picks: LoggedPick[]): Promise<number> {
     fair_odds: pick.fairOdds,
     facts: pick.facts ?? null,
     opinion: pick.opinion ?? null,
+    signals: pick.signals ?? null,
   }));
   const { error } = await supabaseAdmin
     .from("ai_bet_log")

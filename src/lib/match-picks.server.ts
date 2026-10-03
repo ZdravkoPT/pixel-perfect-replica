@@ -21,7 +21,7 @@ export async function computeMatchPicks() {
     id: string; kickoff_at: string; home_team_id: string; away_team_id: string;
     league: { name: string } | null; home: { name: string } | null; away: { name: string } | null;
   }>;
-  if (!rows.length) return { picks: [], noBets: [], track: [], summary: null, generatedAt: now.toISOString() };
+  if (!rows.length) return { picks: [], noBets: [], track: [], signalTrack: [], summary: null, generatedAt: now.toISOString() };
 
   const ids = rows.map((r) => r.id);
   const teamIds = [...new Set(rows.flatMap((r) => [r.home_team_id, r.away_team_id]))];
@@ -38,7 +38,7 @@ export async function computeMatchPicks() {
     sb.from("injuries").select("team_id").in("team_id", teamIds).is("resolved_at", null),
     sb.from("player_conditions").select("team_id, sharpness, load_index").in("team_id", teamIds),
     sb.from("coach_spells").select("team_id, coach_id, coach:coaches(name)").in("team_id", teamIds).eq("is_current", true),
-    sb.from("ai_bet_log").select("pick_code, probability, result, slip_type").in("result", ["hit", "miss"])
+    sb.from("ai_bet_log").select("pick_code, probability, result, slip_type, signals").in("result", ["hit", "miss"])
       .gte("kickoff_at", new Date(now.getTime() - 70 * 86400e3).toISOString()).limit(5000),
   ]);
 
@@ -246,6 +246,28 @@ export async function computeMatchPicks() {
     .map(([code, e]) => ({ code, picks: e.n, hitRate: e.hit / e.n, expected: e.exp / e.n }))
     .sort((a, b) => b.picks - a.picks);
 
+  // ---- per-source report: how often each source was right when it backed a settled pick ----
+  const srcAgg = new Map<string, { n: number; right: number; exp: number }>();
+  for (const s of settled.data ?? []) {
+    const list = (s as { signals?: unknown }).signals;
+    if (!Array.isArray(list)) continue;
+    for (const it of list as Array<{ name: string; p: number }>) {
+      if (typeof it?.name !== "string" || typeof it.p !== "number") continue;
+      const e = srcAgg.get(it.name) ?? { n: 0, right: 0, exp: 0 };
+      const backed = it.p >= 0.5;
+      e.n++;
+      e.exp += backed ? it.p : 1 - it.p;
+      if ((s.result === "hit") === backed) e.right++;
+      srcAgg.set(it.name, e);
+    }
+  }
+  const sourceWeights: Record<string, number> = {};
+  const signalTrack = [...srcAgg.entries()].map(([name, e]) => {
+    const ratio = e.right / Math.max(e.exp, 1e-6);
+    if (e.n >= 20) sourceWeights[name] = 1 + (ratio - 1) * (e.n / (e.n + 40)) * 2;
+    return { name, picks: e.n, rightRate: e.right / e.n, expected: e.exp / e.n, weight: sourceWeights[name] ?? 1 };
+  }).sort((a, b) => b.picks - a.picks);
+
   // ---- latest model-competition winner (walk-forward best on league history) ----
   const { data: comp } = await sb.from("model_competitions").select("winner, ratings")
     .order("run_at", { ascending: false }).limit(1).maybeSingle();
@@ -268,6 +290,7 @@ export async function computeMatchPicks() {
       home: extras(r.home_team_id, r.kickoff_at), away: extras(r.away_team_id, r.kickoff_at),
       h2h: h2hOf(r.home_team_id, r.away_team_id),
       calibration,
+      sourceWeights,
       elo: eloBy.has(r.home_team_id) && eloBy.has(r.away_team_id) ? { home: eloBy.get(r.home_team_id)!, away: eloBy.get(r.away_team_id)!, neutral: false } : null,
       champion: cp ? { name: comp!.winner!, ...cp } : null,
       ...setPieceInputs(r.home_team_id, r.away_team_id, r.id),
@@ -285,7 +308,7 @@ export async function computeMatchPicks() {
       matchId: p.matchId, fixture: p.fixture, league: p.league, kickoffAt: p.kickoffAt,
       slipType: "match_pick", market: p.market, pickCode: p.code, selection: p.selection,
       probability: Number(p.probability.toFixed(4)), fairOdds: Number((1 / p.probability).toFixed(2)),
-      facts: p.reasons, opinion: null,
+      facts: p.reasons, opinion: null, signals: p.sources ?? null,
     })));
   } catch {
     // logging is best-effort
@@ -297,7 +320,7 @@ export async function computeMatchPicks() {
     ? { picks: settledPicks.length, hits: settledPicks.filter((h) => h.result === "hit").length, expected: settledPicks.reduce((a, h) => a + Number(h.probability), 0) / settledPicks.length }
     : null;
 
-  return { picks, noBets, track, summary, generatedAt: now.toISOString() };
+  return { picks, noBets, track, signalTrack, summary, generatedAt: now.toISOString() };
 }
 
 /** Computes picks and stores them for instant page loads. */

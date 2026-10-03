@@ -61,6 +61,8 @@ export interface PickInput {
   cards: { expected: number; overShare: number; samples: number; refereeAvg: number | null } | null;
   /** actual hit-rate / expected per market code, from settled past picks */
   calibration: Record<string, number>;
+  /** weight multiplier per source (model/form/h2h/elo/champion), learned from settled picks */
+  sourceWeights?: Record<string, number>;
 }
 
 export interface MarketScore {
@@ -70,6 +72,7 @@ export interface MarketScore {
   probability: number;
   agree: number;
   signals: number;
+  sources?: Array<{ name: string; p: number }>;
 }
 
 export interface PickResult {
@@ -221,13 +224,14 @@ export function scoreMatch(input: PickInput): PickResult {
   };
 
   const reliability = input.lineupStatus === "confirmed" ? 1 : input.lineupStatus === "projected" ? 0.97 : 0.94;
+  const sw = (name: string) => clamp(input.sourceWeights?.[name] ?? 1, 0.4, 1.2);
   const scores: MarketScore[] = defs.map((d) => {
-    const parts: Array<[number, number]> = [[d.m, 0.5]];
-    if (d.f !== null) parts.push([d.f, 0.3]);
-    if (d.h !== null) parts.push([d.h, 0.2]);
-    if (d.e !== undefined && d.e !== null) parts.push([d.e, 0.25]);
+    const parts: Array<[number, number, string]> = [[d.m, 0.5 * sw("model"), "model"]];
+    if (d.f !== null) parts.push([d.f, 0.3 * sw("form"), "form"]);
+    if (d.h !== null) parts.push([d.h, 0.2 * sw("h2h"), "h2h"]);
+    if (d.e !== undefined && d.e !== null) parts.push([d.e, 0.25 * sw("elo"), "elo"]);
     const cv = champFor(d.code);
-    if (cv !== null) parts.push([cv, 0.3]);
+    if (cv !== null) parts.push([cv, 0.3 * sw("champion"), "champion"]);
     const w = parts.reduce((a, [, x]) => a + x, 0);
     let p = parts.reduce((a, [v, x]) => a + v * x, 0) / w;
     const cal = input.calibration[d.code];
@@ -235,7 +239,8 @@ export function scoreMatch(input: PickInput): PickResult {
     p = clamp(p * reliability, 0.01, 0.97);
     const signals = parts.length;
     const agree = parts.filter(([v]) => v >= 0.5).length;
-    return { code: d.code, market: d.market, selection: d.selection, probability: p, agree, signals };
+    const sources = parts.map(([v, , name]) => ({ name, p: Number(v.toFixed(3)) }));
+    return { code: d.code, market: d.market, selection: d.selection, probability: p, agree, signals, sources };
   });
 
   // Rank by lift over each market's typical hit rate, so "safe" markets that

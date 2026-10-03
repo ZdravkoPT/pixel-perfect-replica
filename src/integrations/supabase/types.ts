@@ -34,6 +34,7 @@ export type Database = {
           result: string
           selection: string
           settled_at: string | null
+          signals: Json | null
           slip_type: string
           total_cards: number | null
           total_corners: number | null
@@ -58,6 +59,7 @@ export type Database = {
           result?: string
           selection: string
           settled_at?: string | null
+          signals?: Json | null
           slip_type: string
           total_cards?: number | null
           total_corners?: number | null
@@ -82,6 +84,7 @@ export type Database = {
           result?: string
           selection?: string
           settled_at?: string | null
+          signals?: Json | null
           slip_type?: string
           total_cards?: number | null
           total_corners?: number | null

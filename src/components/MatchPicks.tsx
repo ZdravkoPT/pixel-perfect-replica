@@ -110,6 +110,21 @@ export function MatchPicks() {
           </div>
         </details>
       ) : null}
+
+      {(data.signalTrack ?? []).length > 0 ? (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground">Which sources are right most often</summary>
+          <p className="mt-2 text-muted-foreground">Sources that beat expectations count for more in new picks; weaker ones count for less (needs 20+ settled picks).</p>
+          <div className="mt-2 grid gap-1 sm:grid-cols-2">
+            {(data.signalTrack ?? []).map((t) => (
+              <div key={t.name} className="flex justify-between font-mono">
+                <span>{t.name}</span>
+                <span>{t.picks} · {pct(t.rightRate)} right vs {pct(t.expected)} · weight ×{t.weight.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
     </section>
   );
 }
