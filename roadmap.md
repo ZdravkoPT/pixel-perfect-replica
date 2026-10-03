@@ -1,13 +1,10 @@
-# Roadmap (upgrade review #2)
+# Roadmap (product review #3)
 
-- [x] Match-stats import: time budget so the scheduled run no longer times out
-- [x] Signal report + learned per-source weights (needs 20+ settled picks per source to kick in)
-- [x] Per-market calibration (already in place from settled picks)
-- [x] International results history (martj42) — 8,247 matches, weekly refresh
-- [x] openfootball lower-league results (League One, League Two, Austria 1+2)
-- [x] Fixture congestion (games in 14 days)
-- [x] League-table strength (built from our own results)
-- [x] Stadium locations, kickoff weather (Open-Meteo), away travel distance — hourly
-- [x] Player importance weighting for absences
-- [x] Bivariate, zero-inflated and blended models in the competition
-- [x] Understat xG history (top-5 leagues, weekly) + xG Dixon-Coles in competition
+- [x] Match center: shot map, momentum graph, player ratings (live FotMob)
+- [ ] League pages: tables, top scorers/assists/cards, team of the week
+- [ ] Injuries & suspensions list per team with return dates
+- [ ] Global search + browser notifications
+- [ ] Own shot xG model + xT player value
+- [ ] Pi-ratings and Glicko in model competition; calibration chart
+- [ ] Referee page and deep head-to-head page
+- [ ] Follow lower leagues' fixtures

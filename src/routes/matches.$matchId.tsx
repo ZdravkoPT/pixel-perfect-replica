@@ -18,6 +18,7 @@ import {
 import { SquadProfilePanel } from "@/components/SquadProfilePanel";
 import { HeadToHeadPanel } from "@/components/HeadToHeadPanel";
 import { MatchFactsPanel } from "@/components/MatchFactsPanel";
+import { MatchShotsPanel } from "@/components/MatchShotsPanel";
 import { MatchCenter } from "@/components/MatchCenter";
 
 const TABS = [
@@ -252,7 +253,8 @@ function MatchDetail() {
           <RefereePanel intel={intel} />
         </TabsContent>
 
-        <TabsContent value="Facts" className="mt-4">
+        <TabsContent value="Facts" className="mt-4 space-y-4">
+          <MatchShotsPanel matchId={matchId} homeName={homeName} awayName={awayName} />
           <MatchFactsPanel matchId={matchId} homeName={homeName} awayName={awayName} />
         </TabsContent>
 
