@@ -1,0 +1,2 @@
+ALTER TABLE public.historical_results ADD COLUMN IF NOT EXISTS home_xg numeric, ADD COLUMN IF NOT EXISTS away_xg numeric;
+SELECT cron.schedule('understat-weekly', '0 5 * * 2', $$select private.call_hook('understat');$$);

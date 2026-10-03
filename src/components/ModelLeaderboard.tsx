@@ -9,6 +9,7 @@ const LABEL: Record<string, string> = {
   baseline: "League averages only",
   bivariate: "Bivariate Poisson (linked scores)",
   zero_inflated: "Zero-inflated Poisson (extra 0-0)",
+  xg_dixon_coles: "Dixon-Coles on goals + xG (Understat)",
   ensemble: "Blend: Dixon-Coles + Elo",
 };
 

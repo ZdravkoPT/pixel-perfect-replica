@@ -47,6 +47,7 @@ import { Route as ApiPublicHooksModelCompetitionRouteImport } from './routes/api
 import { Route as ApiPublicHooksPlayerCareersRouteImport } from './routes/api/public/hooks/player-careers'
 import { Route as ApiPublicHooksRefreshIntelRouteImport } from './routes/api/public/hooks/refresh-intel'
 import { Route as ApiPublicHooksTrainModelsRouteImport } from './routes/api/public/hooks/train-models'
+import { Route as ApiPublicHooksUnderstatRouteImport } from './routes/api/public/hooks/understat'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -250,6 +251,11 @@ const ApiPublicHooksTrainModelsRoute =
     path: '/api/public/hooks/train-models',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksUnderstatRoute = ApiPublicHooksUnderstatRouteImport.update({
+  id: '/api/public/hooks/understat',
+  path: '/api/public/hooks/understat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -290,6 +296,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/player-careers': typeof ApiPublicHooksPlayerCareersRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
+  '/api/public/hooks/understat': typeof ApiPublicHooksUnderstatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -330,6 +337,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/player-careers': typeof ApiPublicHooksPlayerCareersRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
+  '/api/public/hooks/understat': typeof ApiPublicHooksUnderstatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -371,6 +379,7 @@ export interface FileRoutesById {
   '/api/public/hooks/player-careers': typeof ApiPublicHooksPlayerCareersRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
+  '/api/public/hooks/understat': typeof ApiPublicHooksUnderstatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -413,6 +422,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/player-careers'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
+    | '/api/public/hooks/understat'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -453,6 +463,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/player-careers'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
+    | '/api/public/hooks/understat'
   id:
     | '__root__'
     | '/'
@@ -493,6 +504,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/player-careers'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
+    | '/api/public/hooks/understat'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -534,6 +546,7 @@ export interface RootRouteChildren {
   ApiPublicHooksPlayerCareersRoute: typeof ApiPublicHooksPlayerCareersRoute
   ApiPublicHooksRefreshIntelRoute: typeof ApiPublicHooksRefreshIntelRoute
   ApiPublicHooksTrainModelsRoute: typeof ApiPublicHooksTrainModelsRoute
+  ApiPublicHooksUnderstatRoute: typeof ApiPublicHooksUnderstatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -804,6 +817,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksTrainModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/understat': {
+      id: '/api/public/hooks/understat'
+      path: '/api/public/hooks/understat'
+      fullPath: '/api/public/hooks/understat'
+      preLoaderRoute: typeof ApiPublicHooksUnderstatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -846,6 +866,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksPlayerCareersRoute: ApiPublicHooksPlayerCareersRoute,
   ApiPublicHooksRefreshIntelRoute: ApiPublicHooksRefreshIntelRoute,
   ApiPublicHooksTrainModelsRoute: ApiPublicHooksTrainModelsRoute,
+  ApiPublicHooksUnderstatRoute: ApiPublicHooksUnderstatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

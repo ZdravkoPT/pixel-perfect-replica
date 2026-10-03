@@ -674,6 +674,7 @@ export type Database = {
           away_shots: number | null
           away_sot: number | null
           away_team_id: string | null
+          away_xg: number | null
           away_yellow: number | null
           created_at: string
           home_corners: number | null
@@ -683,6 +684,7 @@ export type Database = {
           home_shots: number | null
           home_sot: number | null
           home_team_id: string | null
+          home_xg: number | null
           home_yellow: number | null
           id: string
           league_code: string
@@ -699,6 +701,7 @@ export type Database = {
           away_shots?: number | null
           away_sot?: number | null
           away_team_id?: string | null
+          away_xg?: number | null
           away_yellow?: number | null
           created_at?: string
           home_corners?: number | null
@@ -708,6 +711,7 @@ export type Database = {
           home_shots?: number | null
           home_sot?: number | null
           home_team_id?: string | null
+          home_xg?: number | null
           home_yellow?: number | null
           id?: string
           league_code: string
@@ -724,6 +728,7 @@ export type Database = {
           away_shots?: number | null
           away_sot?: number | null
           away_team_id?: string | null
+          away_xg?: number | null
           away_yellow?: number | null
           created_at?: string
           home_corners?: number | null
@@ -733,6 +738,7 @@ export type Database = {
           home_shots?: number | null
           home_sot?: number | null
           home_team_id?: string | null
+          home_xg?: number | null
           home_yellow?: number | null
           id?: string
           league_code?: string
