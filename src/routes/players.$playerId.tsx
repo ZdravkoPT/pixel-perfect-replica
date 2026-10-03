@@ -1,3 +1,4 @@
+import { PlayerFormCard } from "@/components/PlayerFormCard";
 import { FifaCard, type CardStats } from "@/components/FifaCard";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
