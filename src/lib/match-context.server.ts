@@ -15,7 +15,7 @@ async function stadium(providerId: string) {
   try {
     const res = await fetch(`${FOTMOB}/matchDetails?matchId=${providerId}`, { headers: UA });
     if (!res.ok) return null;
-    const d = (await res.json()) as { content?: { matchFacts?: { infoBox?: { Stadium?: Record<string, unknown> } } } };
+    const d = (await res.json()) as { content?: { matchFacts?: { infoBox?: { Stadium?: { name?: string; city?: string; country?: string; lat?: unknown; long?: unknown } } } } };
     const s = d.content?.matchFacts?.infoBox?.Stadium;
     if (!s || typeof s.lat !== "number" || typeof s.long !== "number") return null;
     return { name: String(s.name ?? ""), city: s.city ? String(s.city) : null, country: s.country ? String(s.country) : null, lat: s.lat, lon: s.long };
