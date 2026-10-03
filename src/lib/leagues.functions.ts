@@ -128,7 +128,20 @@ export const getLeagueDetail = createServerFn({ method: "GET" })
       if (totw.length < 11) totw = totw; // never pad with invented players
     }
 
+    const shotAgg = new Map<string, { name: string; xg: number; goals: number; shots: number }>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data: sh } = await supabase.from("match_shots").select("player_id, player_name, model_xg, is_goal")
+        .in("match_id", ids.slice(i, i + 100)).not("player_id", "is", null).not("model_xg", "is", null);
+      for (const r of sh ?? []) {
+        const a = shotAgg.get(r.player_id!) ?? { name: r.player_name ?? "?", xg: 0, goals: 0, shots: 0 };
+        a.xg += Number(r.model_xg); a.goals += r.is_goal ? 1 : 0; a.shots++; shotAgg.set(r.player_id!, a);
+      }
+    }
+    const xgLeaders = [...shotAgg.entries()].sort((a, b) => b[1].xg - a[1].xg).slice(0, 10)
+      .map(([playerId, a]) => ({ playerId, name: a.name, xg: Math.round(a.xg * 10) / 10, goals: a.goals, shots: a.shots }));
+
     return {
+      xgLeaders,
       league, season: season?.year_label ?? null, matches: ms.length, standings,
       scorers: top("goals"), assists: top("assists"), cards: top("cards"), totw, totwWeek, statMatches: new Set(stats.map((s) => s.match_id)).size,
     };
