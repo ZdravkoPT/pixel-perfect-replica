@@ -154,6 +154,10 @@ export async function computeMatchPicks() {
   }
   const { data: xgRows } = await sb.from("team_xg").select("team_id, xg, xg_against, created_at")
     .in("team_id", teamIds).order("created_at", { ascending: false }).limit(3000);
+  const { data: mvRows } = await sb.from("market_values").select("team_id, squad_value_eur, fetched_at")
+    .in("team_id", teamIds).order("fetched_at", { ascending: false }).limit(2000);
+  const mvBy = new Map<string, number>();
+  for (const r of mvRows ?? []) if (r.squad_value_eur && !mvBy.has(r.team_id)) mvBy.set(r.team_id, Number(r.squad_value_eur));
   const xgBy = new Map<string, { f: number[]; a: number[] }>();
   for (const r of xgRows ?? []) {
     if (r.xg === null || r.xg_against === null) continue;
@@ -196,6 +200,7 @@ export async function computeMatchPicks() {
     const load = c ? mean(c.l) : null;
     return {
       shotsOnTarget: mean(sotBy.get(tid) ?? []),
+      squadValue: mvBy.get(tid) ?? null,
       xgFor: (xgBy.get(tid)?.f.length ?? 0) >= 3 ? mean(xgBy.get(tid)!.f) : null,
       xgAgainst: (xgBy.get(tid)?.a.length ?? 0) >= 3 ? mean(xgBy.get(tid)!.a) : null,
       corners: null,
