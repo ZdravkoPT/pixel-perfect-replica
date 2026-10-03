@@ -324,6 +324,7 @@ export class FotmobProvider {
     const result = await this.request<Record<string, any>>(`/playerData?id=${providerPlayerId}`);
     if (!result.ok) return result;
     const data = result.data;
+    if (!data || typeof data !== "object") return { ok: false, error: "empty player profile" } as ProviderResult<PlayerCareer>;
 
     const info: Record<string, string> = {};
     for (const item of (data["playerInformation"] ?? []) as any[]) {

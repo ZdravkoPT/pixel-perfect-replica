@@ -42,6 +42,7 @@ import { Route as ApiPublicHooksMarketValuesRouteImport } from './routes/api/pub
 import { Route as ApiPublicHooksMatchPicksRouteImport } from './routes/api/public/hooks/match-picks'
 import { Route as ApiPublicHooksMatchStatsRouteImport } from './routes/api/public/hooks/match-stats'
 import { Route as ApiPublicHooksModelCompetitionRouteImport } from './routes/api/public/hooks/model-competition'
+import { Route as ApiPublicHooksPlayerCareersRouteImport } from './routes/api/public/hooks/player-careers'
 import { Route as ApiPublicHooksRefreshIntelRouteImport } from './routes/api/public/hooks/refresh-intel'
 import { Route as ApiPublicHooksTrainModelsRouteImport } from './routes/api/public/hooks/train-models'
 
@@ -217,6 +218,12 @@ const ApiPublicHooksModelCompetitionRoute =
     path: '/api/public/hooks/model-competition',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksPlayerCareersRoute =
+  ApiPublicHooksPlayerCareersRouteImport.update({
+    id: '/api/public/hooks/player-careers',
+    path: '/api/public/hooks/player-careers',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksRefreshIntelRoute =
   ApiPublicHooksRefreshIntelRouteImport.update({
     id: '/api/public/hooks/refresh-intel',
@@ -264,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
   '/api/public/hooks/model-competition': typeof ApiPublicHooksModelCompetitionRoute
+  '/api/public/hooks/player-careers': typeof ApiPublicHooksPlayerCareersRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -301,6 +309,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
   '/api/public/hooks/model-competition': typeof ApiPublicHooksModelCompetitionRoute
+  '/api/public/hooks/player-careers': typeof ApiPublicHooksPlayerCareersRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -339,6 +348,7 @@ export interface FileRoutesById {
   '/api/public/hooks/match-picks': typeof ApiPublicHooksMatchPicksRoute
   '/api/public/hooks/match-stats': typeof ApiPublicHooksMatchStatsRoute
   '/api/public/hooks/model-competition': typeof ApiPublicHooksModelCompetitionRoute
+  '/api/public/hooks/player-careers': typeof ApiPublicHooksPlayerCareersRoute
   '/api/public/hooks/refresh-intel': typeof ApiPublicHooksRefreshIntelRoute
   '/api/public/hooks/train-models': typeof ApiPublicHooksTrainModelsRoute
 }
@@ -378,6 +388,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
     | '/api/public/hooks/model-competition'
+    | '/api/public/hooks/player-careers'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   fileRoutesByTo: FileRoutesByTo
@@ -415,6 +426,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
     | '/api/public/hooks/model-competition'
+    | '/api/public/hooks/player-careers'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   id:
@@ -452,6 +464,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/match-picks'
     | '/api/public/hooks/match-stats'
     | '/api/public/hooks/model-competition'
+    | '/api/public/hooks/player-careers'
     | '/api/public/hooks/refresh-intel'
     | '/api/public/hooks/train-models'
   fileRoutesById: FileRoutesById
@@ -490,6 +503,7 @@ export interface RootRouteChildren {
   ApiPublicHooksMatchPicksRoute: typeof ApiPublicHooksMatchPicksRoute
   ApiPublicHooksMatchStatsRoute: typeof ApiPublicHooksMatchStatsRoute
   ApiPublicHooksModelCompetitionRoute: typeof ApiPublicHooksModelCompetitionRoute
+  ApiPublicHooksPlayerCareersRoute: typeof ApiPublicHooksPlayerCareersRoute
   ApiPublicHooksRefreshIntelRoute: typeof ApiPublicHooksRefreshIntelRoute
   ApiPublicHooksTrainModelsRoute: typeof ApiPublicHooksTrainModelsRoute
 }
@@ -727,6 +741,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksModelCompetitionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/player-careers': {
+      id: '/api/public/hooks/player-careers'
+      path: '/api/public/hooks/player-careers'
+      fullPath: '/api/public/hooks/player-careers'
+      preLoaderRoute: typeof ApiPublicHooksPlayerCareersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/refresh-intel': {
       id: '/api/public/hooks/refresh-intel'
       path: '/api/public/hooks/refresh-intel'
@@ -778,6 +799,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksMatchPicksRoute: ApiPublicHooksMatchPicksRoute,
   ApiPublicHooksMatchStatsRoute: ApiPublicHooksMatchStatsRoute,
   ApiPublicHooksModelCompetitionRoute: ApiPublicHooksModelCompetitionRoute,
+  ApiPublicHooksPlayerCareersRoute: ApiPublicHooksPlayerCareersRoute,
   ApiPublicHooksRefreshIntelRoute: ApiPublicHooksRefreshIntelRoute,
   ApiPublicHooksTrainModelsRoute: ApiPublicHooksTrainModelsRoute,
 }

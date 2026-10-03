@@ -383,20 +383,31 @@ export async function ingestPlayerCareers(
   const provider = new FotmobProvider();
   const staleBefore = new Date(Date.now() - 7 * 86_400_000).toISOString();
 
-  // Players with a FotMob id, prioritising those in current squads of teams
-  // with upcoming fixtures and those never fetched.
-  const { data: rows } = await supabaseAdmin
-    .from("players")
-    .select("id, provider_ids")
-    .not("provider_ids->>fotmob", "is", null)
-    .limit(400);
-
-  const { data: existing } = await supabaseAdmin
-    .from("player_careers")
-    .select("player_id, fetched_at");
-  const fresh = new Set(
-    (existing ?? []).filter((row) => row.fetched_at > staleBefore).map((row) => row.player_id),
-  );
+  // Every player with a FotMob id (paged — no silent 400/1000-row cap),
+  // never-fetched current squad members first, then stale ones.
+  type P = { id: string; provider_ids: unknown };
+  const all: P[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data } = await supabaseAdmin.from("players").select("id, provider_ids")
+      .not("provider_ids->>fotmob", "is", null).order("id").range(from, from + 999);
+    all.push(...((data ?? []) as P[]));
+    if (!data || data.length < 1000) break;
+  }
+  const fetchedAt = new Map<string, string>();
+  for (let from = 0; ; from += 1000) {
+    const { data } = await supabaseAdmin.from("player_careers").select("player_id, fetched_at").order("player_id").range(from, from + 999);
+    for (const r of data ?? []) fetchedAt.set(r.player_id, r.fetched_at);
+    if (!data || data.length < 1000) break;
+  }
+  const current = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const { data } = await supabaseAdmin.from("squad_memberships").select("player_id").eq("is_current", true).range(from, from + 999);
+    for (const r of data ?? []) current.add(r.player_id);
+    if (!data || data.length < 1000) break;
+  }
+  const fresh = new Set([...fetchedAt].filter(([, at]) => at > staleBefore).map(([id]) => id));
+  const rank = (p: P) => (fetchedAt.has(p.id) ? 2 : 0) + (current.has(p.id) ? 0 : 1);
+  const rows = all.filter((p) => !fresh.has(p.id)).sort((a, b) => rank(a) - rank(b));
 
   let players = 0;
   let errors = 0;
