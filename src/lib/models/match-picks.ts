@@ -71,6 +71,8 @@ export interface PickInput {
   calibration: Record<string, number>;
   /** weight multiplier per source (model/form/h2h/elo/champion), learned from settled picks */
   sourceWeights?: Record<string, number>;
+  /** kickoff weather forecast + away travel (null when unknown) */
+  context?: { rainMm: number | null; windKmh: number | null; tempC: number | null; awayTravelKm: number | null } | null;
 }
 
 export interface MarketScore {
