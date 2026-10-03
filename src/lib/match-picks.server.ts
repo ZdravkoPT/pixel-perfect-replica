@@ -180,7 +180,7 @@ export async function computeMatchPicks() {
   const condTeams = new Set<string>();
   for (const c of conditions.data ?? []) {
     if (c.team_id) condTeams.add(c.team_id);
-    if (c.minutes_share !== null) { const v = Number(c.minutes_share); shareBy.set(c.player_id, v > 1 ? v / 100 : v); }
+    if (c.minutes_share !== null) { const v = Number(c.minutes_share); shareBy.set(c.player_id, v > 1.5 ? v / 100 : Math.min(v, 1)); }
   }
   const missBy = new Map<string, { share: number; keys: string[] }>();
   const seenInj = new Set<string>();

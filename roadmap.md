@@ -5,6 +5,7 @@
 - [x] Per-market calibration (already in place from settled picks)
 - [x] International results history (martj42) — 8,247 matches, weekly refresh
 - [ ] openfootball lower-league results
-- [ ] Context signals: fixture congestion, travel distance, weather (Open-Meteo), standings motivation
-- [ ] Player importance weighting for absences
+- [x] Fixture congestion (games in 14 days)
+- [ ] Travel distance, weather (Open-Meteo), standings motivation
+- [x] Player importance weighting for absences
 - [ ] Bivariate / zero-inflated Poisson in the model competition + Understat xG history
