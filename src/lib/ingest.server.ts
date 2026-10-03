@@ -500,6 +500,20 @@ export async function ingestFixtures(options: {
     }
   }
 
+  // Lower club leagues (second tiers, smaller top flights) from FotMob.
+  const lower = await fotmob.getLowerLeagueMatches(from, Math.min(days, 7));
+  if (!lower.ok) await recordError("fotmob", "fetch", lower.error);
+  else {
+    for (const match of lower.data) {
+      processed += 1;
+      try {
+        await persist("fotmob", match, null);
+      } catch (error) {
+        await recordError("fotmob", "persist", error instanceof Error ? error.message : String(error));
+      }
+    }
+  }
+
   const durationMs = Date.now() - startedAt;
   const status: IngestionSummary["status"] =
     processed === 0 && errorCount > 0 ? "failed" : errorCount > 0 ? "partial" : "success";

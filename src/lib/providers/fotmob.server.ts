@@ -105,8 +105,24 @@ export class FotmobProvider {
    * multi-sport events are skipped.
    */
   async getInternationalMatches(fromISO: string, days: number): Promise<ProviderResult<NormalizedMatch[]>> {
-    const out: NormalizedMatch[] = [];
     const skip = /club|U\s?\d{2}|women|youth|games|olympic|futsal|beach/i;
+    return this.getDailyMatches(fromISO, days, (league, name) => league["ccode"] === "INT" && !skip.test(name));
+  }
+
+  /** Club second tiers and smaller top flights, by FotMob league id. */
+  async getLowerLeagueMatches(fromISO: string, days: number): Promise<ProviderResult<NormalizedMatch[]>> {
+    const ids = new Set(Object.keys(FOTMOB_LOWER_LEAGUES));
+    return this.getDailyMatches(fromISO, days, (league) =>
+      ids.has(String(league["primaryId"] ?? league["parentLeagueId"] ?? league["id"])),
+    );
+  }
+
+  private async getDailyMatches(
+    fromISO: string,
+    days: number,
+    keep: (league: Record<string, unknown>, name: string) => boolean,
+  ): Promise<ProviderResult<NormalizedMatch[]>> {
+    const out: NormalizedMatch[] = [];
     let lastError: string | null = null;
     for (let i = 0; i <= days; i += 1) {
       const date = new Date(new Date(`${fromISO}T00:00:00Z`).getTime() + i * 86_400_000)
@@ -119,9 +135,8 @@ export class FotmobProvider {
         continue;
       }
       for (const league of result.data.leagues ?? []) {
-        if (league["ccode"] !== "INT") continue;
         const name = String(league["parentLeagueName"] ?? league["name"] ?? "");
-        if (!name || skip.test(name)) continue;
+        if (!name || !keep(league, name)) continue;
         const parentId = String(league["primaryId"] ?? league["parentLeagueId"] ?? league["id"]);
         for (const m of (league["matches"] as Array<Record<string, unknown>> | undefined) ?? []) {
           const home = m["home"] as { id?: number; name?: string; longName?: string; score?: number } | undefined;
@@ -987,3 +1002,22 @@ export interface PlayerCareer {
   }>;
   injury: string | null;
 }
+
+/** FotMob league ids followed for club picks beyond the football-data.org feed. */
+export const FOTMOB_LOWER_LEAGUES: Record<string, string> = {
+  "48": "Championship",
+  "108": "League One",
+  "109": "League Two",
+  "146": "2. Bundesliga",
+  "140": "LaLiga2",
+  "86": "Serie B",
+  "110": "Ligue 2",
+  "111": "Eerste Divisie",
+  "64": "Scottish Premiership",
+  "40": "Belgian Pro League",
+  "71": "Super Lig",
+  "38": "Austrian Bundesliga",
+  "135": "Greek Super League",
+  "46": "Danish Superliga",
+  "69": "Swiss Super League",
+};
