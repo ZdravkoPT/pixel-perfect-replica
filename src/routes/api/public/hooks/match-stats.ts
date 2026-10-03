@@ -10,8 +10,10 @@ export const Route = createFileRoute("/api/public/hooks/match-stats")({
         if (unauthorized) return unauthorized;
         const url = new URL(request.url);
         const limit = Math.min(Number(url.searchParams.get("limit") ?? 80) || 80, 300);
-        const { ingestMatchStats } = await import("@/lib/match-stats.server");
-        return Response.json(await ingestMatchStats({ limit, triggeredBy: "cron" }));
+        const { ingestMatchStats, backfillXg } = await import("@/lib/match-stats.server");
+        const stats = await ingestMatchStats({ limit, triggeredBy: "cron" });
+        const xg = await backfillXg({ limit });
+        return Response.json({ ...stats, xg });
       },
     },
   },
