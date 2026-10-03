@@ -93,7 +93,7 @@ export async function settlePendingPicks(): Promise<{ settled: number }> {
   const matchIds = Array.from(new Set(pending.map((row) => row.match_id)));
   const { data: matches } = await supabaseAdmin
     .from("matches")
-    .select("id, status, home_score, away_score")
+    .select("id, status, home_score, away_score, kickoff_at")
     .in("id", matchIds);
   const byId = new Map((matches ?? []).map((row) => [row.id, row]));
 
@@ -101,7 +101,10 @@ export async function settlePendingPicks(): Promise<{ settled: number }> {
   for (const row of pending) {
     const match = byId.get(row.match_id);
     if (!match) continue;
-    if (match.status === "CANCELLED" || match.status === "POSTPONED") {
+    // No final result anywhere 7 days after kickoff: void rather than leave it hanging.
+    const abandoned =
+      match.status !== "FINISHED" && Date.now() - new Date(match.kickoff_at).getTime() > 7 * 86400e3;
+    if (match.status === "CANCELLED" || match.status === "POSTPONED" || abandoned) {
       await supabaseAdmin
         .from("ai_bet_log")
         .update({ result: "void", settled_at: new Date().toISOString() })
