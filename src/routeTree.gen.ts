@@ -36,6 +36,7 @@ import { Route as ApiPublicHooksBetReviewRouteImport } from './routes/api/public
 import { Route as ApiPublicHooksEloRouteImport } from './routes/api/public/hooks/elo'
 import { Route as ApiPublicHooksHistoryRouteImport } from './routes/api/public/hooks/history'
 import { Route as ApiPublicHooksIngestFixturesRouteImport } from './routes/api/public/hooks/ingest-fixtures'
+import { Route as ApiPublicHooksInternationalRouteImport } from './routes/api/public/hooks/international'
 import { Route as ApiPublicHooksKickoffRefreshRouteImport } from './routes/api/public/hooks/kickoff-refresh'
 import { Route as ApiPublicHooksLiveRefreshRouteImport } from './routes/api/public/hooks/live-refresh'
 import { Route as ApiPublicHooksMarketValuesRouteImport } from './routes/api/public/hooks/market-values'
@@ -182,6 +183,12 @@ const ApiPublicHooksIngestFixturesRoute =
     path: '/api/public/hooks/ingest-fixtures',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksInternationalRoute =
+  ApiPublicHooksInternationalRouteImport.update({
+    id: '/api/public/hooks/international',
+    path: '/api/public/hooks/international',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksKickoffRefreshRoute =
   ApiPublicHooksKickoffRefreshRouteImport.update({
     id: '/api/public/hooks/kickoff-refresh',
@@ -265,6 +272,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/elo': typeof ApiPublicHooksEloRoute
   '/api/public/hooks/history': typeof ApiPublicHooksHistoryRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
+  '/api/public/hooks/international': typeof ApiPublicHooksInternationalRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/market-values': typeof ApiPublicHooksMarketValuesRoute
@@ -303,6 +311,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/elo': typeof ApiPublicHooksEloRoute
   '/api/public/hooks/history': typeof ApiPublicHooksHistoryRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
+  '/api/public/hooks/international': typeof ApiPublicHooksInternationalRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/market-values': typeof ApiPublicHooksMarketValuesRoute
@@ -342,6 +351,7 @@ export interface FileRoutesById {
   '/api/public/hooks/elo': typeof ApiPublicHooksEloRoute
   '/api/public/hooks/history': typeof ApiPublicHooksHistoryRoute
   '/api/public/hooks/ingest-fixtures': typeof ApiPublicHooksIngestFixturesRoute
+  '/api/public/hooks/international': typeof ApiPublicHooksInternationalRoute
   '/api/public/hooks/kickoff-refresh': typeof ApiPublicHooksKickoffRefreshRoute
   '/api/public/hooks/live-refresh': typeof ApiPublicHooksLiveRefreshRoute
   '/api/public/hooks/market-values': typeof ApiPublicHooksMarketValuesRoute
@@ -382,6 +392,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/elo'
     | '/api/public/hooks/history'
     | '/api/public/hooks/ingest-fixtures'
+    | '/api/public/hooks/international'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/market-values'
@@ -420,6 +431,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/elo'
     | '/api/public/hooks/history'
     | '/api/public/hooks/ingest-fixtures'
+    | '/api/public/hooks/international'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/market-values'
@@ -458,6 +470,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/elo'
     | '/api/public/hooks/history'
     | '/api/public/hooks/ingest-fixtures'
+    | '/api/public/hooks/international'
     | '/api/public/hooks/kickoff-refresh'
     | '/api/public/hooks/live-refresh'
     | '/api/public/hooks/market-values'
@@ -497,6 +510,7 @@ export interface RootRouteChildren {
   ApiPublicHooksEloRoute: typeof ApiPublicHooksEloRoute
   ApiPublicHooksHistoryRoute: typeof ApiPublicHooksHistoryRoute
   ApiPublicHooksIngestFixturesRoute: typeof ApiPublicHooksIngestFixturesRoute
+  ApiPublicHooksInternationalRoute: typeof ApiPublicHooksInternationalRoute
   ApiPublicHooksKickoffRefreshRoute: typeof ApiPublicHooksKickoffRefreshRoute
   ApiPublicHooksLiveRefreshRoute: typeof ApiPublicHooksLiveRefreshRoute
   ApiPublicHooksMarketValuesRoute: typeof ApiPublicHooksMarketValuesRoute
@@ -699,6 +713,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksIngestFixturesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/international': {
+      id: '/api/public/hooks/international'
+      path: '/api/public/hooks/international'
+      fullPath: '/api/public/hooks/international'
+      preLoaderRoute: typeof ApiPublicHooksInternationalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/kickoff-refresh': {
       id: '/api/public/hooks/kickoff-refresh'
       path: '/api/public/hooks/kickoff-refresh'
@@ -793,6 +814,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksEloRoute: ApiPublicHooksEloRoute,
   ApiPublicHooksHistoryRoute: ApiPublicHooksHistoryRoute,
   ApiPublicHooksIngestFixturesRoute: ApiPublicHooksIngestFixturesRoute,
+  ApiPublicHooksInternationalRoute: ApiPublicHooksInternationalRoute,
   ApiPublicHooksKickoffRefreshRoute: ApiPublicHooksKickoffRefreshRoute,
   ApiPublicHooksLiveRefreshRoute: ApiPublicHooksLiveRefreshRoute,
   ApiPublicHooksMarketValuesRoute: ApiPublicHooksMarketValuesRoute,
