@@ -7,6 +7,7 @@ import { useState } from "react";
 import { StakeCalculator, StakeSettings, type StakeInputs } from "@/components/StakeCalculator";
 import { getAiBets } from "@/lib/value.functions";
 import { MatchPicks } from "@/components/MatchPicks";
+import { ModelLeaderboard } from "@/components/ModelLeaderboard";
 /** The old one-ticket 20-match slip is retired in favour of per-match picks. */
 const SHOW_MEGA_SLIP = Boolean(Number("0"));
 
@@ -46,6 +47,7 @@ function AiBetsPage() {
     <AppShell title="AI bet builder" subtitle="Strongest model signals kicking off today">
       <div className="space-y-6">
         <MatchPicks />
+        <ModelLeaderboard />
         {data.candidates.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             {data.reason === "no-fixtures"
