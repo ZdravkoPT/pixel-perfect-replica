@@ -43,3 +43,45 @@ export const getPlayerStats = createServerFn({ method: "GET" })
     ]);
     return { player, career, condition, memberships: memberships ?? [] };
   });
+
+/** Form score from the player's last 5 stored games (rating, goals/assists + our xG, minutes). */
+export const getPlayerForm = createServerFn({ method: "GET" })
+  .inputValidator((input: { playerId: string }) => input)
+  .handler(async ({ data }) => {
+    const { computePlayerForm } = await import("@/lib/models/player-form");
+    const supabase = publicClient();
+    const { data: rows } = await supabase
+      .from("player_match_stats")
+      .select("match_id, minutes, rating, goals, assists, shots, matches!inner(kickoff_at)")
+      .eq("player_id", data.playerId)
+      .gt("minutes", 0)
+      .order("kickoff_at", { referencedTable: "matches", ascending: false })
+      .limit(40);
+    const sorted = (rows ?? [])
+      .map((r) => ({ ...r, kickoff: (r as unknown as { matches: { kickoff_at: string } }).matches.kickoff_at }))
+      .sort((a, b) => b.kickoff.localeCompare(a.kickoff))
+      .slice(0, 5);
+    if (sorted.length === 0) return null;
+    const { data: shots } = await supabase
+      .from("match_shots")
+      .select("match_id, model_xg")
+      .eq("player_id", data.playerId)
+      .in("match_id", sorted.map((r) => r.match_id));
+    const xgBy = new Map<string, number>();
+    let anyXg = false;
+    for (const s of shots ?? []) {
+      if (s.model_xg === null) continue;
+      anyXg = true;
+      xgBy.set(s.match_id, (xgBy.get(s.match_id) ?? 0) + Number(s.model_xg));
+    }
+    return computePlayerForm(
+      sorted.map((r) => ({
+        minutes: r.minutes,
+        rating: r.rating === null ? null : Number(r.rating),
+        goals: r.goals,
+        assists: r.assists,
+        shots: r.shots,
+        xg: anyXg ? (xgBy.get(r.match_id) ?? 0) : null,
+      })),
+    );
+  });

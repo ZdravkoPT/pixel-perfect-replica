@@ -1,3 +1,4 @@
+import { PlayerFormCard } from "@/components/PlayerFormCard";
 import { FifaCard, type CardStats } from "@/components/FifaCard";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
@@ -150,6 +151,8 @@ function PlayerProfile() {
           IQ is derived from the player's technical and creativity percentiles; all other values come
           from provider data.
         </p>
+
+        <PlayerFormCard playerId={playerId} />
 
         <PlayerConditionPanel condition={(data.condition ?? null) as never} />
 

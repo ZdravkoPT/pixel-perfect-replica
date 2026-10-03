@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { JobHealthPanel } from "@/components/JobHealthPanel";
 import { getDiagnostics, triggerIngestion } from "@/lib/football.functions";
 import { startBacktest, syncHistory, trainModels } from "@/lib/analytics.functions";
 import {
@@ -208,6 +209,8 @@ function AdminPage() {
           Your account does not have the admin role, so error and conflict logs are hidden.
         </p>
       ) : null}
+
+      <JobHealthPanel />
 
       <h2 className="mt-8 mb-2 text-sm font-semibold">Recent ingestion errors</h2>
       <div className="space-y-2">
