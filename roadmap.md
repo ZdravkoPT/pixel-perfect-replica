@@ -8,4 +8,5 @@
 - [x] Fixture congestion (games in 14 days)
 - [ ] Travel distance, weather (Open-Meteo), standings motivation
 - [x] Player importance weighting for absences
-- [ ] Bivariate / zero-inflated Poisson in the model competition + Understat xG history
+- [x] Bivariate, zero-inflated and blended models in the competition
+- [ ] Understat xG history
