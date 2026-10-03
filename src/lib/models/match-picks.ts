@@ -152,7 +152,9 @@ export function scoreMatch(input: PickInput): PickResult {
     const diff = input.elo.home - input.elo.away + (input.elo.neutral ? 0 : 65);
     const we = 1 / (1 + Math.pow(10, -diff / 400));
     const draw = clamp(0.3 - 0.35 * Math.abs(we - 0.5), 0.12, 0.3);
-    e = { home: clamp(we - draw / 2, 0.02, 0.96), draw, away: clamp(1 - we - draw / 2, 0.02, 0.96) };
+    const h = clamp(we - draw / 2, 0.02, 0.96), a = clamp(1 - we - draw / 2, 0.02, 0.96);
+    const sum = h + draw + a;
+    e = { home: h / sum, draw: draw / sum, away: a / sum };
   }
   const tailOver = (lambda: number, line: number) => {
     let cdf = 0;
