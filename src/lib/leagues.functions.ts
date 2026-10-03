@@ -221,10 +221,15 @@ export const simulateSeason = createServerFn({ method: "GET" })
     const n = T.size;
     if (n < 8 || games.length < 1.5 * n) return { rows: [] as SimRow[], remaining: 0, runs: 0 };
     const lh = hg / games.length, la = ag / games.length, avg = (lh + la) / 2;
-    const K = 6; // shrink strengths toward average until a team has ~6 games
+    // Prior = long-run strength from the weekly model competition (league history); this season's goals pull away from it.
+    const { data: comp } = await sb.from("model_competitions").select("ratings").order("run_at", { ascending: false }).limit(1).maybeSingle();
+    const ratings = (comp?.ratings ?? {}) as Record<string, { lh: number; la: number; dgf: number; dga: number }>;
+    const K = 10;
     const str = new Map([...T].map(([id, t]) => {
-      const p = t.hp + t.ap;
-      return [id, { att: (t.gf + K * avg) / (p + K) / avg, def: (t.ga + K * avg) / (p + K) / avg }];
+      const p = t.hp + t.ap, r = ratings[id];
+      const base = r ? (r.lh + r.la) / 2 : 0;
+      const pa = r && base > 0 ? r.dgf / base : 1, pd = r && base > 0 ? r.dga / base : 1;
+      return [id, { att: (t.gf + K * avg * pa) / (p + K) / avg, def: (t.ga + K * avg * pd) / (p + K) / avg }];
     }));
     const ids = [...T.keys()];
     const fixtures: [string, string, number, number][] = [];

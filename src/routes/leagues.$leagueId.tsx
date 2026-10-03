@@ -136,7 +136,7 @@ function SeasonSim({ leagueId }: { leagueId: string }) {
       {isLoading ? <p className="mt-3 text-xs text-muted-foreground">Simulating the rest of the season…</p>
         : !data?.rows.length ? <p className="mt-3 text-xs text-muted-foreground">Not enough games played this season to simulate yet.</p> : (
         <>
-          <p className="mt-1 text-xs text-muted-foreground">The {data.remaining} remaining games played {data.runs.toLocaleString()} times, using each team's scoring and conceding this season.</p>
+          <p className="mt-1 text-xs text-muted-foreground">The {data.remaining} remaining games played {data.runs.toLocaleString()} times, using each club's long-run strength from past seasons, updated with this season's goals.</p>
           <table className="mt-3 w-full text-sm">
             <thead className="text-xs text-muted-foreground"><tr><th className="text-left font-normal">Team</th><th className="text-right font-normal">Pts now</th><th className="text-right font-normal">Final pts</th><th className="text-right font-normal">Title</th><th className="text-right font-normal">Top 4</th><th className="text-right font-normal">Relegation</th></tr></thead>
             <tbody>
