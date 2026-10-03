@@ -35,6 +35,8 @@ export type Database = {
           selection: string
           settled_at: string | null
           slip_type: string
+          total_cards: number | null
+          total_corners: number | null
           updated_at: string
         }
         Insert: {
@@ -57,6 +59,8 @@ export type Database = {
           selection: string
           settled_at?: string | null
           slip_type: string
+          total_cards?: number | null
+          total_corners?: number | null
           updated_at?: string
         }
         Update: {
@@ -79,6 +83,8 @@ export type Database = {
           selection?: string
           settled_at?: string | null
           slip_type?: string
+          total_cards?: number | null
+          total_corners?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -588,6 +594,50 @@ export type Database = {
         }
         Relationships: []
       }
+      elo_ratings: {
+        Row: {
+          as_of: string
+          code: string | null
+          id: string
+          kind: string
+          name: string
+          rank: number | null
+          rating: number
+          source: string
+          team_id: string | null
+        }
+        Insert: {
+          as_of?: string
+          code?: string | null
+          id?: string
+          kind: string
+          name: string
+          rank?: number | null
+          rating: number
+          source: string
+          team_id?: string | null
+        }
+        Update: {
+          as_of?: string
+          code?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          rank?: number | null
+          rating?: number
+          source?: string
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elo_ratings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
@@ -611,6 +661,99 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      historical_results: {
+        Row: {
+          away_corners: number | null
+          away_goals: number
+          away_name: string
+          away_red: number | null
+          away_shots: number | null
+          away_sot: number | null
+          away_team_id: string | null
+          away_yellow: number | null
+          created_at: string
+          home_corners: number | null
+          home_goals: number
+          home_name: string
+          home_red: number | null
+          home_shots: number | null
+          home_sot: number | null
+          home_team_id: string | null
+          home_yellow: number | null
+          id: string
+          league_code: string
+          match_date: string
+          referee: string | null
+          season: string
+          source: string
+        }
+        Insert: {
+          away_corners?: number | null
+          away_goals: number
+          away_name: string
+          away_red?: number | null
+          away_shots?: number | null
+          away_sot?: number | null
+          away_team_id?: string | null
+          away_yellow?: number | null
+          created_at?: string
+          home_corners?: number | null
+          home_goals: number
+          home_name: string
+          home_red?: number | null
+          home_shots?: number | null
+          home_sot?: number | null
+          home_team_id?: string | null
+          home_yellow?: number | null
+          id?: string
+          league_code: string
+          match_date: string
+          referee?: string | null
+          season: string
+          source?: string
+        }
+        Update: {
+          away_corners?: number | null
+          away_goals?: number
+          away_name?: string
+          away_red?: number | null
+          away_shots?: number | null
+          away_sot?: number | null
+          away_team_id?: string | null
+          away_yellow?: number | null
+          created_at?: string
+          home_corners?: number | null
+          home_goals?: number
+          home_name?: string
+          home_red?: number | null
+          home_shots?: number | null
+          home_sot?: number | null
+          home_team_id?: string | null
+          home_yellow?: number | null
+          id?: string
+          league_code?: string
+          match_date?: string
+          referee?: string | null
+          season?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historical_results_away_team_id_fkey"
+            columns: ["away_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historical_results_home_team_id_fkey"
+            columns: ["home_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ingestion_errors: {
         Row: {
@@ -1161,6 +1304,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      match_picks_cache: {
+        Row: {
+          computed_at: string
+          id: string
+          payload: Json
+        }
+        Insert: {
+          computed_at?: string
+          id: string
+          payload: Json
+        }
+        Update: {
+          computed_at?: string
+          id?: string
+          payload?: Json
+        }
+        Relationships: []
       }
       match_sources: {
         Row: {

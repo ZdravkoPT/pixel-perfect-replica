@@ -51,6 +51,9 @@ export interface PickInput {
   home: TeamExtras;
   away: TeamExtras;
   h2h: H2H | null;
+  elo: { home: number; away: number; neutral: boolean } | null;
+  corners: { expected: number; overShare: number; samples: number } | null;
+  cards: { expected: number; overShare: number; samples: number; refereeAvg: number | null } | null;
   /** actual hit-rate / expected per market code, from settled past picks */
   calibration: Record<string, number>;
 }
@@ -143,13 +146,29 @@ export function scoreMatch(input: PickInput): PickResult {
     btts: h2h.btts,
   } : null;
 
-  type Def = { code: string; market: string; selection: string; m: number; f: number | null; h: number | null };
+  // Elo: win expectancy -> 1X2 with an empirical draw share
+  let e: { home: number; draw: number; away: number } | null = null;
+  if (input.elo) {
+    const diff = input.elo.home - input.elo.away + (input.elo.neutral ? 0 : 65);
+    const we = 1 / (1 + Math.pow(10, -diff / 400));
+    const draw = clamp(0.3 - 0.35 * Math.abs(we - 0.5), 0.12, 0.3);
+    const h = clamp(we - draw / 2, 0.02, 0.96), a = clamp(1 - we - draw / 2, 0.02, 0.96);
+    const sum = h + draw + a;
+    e = { home: h / sum, draw: draw / sum, away: a / sum };
+  }
+  const tailOver = (lambda: number, line: number) => {
+    let cdf = 0;
+    for (let k = 0; k <= Math.floor(line); k++) cdf += poissonPmf(k, lambda);
+    return 1 - cdf;
+  };
+
+  type Def = { code: string; market: string; selection: string; m: number; f: number | null; h: number | null; e?: number | null };
   const defs: Def[] = [
-    { code: "home", market: "1X2", selection: `${input.homeName} win`, m: model.home, f: f?.home ?? null, h: hh?.home ?? null },
-    { code: "away", market: "1X2", selection: `${input.awayName} win`, m: model.away, f: f?.away ?? null, h: hh?.away ?? null },
-    { code: "dc_home", market: "Double chance", selection: `${input.homeName} or draw`, m: model.home + model.draw, f: f ? f.home + f.draw : null, h: hh ? hh.home + hh.draw : null },
-    { code: "dc_away", market: "Double chance", selection: `${input.awayName} or draw`, m: model.away + model.draw, f: f ? f.away + f.draw : null, h: hh ? hh.away + hh.draw : null },
-    { code: "dc_nodraw", market: "Double chance", selection: "Either team wins", m: model.home + model.away, f: f ? 1 - f.draw : null, h: hh ? 1 - hh.draw : null },
+    { code: "home", market: "1X2", selection: `${input.homeName} win`, m: model.home, f: f?.home ?? null, h: hh?.home ?? null, e: e?.home ?? null },
+    { code: "away", market: "1X2", selection: `${input.awayName} win`, m: model.away, f: f?.away ?? null, h: hh?.away ?? null, e: e?.away ?? null },
+    { code: "dc_home", market: "Double chance", selection: `${input.homeName} or draw`, m: model.home + model.draw, f: f ? f.home + f.draw : null, h: hh ? hh.home + hh.draw : null, e: e ? e.home + e.draw : null },
+    { code: "dc_away", market: "Double chance", selection: `${input.awayName} or draw`, m: model.away + model.draw, f: f ? f.away + f.draw : null, h: hh ? hh.away + hh.draw : null, e: e ? e.away + e.draw : null },
+    { code: "dc_nodraw", market: "Double chance", selection: "Either team wins", m: model.home + model.away, f: f ? 1 - f.draw : null, h: hh ? 1 - hh.draw : null, e: e ? 1 - e.draw : null },
     { code: "over15", market: "Goals", selection: "Over 1.5 goals", m: model.o15, f: f?.o15 ?? null, h: null },
     { code: "over25", market: "Goals", selection: "Over 2.5 goals", m: model.o25, f: f?.o25 ?? null, h: hh?.o25 ?? null },
     { code: "under25", market: "Goals", selection: "Under 2.5 goals", m: 1 - model.o25, f: f ? 1 - f.o25 : null, h: hh ? 1 - hh.o25 : null },
@@ -159,12 +178,24 @@ export function scoreMatch(input: PickInput): PickResult {
     { code: "home_scores", market: "Team to score", selection: `${input.homeName} to score`, m: model.hs, f: f?.hs ?? null, h: null },
     { code: "away_scores", market: "Team to score", selection: `${input.awayName} to score`, m: model.as, f: f?.as ?? null, h: null },
   ];
+  if (input.corners && input.corners.samples >= 5) {
+    const o = tailOver(input.corners.expected, 9.5);
+    defs.push({ code: "corners_over95", market: "Corners", selection: "Over 9.5 corners", m: o, f: input.corners.overShare, h: null });
+    defs.push({ code: "corners_under95", market: "Corners", selection: "Under 9.5 corners", m: 1 - o, f: 1 - input.corners.overShare, h: null });
+  }
+  if (input.cards && input.cards.samples >= 5) {
+    const o = tailOver(input.cards.expected, 4.5);
+    const r = input.cards.refereeAvg !== null ? tailOver(input.cards.refereeAvg, 4.5) : null;
+    defs.push({ code: "cards_over45", market: "Cards", selection: "Over 4.5 cards", m: o, f: input.cards.overShare, h: r });
+    defs.push({ code: "cards_under45", market: "Cards", selection: "Under 4.5 cards", m: 1 - o, f: 1 - input.cards.overShare, h: r === null ? null : 1 - r });
+  }
 
   const reliability = input.lineupStatus === "confirmed" ? 1 : input.lineupStatus === "projected" ? 0.97 : 0.94;
   const scores: MarketScore[] = defs.map((d) => {
     const parts: Array<[number, number]> = [[d.m, 0.5]];
     if (d.f !== null) parts.push([d.f, 0.3]);
     if (d.h !== null) parts.push([d.h, 0.2]);
+    if (d.e !== undefined && d.e !== null) parts.push([d.e, 0.25]);
     const w = parts.reduce((a, [, x]) => a + x, 0);
     let p = parts.reduce((a, [v, x]) => a + v * x, 0) / w;
     const cal = input.calibration[d.code];
@@ -175,9 +206,21 @@ export function scoreMatch(input: PickInput): PickResult {
     return { code: d.code, market: d.market, selection: d.selection, probability: p, agree, signals };
   });
 
+  // Rank by lift over each market's typical hit rate, so "safe" markets that
+  // land most of the time anyway (e.g. either team wins) don't crowd out picks.
+  const BASE: Record<string, number> = {
+    home: 0.45, away: 0.3, dc_home: 0.72, dc_away: 0.55, dc_nodraw: 0.74,
+    over15: 0.76, over25: 0.52, under25: 0.48, under35: 0.73, btts: 0.52, btts_no: 0.48,
+    home_scores: 0.78, away_scores: 0.68,
+    corners_over95: 0.5, corners_under95: 0.5, cards_over45: 0.45, cards_under45: 0.55,
+  };
+  const lift = (s: MarketScore) => {
+    const b = BASE[s.code] ?? 0.5;
+    return (s.probability - b) / (1 - b);
+  };
   const eligible = scores
-    .filter((s) => s.agree === s.signals && s.signals >= 2 && s.probability >= 0.62)
-    .sort((a, b) => b.probability * (1 + 0.04 * b.signals) - a.probability * (1 + 0.04 * a.signals));
+    .filter((s) => s.agree === s.signals && s.signals >= 2 && s.probability >= 0.62 && lift(s) >= 0.15)
+    .sort((a, b) => lift(b) * (1 + 0.04 * b.signals) - lift(a) * (1 + 0.04 * a.signals));
   const pick = eligible[0] ?? null;
 
   if (!pick) {
@@ -206,6 +249,11 @@ export function scoreMatch(input: PickInput): PickResult {
       reasons.push(`Recent form: ${input.homeName} ${hf.last5 || "–"} (${hf.gf.toFixed(1)} scored, ${hf.ga.toFixed(1)} conceded) vs ${input.awayName} ${af.last5 || "–"} (${af.gf.toFixed(1)} / ${af.ga.toFixed(1)}).`);
     }
   }
+  if (input.elo && e && ["home", "away", "dc_home", "dc_away", "dc_nodraw"].includes(pick.code)) {
+    reasons.push(`Elo ratings ${Math.round(input.elo.home)} vs ${Math.round(input.elo.away)}${input.elo.neutral ? " (neutral venue)" : ""}: ${pct(e.home)} / ${pct(e.draw)} / ${pct(e.away)}.`);
+  }
+  if (pick.code.startsWith("corners") && input.corners) reasons.push(`Expected corners ${input.corners.expected.toFixed(1)}; over 9.5 in ${pct(input.corners.overShare)} of both sides' recent games.`);
+  if (pick.code.startsWith("cards") && input.cards) reasons.push(`Expected cards ${input.cards.expected.toFixed(1)}${input.cards.refereeAvg !== null ? `, referee averages ${input.cards.refereeAvg.toFixed(1)}` : ""}; over 4.5 in ${pct(input.cards.overShare)} of recent games.`);
   if (hOk && h2h) reasons.push(`Head-to-head (last ${h2h.matches}): ${h2h.homeWins}W ${h2h.draws}D ${h2h.awayWins}L for ${input.homeName}, over 2.5 in ${pct(h2h.over25)}.`);
   if (home.injuries || away.injuries) reasons.push(`Unavailable players: ${input.homeName} ${home.injuries}, ${input.awayName} ${away.injuries}.`);
   if (home.coachWinRate !== null && away.coachWinRate !== null && Math.abs(home.coachWinRate - away.coachWinRate) >= 0.08) {

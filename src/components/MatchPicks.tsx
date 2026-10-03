@@ -29,8 +29,8 @@ export function MatchPicks() {
         <div>
           <h2 className="text-sm font-semibold">Match picks — one best bet per match</h2>
           <p className="text-xs text-muted-foreground">
-            Each pick combines the model, recent results, head-to-head, injuries, player condition, managers,
-            shots and rest days. A pick is only made when every available source agrees.
+            Each pick combines the model, Elo ratings, six seasons of results, head-to-head, injuries, player
+            condition, managers, shots, corners, cards, referee and rest days. Picks refresh hourly. A pick is only made when every available source agrees.
           </p>
           {data.summary ? (
             <p className="mt-1 text-xs">
