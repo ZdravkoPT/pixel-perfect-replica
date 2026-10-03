@@ -204,9 +204,21 @@ export function scoreMatch(input: PickInput): PickResult {
     return { code: d.code, market: d.market, selection: d.selection, probability: p, agree, signals };
   });
 
+  // Rank by lift over each market's typical hit rate, so "safe" markets that
+  // land most of the time anyway (e.g. either team wins) don't crowd out picks.
+  const BASE: Record<string, number> = {
+    home: 0.45, away: 0.3, dc_home: 0.72, dc_away: 0.55, dc_nodraw: 0.74,
+    over15: 0.76, over25: 0.52, under25: 0.48, under35: 0.73, btts: 0.52, btts_no: 0.48,
+    home_scores: 0.78, away_scores: 0.68,
+    corners_over95: 0.5, corners_under95: 0.5, cards_over45: 0.45, cards_under45: 0.55,
+  };
+  const lift = (s: MarketScore) => {
+    const b = BASE[s.code] ?? 0.5;
+    return (s.probability - b) / (1 - b);
+  };
   const eligible = scores
-    .filter((s) => s.agree === s.signals && s.signals >= 2 && s.probability >= 0.62)
-    .sort((a, b) => b.probability * (1 + 0.04 * b.signals) - a.probability * (1 + 0.04 * a.signals));
+    .filter((s) => s.agree === s.signals && s.signals >= 2 && s.probability >= 0.62 && lift(s) >= 0.15)
+    .sort((a, b) => lift(b) * (1 + 0.04 * b.signals) - lift(a) * (1 + 0.04 * a.signals));
   const pick = eligible[0] ?? null;
 
   if (!pick) {
