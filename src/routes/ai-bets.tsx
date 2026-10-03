@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { useState } from "react";
 import { StakeCalculator, StakeSettings, type StakeInputs } from "@/components/StakeCalculator";
 import { getAiBets } from "@/lib/value.functions";
+import { MatchPicks } from "@/components/MatchPicks";
 
 const betsQuery = queryOptions({
   queryKey: ["ai-bets"],
@@ -42,6 +43,7 @@ function AiBetsPage() {
   return (
     <AppShell title="AI bet builder" subtitle="Strongest model signals kicking off today">
       <div className="space-y-6">
+        <MatchPicks />
         {data.candidates.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             {data.reason === "no-fixtures"
@@ -280,7 +282,7 @@ function AiBetsPage() {
               </section>
             ) : null}
 
-            {data.megaSlip ? (
+            {false && data.megaSlip ? (
               <section className="rounded-lg border border-border bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-sm font-semibold">
