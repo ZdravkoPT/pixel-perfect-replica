@@ -20,7 +20,7 @@ export const Route = createFileRoute("/players/$playerId_/stats")({
     ],
   }),
   loader: ({ context, params }) => context.queryClient.ensureQueryData(statsQuery(params.playerId)),
-  errorComponent: ({ error }) => <AppShell title="Player stats"><p className="text-sm text-destructive">{error.message}</p></AppShell>,
+  errorComponent: ({ error }) => <AppShell title="Player stats"><p className="text-sm text-destructive">{(error as Error).message}</p></AppShell>,
   notFoundComponent: () => <AppShell title="Player not found"><p className="text-sm">Unknown player.</p></AppShell>,
   component: PlayerStatsPage,
 });
