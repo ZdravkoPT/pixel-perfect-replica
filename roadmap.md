@@ -4,7 +4,7 @@
 - [x] Signal report + learned per-source weights (needs 20+ settled picks per source to kick in)
 - [x] Per-market calibration (already in place from settled picks)
 - [x] International results history (martj42) — 8,247 matches, weekly refresh
-- [ ] openfootball lower-league results
+- [x] openfootball lower-league results (League One, League Two, Austria 1+2)
 - [x] Fixture congestion (games in 14 days)
 - [x] League-table strength (built from our own results)
 - [x] Stadium locations, kickoff weather (Open-Meteo), away travel distance — hourly

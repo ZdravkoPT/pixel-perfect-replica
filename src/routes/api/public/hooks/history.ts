@@ -7,8 +7,10 @@ export const Route = createFileRoute("/api/public/hooks/history")({
       POST: async ({ request }) => {
         const unauthorized = await authenticateCronRequest(request);
         if (unauthorized) return unauthorized;
-        const { importHistory } = await import("@/lib/history.server");
-        return Response.json(await importHistory());
+        const { importHistory, importOpenfootball } = await import("@/lib/history.server");
+        const main = await importHistory();
+        const lower = await importOpenfootball();
+        return Response.json({ ...main, openfootball: lower });
       },
     },
   },
