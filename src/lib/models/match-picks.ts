@@ -42,6 +42,8 @@ export interface TeamExtras {
   table?: { pos: number; pts: number; played: number; size: number; leaderPts?: number; fourthPts?: number; dropPts?: number; safePts?: number } | null;
   /** plays another competition within 3 days after this game */
   cupSoon?: boolean;
+  /** available regulars clearly in form (score >= 75) or out of form (< 40), "Name 82" */
+  keyForm?: { hot: string[]; cold: string[] } | null;
 }
 
 export type Motivation = "title" | "europe" | "relegation" | "nothing" | null;
@@ -152,6 +154,7 @@ export function scoreMatch(input: PickInput): PickResult {
     const mot = motivationOf(team.table), oppMot = motivationOf(opp.table);
     if (mot === "nothing" && oppMot && oppMot !== "nothing") m *= 0.97; // opponent has more at stake
     if (team.cupSoon) m *= 0.98; // likely rotation
+    if (team.keyForm) m *= 1 + clamp(team.keyForm.hot.length - team.keyForm.cold.length, -3, 3) * 0.01; // key players' form
     if (team.table && opp.table && team.table.size === opp.table.size) {
       // table gap (points per game), small bounded nudge
       const gap = team.table.pts / team.table.played - opp.table.pts / opp.table.played;
