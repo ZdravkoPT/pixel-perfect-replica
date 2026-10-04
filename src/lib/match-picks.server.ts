@@ -1,3 +1,4 @@
+import { computePlayerForm } from "./models/player-form";
 /** Builds the per-match picks from every stored signal (server only). */
 import { scoreMatch, type H2H, type TeamExtras, type TeamForm } from "@/lib/models/match-picks";
 
@@ -195,6 +196,44 @@ export async function computeMatchPicks() {
   }
   const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 
+  // ---- key regulars' form score (same formula as player pages) ---------------
+  const keyPlayers = (conditions.data ?? []).filter((c) => c.team_id && !seenInj.has(c.player_id) && (shareBy.get(c.player_id) ?? 0) >= 0.5);
+  const keyIds = [...new Set(keyPlayers.map((c) => c.player_id))];
+  const formBy = new Map<string, { hot: string[]; cold: string[] }>();
+  if (keyIds.length) {
+    const statRows: Array<{ player_id: string; match_id: string; minutes: number; rating: number | null; goals: number; assists: number; shots: number; created_at: string; player: { name?: string } | null }> = [];
+    for (let i = 0; i < keyIds.length; i += 150) {
+      const { data } = await sb.from("player_match_stats")
+        .select("player_id, match_id, minutes, rating, goals, assists, shots, created_at, player:players(name)")
+        .in("player_id", keyIds.slice(i, i + 150)).gt("minutes", 0)
+        .order("created_at", { ascending: false }).limit(3000);
+      statRows.push(...((data ?? []) as typeof statRows));
+    }
+    const shotXg = new Map<string, number>();
+    const matchIds = [...new Set(statRows.map((s) => s.match_id))];
+    for (let i = 0; i < matchIds.length; i += 200) {
+      const { data } = await sb.from("match_shots").select("match_id, player_id, model_xg")
+        .in("match_id", matchIds.slice(i, i + 200)).in("player_id", keyIds).not("model_xg", "is", null);
+      for (const s of data ?? []) { const k = `${s.match_id}|${s.player_id}`; shotXg.set(k, (shotXg.get(k) ?? 0) + Number(s.model_xg)); }
+    }
+    const byPlayer = new Map<string, typeof statRows>();
+    for (const s of statRows) { const a = byPlayer.get(s.player_id) ?? []; a.push(s); byPlayer.set(s.player_id, a); }
+    for (const c of keyPlayers) {
+      const games = byPlayer.get(c.player_id);
+      if (!games) continue;
+      const f = computePlayerForm(games.slice(0, 5).map((g) => ({
+        minutes: g.minutes, rating: g.rating === null ? null : Number(g.rating), goals: g.goals, assists: g.assists, shots: g.shots,
+        xg: shotXg.get(`${g.match_id}|${g.player_id}`) ?? null,
+      })));
+      const name = games[0]?.player?.name;
+      if (!f || !name) continue;
+      const e = formBy.get(c.team_id!) ?? { hot: [], cold: [] };
+      if (f.score >= 75) e.hot.push(`${name} ${Math.round(f.score)}`);
+      else if (f.score < 40) e.cold.push(`${name} ${Math.round(f.score)}`);
+      formBy.set(c.team_id!, e);
+    }
+  }
+
   const coachIds = [...new Set((spells.data ?? []).map((s) => s.coach_id))];
   const { data: profiles } = coachIds.length
     ? await sb.from("coach_profiles").select("coach_id, seasons").in("coach_id", coachIds)
@@ -230,6 +269,7 @@ export async function computeMatchPicks() {
       coachName: coachBy.get(tid)?.name ?? null,
       missingShare: condTeams.has(tid) ? Number((missBy.get(tid)?.share ?? 0).toFixed(2)) : null,
       keyAbsent: missBy.get(tid)?.keys ?? [],
+      keyForm: formBy.get(tid) ?? null,
       games14: pastRows.length ? pastRows.filter((p) => (p.home_team_id === tid || p.away_team_id === tid)
         && new Date(p.kickoff_at).getTime() < new Date(kickoff).getTime()
         && new Date(kickoff).getTime() - new Date(p.kickoff_at).getTime() <= 14 * 86400e3).length : null,
