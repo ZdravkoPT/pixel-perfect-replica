@@ -352,6 +352,9 @@ export function scoreMatch(input: PickInput): PickResult {
   if (home.injuries || away.injuries) reasons.push(`Unavailable players: ${input.homeName} ${home.injuries}, ${input.awayName} ${away.injuries}.`);
   const keys = [...(home.keyAbsent ?? []).map((n) => `${n} (${input.homeName})`), ...(away.keyAbsent ?? []).map((n) => `${n} (${input.awayName})`)];
   if (keys.length) reasons.push(`Key regulars missing: ${keys.slice(0, 4).join(", ")}.`);
+  const fl = (t: TeamExtras, n: string) => [...(t.keyForm?.hot ?? []).map((x) => `${x} in form`), ...(t.keyForm?.cold ?? []).map((x) => `${x} out of form`)].map((x) => `${x} (${n})`);
+  const forms = [...fl(home, input.homeName), ...fl(away, input.awayName)];
+  if (forms.length) reasons.push(`Key players' form score: ${forms.slice(0, 4).join(", ")}.`);
   if (cx && ((cx.rainMm ?? 0) >= 2 || (cx.windKmh ?? 0) >= 30)) reasons.push(`Kickoff forecast: ${cx.tempC != null ? `${Math.round(cx.tempC)}°C, ` : ""}${(cx.rainMm ?? 0).toFixed(1)} mm rain, wind ${Math.round(cx.windKmh ?? 0)} km/h.`);
   if (cx?.awayTravelKm != null && cx.awayTravelKm >= 1500) reasons.push(`${input.awayName} travel about ${cx.awayTravelKm.toLocaleString("en")} km to this game.`);
   if ((home.games14 ?? 0) >= 4 || (away.games14 ?? 0) >= 4) reasons.push(`Games in last 14 days: ${input.homeName} ${home.games14 ?? "?"}, ${input.awayName} ${away.games14 ?? "?"}.`);
