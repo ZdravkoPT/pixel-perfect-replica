@@ -19,7 +19,7 @@ const positionBand = (position: string | null) => {
 
 const formClass = (s: number) => (s >= 70 ? "bg-primary text-primary-foreground" : s >= 45 ? "bg-muted text-foreground" : "bg-destructive text-destructive-foreground");
 
-function PlayerMarker({ row, form }: { row: PlayerRow; form?: number }) {
+function PlayerMarker({ row, form }: { row: PlayerRow; form?: number | undefined }) {
   const name = row.player?.name ?? "Unknown";
   const number = "shirt_number" in row ? row.shirt_number : null;
   return (
