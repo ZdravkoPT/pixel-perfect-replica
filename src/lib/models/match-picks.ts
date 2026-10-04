@@ -43,6 +43,8 @@ export interface TeamExtras {
   /** plays another competition within 3 days after this game */
   cupSoon?: boolean;
   /** available regulars clearly in form (score >= 75) or out of form (< 40), "Name 82" */
+  /** starting XI's minutes share vs the usual XI (1 = usual XI), only when a line-up is known */
+  xi?: { ratio: number; benched: string[] } | null;
   keyForm?: { hot: string[]; cold: string[] } | null;
 }
 
@@ -144,7 +146,10 @@ export function scoreMatch(input: PickInput): PickResult {
   let la = input.lambdaAway;
   const adj = (team: TeamExtras, opp: TeamExtras) => {
     let m = 1;
-    if (team.missingShare != null) {
+    if (team.xi) {
+      // known line-up already reflects absences: scale by how much of the usual XI starts
+      m *= clamp(1 - (1 - team.xi.ratio) * 0.25, 0.9, 1);
+    } else if (team.missingShare != null) {
       // weight each absence by how much that player actually plays (11 regulars = 11.0 share)
       m *= 1 - clamp(team.missingShare, 0, 4) * 0.035;
     } else {
@@ -353,6 +358,9 @@ export function scoreMatch(input: PickInput): PickResult {
   const keys = [...(home.keyAbsent ?? []).map((n) => `${n} (${input.homeName})`), ...(away.keyAbsent ?? []).map((n) => `${n} (${input.awayName})`)];
   if (keys.length) reasons.push(`Key regulars missing: ${keys.slice(0, 4).join(", ")}.`);
   const fl = (t: TeamExtras, n: string) => [...(t.keyForm?.hot ?? []).map((x) => `${x} in form`), ...(t.keyForm?.cold ?? []).map((x) => `${x} out of form`)].map((x) => `${x} (${n})`);
+  const xiTxt = [[home, input.homeName], [away, input.awayName]].filter(([t]) => (t as TeamExtras).xi && (t as TeamExtras).xi!.ratio < 0.9)
+    .map(([t, n]) => `${n} start with ${Math.round((t as TeamExtras).xi!.ratio * 100)}% of their usual XI's minutes${(t as TeamExtras).xi!.benched.length ? ` (${(t as TeamExtras).xi!.benched.slice(0, 3).join(", ")} not starting)` : ""}`);
+  if (xiTxt.length) reasons.push(`Line-up strength: ${xiTxt.join("; ")}.`);
   const forms = [...fl(home, input.homeName), ...fl(away, input.awayName)];
   if (forms.length) reasons.push(`Key players' form score: ${forms.slice(0, 4).join(", ")}.`);
   if (cx && ((cx.rainMm ?? 0) >= 2 || (cx.windKmh ?? 0) >= 30)) reasons.push(`Kickoff forecast: ${cx.tempC != null ? `${Math.round(cx.tempC)}°C, ` : ""}${(cx.rainMm ?? 0).toFixed(1)} mm rain, wind ${Math.round(cx.windKmh ?? 0)} km/h.`);
