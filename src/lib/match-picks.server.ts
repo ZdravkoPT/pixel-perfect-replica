@@ -31,7 +31,7 @@ export async function computeMatchPicks() {
 
   const [preds, lineups, past, injuries, conditions, spells, settled] = await Promise.all([
     sb.from("predictions").select("match_id, lambda_home, lambda_away, prediction_timestamp").in("match_id", ids).order("prediction_timestamp", { ascending: false }),
-    sb.from("lineups").select("match_id, is_predicted").in("match_id", ids),
+    sb.from("lineups").select("match_id, team_id, is_predicted, lineup_players(player_id, is_starter, player:players(name))").in("match_id", ids),
     sb.from("matches").select("id, home_team_id, away_team_id, home_score, away_score, kickoff_at")
       .eq("status", "FINISHED").gte("kickoff_at", since)
       .or(`home_team_id.in.(${teamList}),away_team_id.in.(${teamList})`)
@@ -197,6 +197,33 @@ export async function computeMatchPicks() {
   const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 
   // ---- key regulars' form score (same formula as player pages) ---------------
+  // ---- starting XI vs usual XI (minutes share of who actually starts) -------
+  const teamShares = new Map<string, Array<{ id: string; sh: number }>>();
+  for (const c of conditions.data ?? []) {
+    if (!c.team_id) continue;
+    const a = teamShares.get(c.team_id) ?? []; a.push({ id: c.player_id, sh: shareBy.get(c.player_id) ?? 0 }); teamShares.set(c.team_id, a);
+  }
+  const xiBy = new Map<string, { ratio: number; benched: string[] }>();
+  type LP = { player_id: string; is_starter: boolean; player: { name?: string } | null };
+  const bestLineup = new Map<string, { is_predicted: boolean; players: LP[] }>();
+  for (const l of (lineups.data ?? []) as Array<{ match_id: string; team_id: string; is_predicted: boolean; lineup_players: LP[] | null }>) {
+    const k = `${l.match_id}|${l.team_id}`; const cur = bestLineup.get(k);
+    if (!cur || (cur.is_predicted && !l.is_predicted)) bestLineup.set(k, { is_predicted: l.is_predicted, players: l.lineup_players ?? [] });
+  }
+  for (const [k, l] of bestLineup) {
+    const tid = k.split("|")[1]!;
+    const squad = (teamShares.get(tid) ?? []).filter((x) => x.sh > 0).sort((a, b) => b.sh - a.sh);
+    const starters = l.players.filter((p) => p.is_starter);
+    if (squad.length < 11 || starters.length < 10) continue; // not enough evidence
+    const usual = squad.slice(0, 11).reduce((a, x) => a + x.sh, 0);
+    const startIds = new Set(starters.map((p) => p.player_id));
+    const actual = starters.reduce((a, p) => a + (shareBy.get(p.player_id) ?? 0), 0);
+    if (usual <= 0) continue;
+    const benchedIds = squad.slice(0, 11).filter((x) => x.sh >= 0.5 && !startIds.has(x.id) && !seenInj.has(x.id)).map((x) => x.id);
+    const names = new Map(l.players.map((p) => [p.player_id, p.player?.name]));
+    xiBy.set(k, { ratio: Math.min(1, actual / usual), benched: benchedIds.map((id) => names.get(id)).filter((n): n is string => !!n) });
+  }
+
   const keyPlayers = (conditions.data ?? []).filter((c) => c.team_id && !seenInj.has(c.player_id) && (shareBy.get(c.player_id) ?? 0) >= 0.5);
   const keyIds = [...new Set(keyPlayers.map((c) => c.player_id))];
   const formBy = new Map<string, { hot: string[]; cold: string[] }>();
@@ -403,8 +430,8 @@ export async function computeMatchPicks() {
       lambdaHome: lam?.lh ?? null, lambdaAway: lam?.la ?? null,
       lineupStatus: lineupStatus.get(r.id) ?? "none",
       homeForm: formOf(r.home_team_id), awayForm: formOf(r.away_team_id),
-      home: { ...extras(r.home_team_id, r.kickoff_at), table: tableOf(r.season_id, r.home_team_id), cupSoon: cupSoon(r, r.home_team_id) },
-      away: { ...extras(r.away_team_id, r.kickoff_at), table: tableOf(r.season_id, r.away_team_id), cupSoon: cupSoon(r, r.away_team_id) },
+      home: { ...extras(r.home_team_id, r.kickoff_at), table: tableOf(r.season_id, r.home_team_id), cupSoon: cupSoon(r, r.home_team_id), xi: xiBy.get(`${r.id}|${r.home_team_id}`) ?? null },
+      away: { ...extras(r.away_team_id, r.kickoff_at), table: tableOf(r.season_id, r.away_team_id), cupSoon: cupSoon(r, r.away_team_id), xi: xiBy.get(`${r.id}|${r.away_team_id}`) ?? null },
       h2h: h2hOf(r.home_team_id, r.away_team_id),
       calibration,
       sourceWeights,
