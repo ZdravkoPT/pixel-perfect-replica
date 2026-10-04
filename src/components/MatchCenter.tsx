@@ -110,7 +110,7 @@ export function MatchCenter({ matchId, homeName, awayName, intel }: { matchId: s
               <div key={index} className="min-w-0">
                 <p className="font-semibold">{index === 0 ? homeName : awayName}</p>
                 <p className="mt-1 text-muted-foreground">Substitutes</p>
-                <div className="mt-2 space-y-1.5">{(lineup?.players ?? []).filter((row) => !row.is_starter).map((row) => <Link key={row.player_id} to="/players/$playerId" params={{ playerId: row.player_id }} className="flex items-center justify-between gap-2 hover:text-primary"><span className="truncate">{row.player?.name ?? "Unknown"}</span>{typeof forms[row.player_id] === "number" && <span title="Form score" className={`rounded-sm px-1 font-mono text-[10px] ${formClass(forms[row.player_id])}`}>{forms[row.player_id]}</span>}</Link>)}
+                <div className="mt-2 space-y-1.5">{(lineup?.players ?? []).filter((row) => !row.is_starter).map((row) => <Link key={row.player_id} to="/players/$playerId" params={{ playerId: row.player_id }} className="flex items-center justify-between gap-2 hover:text-primary"><span className="truncate">{row.player?.name ?? "Unknown"}</span>{typeof forms[row.player_id] === "number" && <span title="Form score" className={`rounded-sm px-1 font-mono text-[10px] ${formClass(forms[row.player_id] ?? 0)}`}>{forms[row.player_id]}</span>}</Link>)}
                   {!lineup?.players.some((row) => !row.is_starter) && <span className="text-muted-foreground">Not published</span>}
                 </div>
               </div>
