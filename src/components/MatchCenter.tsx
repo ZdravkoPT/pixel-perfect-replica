@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { getMatchFacts } from "@/lib/facts.functions";
+import { getLineupForm } from "@/lib/player-stats.functions";
 import type { IntelData } from "@/components/IntelPanels";
 
 type PlayerRow = IntelData["lineups"][number]["players"][number];
@@ -16,20 +17,23 @@ const positionBand = (position: string | null) => {
   return 3;
 };
 
-function PlayerMarker({ row }: { row: PlayerRow }) {
+const formClass = (s: number) => (s >= 70 ? "bg-primary text-primary-foreground" : s >= 45 ? "bg-muted text-foreground" : "bg-destructive text-destructive-foreground");
+
+function PlayerMarker({ row, form }: { row: PlayerRow; form?: number | undefined }) {
   const name = row.player?.name ?? "Unknown";
   const number = "shirt_number" in row ? row.shirt_number : null;
   return (
     <Link to="/players/$playerId" params={{ playerId: row.player_id }} title={name} className="group flex w-[19%] min-w-0 shrink-0 flex-col items-center gap-1 text-center text-pitch-foreground lg:w-full">
-      <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-pitch-foreground/80 bg-pitch-foreground font-sans text-xs font-bold text-pitch-ink shadow-sm transition-transform group-hover:scale-110">
+      <span className="relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-pitch-foreground/80 bg-pitch-foreground font-sans text-xs font-bold text-pitch-ink shadow-sm transition-transform group-hover:scale-110">
         {typeof number === "number" ? number : name.slice(0, 2).toUpperCase()}
+        {typeof form === "number" && <span title={`Form score ${form}`} className={`absolute -top-2 -right-3 rounded-sm px-1 font-mono text-[9px] leading-tight ${formClass(form)}`}>{form}</span>}
       </span>
       <span className="w-full truncate px-0.5 text-[10px] font-semibold leading-tight drop-shadow-sm">{name}</span>
     </Link>
   );
 }
 
-function PitchSide({ lineup, reversed }: { lineup: IntelData["lineups"][number] | undefined; reversed?: boolean }) {
+function PitchSide({ lineup, reversed, forms }: { lineup: IntelData["lineups"][number] | undefined; reversed?: boolean; forms: Record<string, number> }) {
   const starters = (lineup?.players ?? []).filter((row) => row.is_starter);
   const bands = [0, 1, 2, 3].map((band) => starters.filter((row) => positionBand(row.position ?? row.player?.position ?? null) === band));
   if (starters.length === 0) return <div className="flex flex-1 items-center justify-center px-6 text-center text-xs text-pitch-foreground/80">Team sheet not available</div>;
@@ -37,7 +41,7 @@ function PitchSide({ lineup, reversed }: { lineup: IntelData["lineups"][number] 
     <div className={`relative z-10 flex flex-1 flex-col justify-around py-5 lg:flex-row lg:py-2 ${reversed ? "flex-col-reverse lg:flex-row-reverse" : ""}`}>
       {bands.map((players, index) => (
         <div key={index} className="flex min-h-12 items-center justify-evenly gap-1 px-2 lg:w-1/4 lg:flex-col lg:px-0.5">
-          {players.map((row) => <PlayerMarker key={row.player_id} row={row} />)}
+          {players.map((row) => <PlayerMarker key={row.player_id} row={row} form={forms[row.player_id]} />)}
         </div>
       ))}
     </div>
@@ -74,6 +78,8 @@ export function MatchCenter({ matchId, homeName, awayName, intel }: { matchId: s
   const homeLineup = intel.lineups.find((row) => row.team_id === intel.homeTeamId);
   const awayLineup = intel.lineups.find((row) => row.team_id === intel.awayTeamId);
   const form = data?.local?.form ?? [];
+  const ids = intel.lineups.flatMap((l) => l.players.map((p) => p.player_id)).sort();
+  const { data: forms = {} } = useQuery({ queryKey: ["lineup-form", ids.join(",")], queryFn: () => getLineupForm({ data: { playerIds: ids } }), enabled: ids.length > 0, staleTime: 600_000 });
   const insights = [
     ...((data?.local?.info ?? []).filter((item) => /model goal rates|most likely score|model 1x2/i.test(item.label)).map((item) => `${item.label}: ${item.value}`)),
     ...((data?.facts?.info ?? []).filter((item) => /referee|stadium|attendance/i.test(item.label)).map((item) => `${item.label}: ${item.value}`)),
@@ -88,7 +94,7 @@ export function MatchCenter({ matchId, homeName, awayName, intel }: { matchId: s
             <div className="min-w-0 text-right text-xs font-semibold"><span className="mr-2 font-mono opacity-75">{awayLineup?.formation ?? "—"}</span>{awayName}</div>
           </div>
           <div className="bg-pitch-header px-4 pb-3 text-center text-[11px] text-pitch-foreground/80">
-            {homeLineup?.is_predicted || awayLineup?.is_predicted ? "Projected team sheet — not confirmed" : homeLineup && awayLineup ? "Confirmed team sheets" : "Lineups appear when published"}
+            {homeLineup?.is_predicted || awayLineup?.is_predicted ? "Projected team sheet — not confirmed" : homeLineup && awayLineup ? "Confirmed team sheets" : "Lineups appear when published"}{Object.keys(forms).length > 0 && " · small number = form score (0–100, last 5 games)"}
           </div>
           <div className="pitch-field relative flex min-h-[610px] flex-col overflow-hidden sm:min-h-[680px] lg:min-h-[440px] lg:flex-row">
             <div className="pitch-outline pointer-events-none absolute inset-4 rounded-sm border-2 border-pitch-lines" />
@@ -96,15 +102,15 @@ export function MatchCenter({ matchId, homeName, awayName, intel }: { matchId: s
             <div className="pointer-events-none absolute top-1/2 left-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-pitch-lines" />
             <div className="pointer-events-none absolute top-4 left-1/4 right-1/4 h-14 border-x-2 border-b-2 border-pitch-lines lg:top-1/4 lg:bottom-1/4 lg:left-4 lg:right-auto lg:h-auto lg:w-14 lg:border-y-2 lg:border-r-2 lg:border-l-0" />
             <div className="pointer-events-none absolute bottom-4 left-1/4 right-1/4 h-14 border-x-2 border-t-2 border-pitch-lines lg:top-1/4 lg:bottom-1/4 lg:left-auto lg:right-4 lg:h-auto lg:w-14 lg:border-y-2 lg:border-l-2 lg:border-r-0" />
-            <PitchSide lineup={homeLineup} />
-            <PitchSide lineup={awayLineup} reversed />
+            <PitchSide lineup={homeLineup} forms={forms} />
+            <PitchSide lineup={awayLineup} reversed forms={forms} />
           </div>
           <div className="grid grid-cols-2 gap-4 bg-card px-4 py-4 text-xs">
             {[homeLineup, awayLineup].map((lineup, index) => (
               <div key={index} className="min-w-0">
                 <p className="font-semibold">{index === 0 ? homeName : awayName}</p>
                 <p className="mt-1 text-muted-foreground">Substitutes</p>
-                <div className="mt-2 space-y-1.5">{(lineup?.players ?? []).filter((row) => !row.is_starter).map((row) => <Link key={row.player_id} to="/players/$playerId" params={{ playerId: row.player_id }} className="block truncate hover:text-primary">{row.player?.name ?? "Unknown"}</Link>)}
+                <div className="mt-2 space-y-1.5">{(lineup?.players ?? []).filter((row) => !row.is_starter).map((row) => <Link key={row.player_id} to="/players/$playerId" params={{ playerId: row.player_id }} className="flex items-center justify-between gap-2 hover:text-primary"><span className="truncate">{row.player?.name ?? "Unknown"}</span>{typeof forms[row.player_id] === "number" && <span title="Form score" className={`rounded-sm px-1 font-mono text-[10px] ${formClass(forms[row.player_id] ?? 0)}`}>{forms[row.player_id]}</span>}</Link>)}
                   {!lineup?.players.some((row) => !row.is_starter) && <span className="text-muted-foreground">Not published</span>}
                 </div>
               </div>

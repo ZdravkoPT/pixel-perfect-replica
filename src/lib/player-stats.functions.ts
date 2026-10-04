@@ -85,3 +85,62 @@ export const getPlayerForm = createServerFn({ method: "GET" })
       })),
     );
   });
+
+/** Form scores for many players at once (match line-ups). Missing = fewer than 3 stored games. */
+export const getLineupForm = createServerFn({ method: "POST" })
+  .inputValidator((input: { playerIds: string[] }) => ({ playerIds: input.playerIds.slice(0, 80) }))
+  .handler(async ({ data }) => {
+    const out: Record<string, number> = {};
+    if (!data.playerIds.length) return out;
+    const { computePlayerForm } = await import("@/lib/models/player-form");
+    const supabase = publicClient();
+    const { data: rows } = await supabase
+      .from("player_match_stats")
+      .select("player_id, match_id, minutes, rating, goals, assists, shots, matches!inner(kickoff_at)")
+      .in("player_id", data.playerIds)
+      .gt("minutes", 0)
+      .limit(2000);
+    const byPlayer = new Map<string, Array<NonNullable<typeof rows>[number] & { kickoff: string }>>();
+    for (const r of rows ?? []) {
+      const kickoff = (r as unknown as { matches: { kickoff_at: string } }).matches.kickoff_at;
+      const list = byPlayer.get(r.player_id) ?? [];
+      list.push({ ...r, kickoff });
+      byPlayer.set(r.player_id, list);
+    }
+    const recent = new Map<string, typeof rows>();
+    const matchIds = new Set<string>();
+    for (const [pid, list] of byPlayer) {
+      const top = list.sort((a, b) => b.kickoff.localeCompare(a.kickoff)).slice(0, 5);
+      recent.set(pid, top);
+      top.forEach((r) => matchIds.add(r.match_id));
+    }
+    const xgBy = new Map<string, number>();
+    const hasXg = new Set<string>();
+    if (matchIds.size) {
+      const { data: shots } = await supabase
+        .from("match_shots")
+        .select("player_id, match_id, model_xg")
+        .in("player_id", [...byPlayer.keys()])
+        .in("match_id", [...matchIds]);
+      for (const s of shots ?? []) {
+        if (s.model_xg === null || !s.player_id) continue;
+        hasXg.add(s.player_id);
+        const k = `${s.player_id}:${s.match_id}`;
+        xgBy.set(k, (xgBy.get(k) ?? 0) + Number(s.model_xg));
+      }
+    }
+    for (const [pid, list] of recent) {
+      const f = computePlayerForm(
+        (list ?? []).map((r) => ({
+          minutes: r.minutes,
+          rating: r.rating === null ? null : Number(r.rating),
+          goals: r.goals,
+          assists: r.assists,
+          shots: r.shots,
+          xg: hasXg.has(pid) ? (xgBy.get(`${pid}:${r.match_id}`) ?? 0) : null,
+        })),
+      );
+      if (f) out[pid] = f.score;
+    }
+    return out;
+  });
