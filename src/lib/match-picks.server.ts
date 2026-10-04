@@ -225,7 +225,7 @@ export async function computeMatchPicks() {
         minutes: g.minutes, rating: g.rating === null ? null : Number(g.rating), goals: g.goals, assists: g.assists, shots: g.shots,
         xg: shotXg.get(`${g.match_id}|${g.player_id}`) ?? null,
       })));
-      const name = games[0].player?.name;
+      const name = games[0]?.player?.name;
       if (!f || !name) continue;
       const e = formBy.get(c.team_id!) ?? { hot: [], cold: [] };
       if (f.score >= 75) e.hot.push(`${name} ${Math.round(f.score)}`);
