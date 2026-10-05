@@ -7,6 +7,7 @@ import { getTeamStats } from "@/lib/intel.functions";
 import { TeamFormChart } from "@/components/TeamFormChart";
 import { useQuery } from "@tanstack/react-query";
 import { getTeamAbsences } from "@/lib/leagues.functions";
+import { getTeamStyle } from "@/lib/team-style.functions";
 
 const teamStatsQuery = (teamId: string) =>
   queryOptions({ queryKey: ["team-stats", teamId], queryFn: () => getTeamStats({ data: { teamId } }) });
@@ -90,6 +91,8 @@ function TeamStatsPage() {
           <SplitBlock label="Away" s={data.away} />
         </div>
 
+        <StyleProfile teamId={teamId} />
+
         <Absences teamId={teamId} />
 
         <section>
@@ -115,6 +118,31 @@ function TeamStatsPage() {
         </section>
       </div>
     </AppShell>
+  );
+}
+
+function StyleProfile({ teamId }: { teamId: string }) {
+  const { data, isLoading } = useQuery({ queryKey: ["team-style", teamId], queryFn: () => getTeamStyle({ data: { teamId } }) });
+  return (
+    <section>
+      <h2 className="text-sm font-semibold">Playing style</h2>
+      {isLoading ? <p className="mt-2 text-xs text-muted-foreground">Loading…</p> : !data ? (
+        <p className="mt-2 text-xs text-muted-foreground">Not enough match statistics yet (needs 3 games).</p>
+      ) : (
+        <div className="mt-3 rounded-lg border border-border bg-card p-3">
+          {data.tags.length ? <div className="mb-3 flex flex-wrap gap-1">{data.tags.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</div> : null}
+          <div className="space-y-2">
+            {data.metrics.map((m) => (
+              <div key={m.key} className="text-xs">
+                <div className="flex justify-between"><span>{m.label}</span><span className="font-mono tabular-nums">{m.value} · <span className="text-muted-foreground">higher than {m.pct}% of teams</span></span></div>
+                <div className="mt-1 h-1.5 rounded bg-muted"><div className="h-1.5 rounded bg-primary" style={{ width: `${m.pct}%` }} /></div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">Average of the last {data.samples} games with match statistics.</p>
+        </div>
+      )}
+    </section>
   );
 }
 
