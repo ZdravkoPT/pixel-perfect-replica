@@ -155,6 +155,37 @@ export async function computeMatchPicks() {
   }
   const { data: xgRows } = await sb.from("team_xg").select("team_id, xg, xg_against, created_at")
     .in("team_id", teamIds).order("created_at", { ascending: false }).limit(3000);
+  // ---- goalkeeper (goals prevented vs our xG) + set-piece xG, last 10 games with shot maps ----
+  const SP = new Set(["FromCorner", "FreeKick", "SetPiece", "ThrowInSetPiece"]);
+  const gkBy = new Map<string, number>();
+  const spBy = new Map<string, { f: number; a: number }>();
+  {
+    const pm = (past.data ?? []) as Array<{ id: string; home_team_id: string; away_team_id: string; kickoff_at: string }>;
+    const shots: Array<{ match_id: string; team_id: string | null; model_xg: number | null; is_goal: boolean; on_target: boolean; situation: string | null }> = [];
+    const mids = pm.map((m) => m.id);
+    for (let i = 0; i < mids.length; i += 200) {
+      const { data } = await sb.from("match_shots").select("match_id, team_id, model_xg, is_goal, on_target, situation").in("match_id", mids.slice(i, i + 200)).limit(20000);
+      shots.push(...((data ?? []) as typeof shots));
+    }
+    const byMatch = new Map<string, typeof shots>();
+    for (const s of shots) { const a = byMatch.get(s.match_id) ?? []; a.push(s); byMatch.set(s.match_id, a); }
+    for (const tid of teamIds) {
+      const games = pm.filter((m) => (m.home_team_id === tid || m.away_team_id === tid) && byMatch.has(m.id)).slice(0, 10);
+      if (games.length < 5) continue;
+      let prevented = 0, spF = 0, spA = 0;
+      for (const g of games) {
+        for (const s of byMatch.get(g.id)!) {
+          if (s.model_xg == null || !s.team_id) continue;
+          const xg = Number(s.model_xg);
+          if (s.team_id === tid) { if (s.situation && SP.has(s.situation)) spF += xg; continue; }
+          if (s.situation && SP.has(s.situation)) spA += xg;
+          if (s.on_target && s.situation !== "Penalty") prevented += xg - (s.is_goal ? 1 : 0);
+        }
+      }
+      gkBy.set(tid, Number((prevented / games.length).toFixed(2)));
+      spBy.set(tid, { f: Number((spF / games.length).toFixed(2)), a: Number((spA / games.length).toFixed(2)) });
+    }
+  }
   const { data: mvRows } = await sb.from("market_values").select("team_id, squad_value_eur, fetched_at")
     .in("team_id", teamIds).order("fetched_at", { ascending: false }).limit(2000);
   const mvBy = new Map<string, number>();
@@ -297,6 +328,8 @@ export async function computeMatchPicks() {
       missingShare: condTeams.has(tid) ? Number((missBy.get(tid)?.share ?? 0).toFixed(2)) : null,
       keyAbsent: missBy.get(tid)?.keys ?? [],
       keyForm: formBy.get(tid) ?? null,
+      keeperPrevented: gkBy.get(tid) ?? null,
+      setPiece: spBy.get(tid) ?? null,
       games14: pastRows.length ? pastRows.filter((p) => (p.home_team_id === tid || p.away_team_id === tid)
         && new Date(p.kickoff_at).getTime() < new Date(kickoff).getTime()
         && new Date(kickoff).getTime() - new Date(p.kickoff_at).getTime() <= 14 * 86400e3).length : null,

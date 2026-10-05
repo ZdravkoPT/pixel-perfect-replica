@@ -46,6 +46,10 @@ export interface TeamExtras {
   /** starting XI's minutes share vs the usual XI (1 = usual XI), only when a line-up is known */
   xi?: { ratio: number; benched: string[] } | null;
   keyForm?: { hot: string[]; cold: string[] } | null;
+  /** goals the keeper(s) saved above our xG model per game on on-target non-penalty shots (last 10 games, min 5) */
+  keeperPrevented?: number | null;
+  /** set-piece xG per game created (f) and conceded (a), same window */
+  setPiece?: { f: number; a: number } | null;
 }
 
 export type Motivation = "title" | "europe" | "relegation" | "nothing" | null;
