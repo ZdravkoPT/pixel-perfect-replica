@@ -360,7 +360,8 @@ export function scoreMatch(input: PickInput): PickResult {
   const fl = (t: TeamExtras, n: string) => [...(t.keyForm?.hot ?? []).map((x) => `${x} in form`), ...(t.keyForm?.cold ?? []).map((x) => `${x} out of form`)].map((x) => `${x} (${n})`);
   const xiTxt = [[home, input.homeName], [away, input.awayName]].filter(([t]) => (t as TeamExtras).xi && (t as TeamExtras).xi!.ratio < 0.9)
     .map(([t, n]) => `${n} start with ${Math.round((t as TeamExtras).xi!.ratio * 100)}% of their usual XI's minutes${(t as TeamExtras).xi!.benched.length ? ` (${(t as TeamExtras).xi!.benched.slice(0, 3).join(", ")} not starting)` : ""}`);
-  if (xiTxt.length) reasons.push(`Line-up strength: ${xiTxt.join("; ")}.`);
+  // keep it near the top so the 6-reason cap never hides it
+  if (xiTxt.length) reasons.splice(1, 0, `Line-up strength: ${xiTxt.join("; ")}.`);
   const forms = [...fl(home, input.homeName), ...fl(away, input.awayName)];
   if (forms.length) reasons.push(`Key players' form score: ${forms.slice(0, 4).join(", ")}.`);
   if (cx && ((cx.rainMm ?? 0) >= 2 || (cx.windKmh ?? 0) >= 30)) reasons.push(`Kickoff forecast: ${cx.tempC != null ? `${Math.round(cx.tempC)}°C, ` : ""}${(cx.rainMm ?? 0).toFixed(1)} mm rain, wind ${Math.round(cx.windKmh ?? 0)} km/h.`);
