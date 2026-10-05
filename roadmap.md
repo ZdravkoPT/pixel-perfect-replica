@@ -1,7 +1,7 @@
 # Roadmap (final plan)
 
 - [x] A1 form score in line-ups + picks factor
-- [ ] B8 Line-up-aware strength
+- [x] B8 Line-up-aware strength
 - [ ] A2 Team style profiles
 - [ ] B9 Goalkeeper factor / B10 Set-piece strength
 - [ ] A3 Pick explainer + share card
