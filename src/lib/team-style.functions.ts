@@ -14,7 +14,7 @@ const KEYS = [
 ] as const;
 type K = (typeof KEYS)[number][0];
 
-/** Team style from its last 10 real box scores, ranked against every team's averages. Blank if under 5 games. */
+/** Team style from its last 10 real box scores, ranked against every team's averages. Blank if under 3 games. */
 export const getTeamStyle = createServerFn({ method: "GET" })
   .inputValidator((input: { teamId: string }) => input)
   .handler(async ({ data }): Promise<TeamStyle | null> => {
@@ -32,11 +32,11 @@ export const getTeamStyle = createServerFn({ method: "GET" })
     }
     const avgs = new Map<string, Partial<Record<K, number>>>();
     for (const [tid, list] of byTeam) {
-      if ((list ?? []).length < 5) continue;
+      if ((list ?? []).length < 3) continue;
       const o: Partial<Record<K, number>> = {};
       for (const [k] of KEYS) {
         const v = (list ?? []).map((r) => r[k]).filter((x): x is number => x != null).map(Number);
-        if (v.length >= 5) o[k] = v.reduce((a, b) => a + b, 0) / v.length;
+        if (v.length >= 3) o[k] = v.reduce((a, b) => a + b, 0) / v.length;
       }
       avgs.set(tid, o);
     }

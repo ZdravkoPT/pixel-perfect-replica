@@ -127,7 +127,7 @@ function StyleProfile({ teamId }: { teamId: string }) {
     <section>
       <h2 className="text-sm font-semibold">Playing style</h2>
       {isLoading ? <p className="mt-2 text-xs text-muted-foreground">Loading…</p> : !data ? (
-        <p className="mt-2 text-xs text-muted-foreground">Not enough match statistics yet (needs 5 games).</p>
+        <p className="mt-2 text-xs text-muted-foreground">Not enough match statistics yet (needs 3 games).</p>
       ) : (
         <div className="mt-3 rounded-lg border border-border bg-card p-3">
           {data.tags.length ? <div className="mb-3 flex flex-wrap gap-1">{data.tags.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}</div> : null}
