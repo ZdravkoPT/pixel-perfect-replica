@@ -3,7 +3,7 @@
 - [x] A1 form score in line-ups + picks factor
 - [x] B8 Line-up-aware strength
 - [x] A2 Team style profiles
-- [ ] B9 Goalkeeper factor / B10 Set-piece strength
+- [x] B9 Goalkeeper factor / B10 Set-piece strength
 - [ ] A3 Pick explainer + share card
 - [ ] B12 Self-correcting market thresholds
 - [ ] D19 Public transparency page
