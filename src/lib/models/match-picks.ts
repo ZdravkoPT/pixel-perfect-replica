@@ -164,6 +164,10 @@ export function scoreMatch(input: PickInput): PickResult {
     if (mot === "nothing" && oppMot && oppMot !== "nothing") m *= 0.97; // opponent has more at stake
     if (team.cupSoon) m *= 0.98; // likely rotation
     if (team.keyForm) m *= 1 + clamp(team.keyForm.hot.length - team.keyForm.cold.length, -3, 3) * 0.01; // key players' form
+    // opponent keeper saving above/below our xG model: at most ±2%
+    if (opp.keeperPrevented != null) m *= 1 - clamp(opp.keeperPrevented, -0.4, 0.4) * 0.05;
+    // set-piece threat vs opponent set-piece defending (league-typical ≈0.3 xG/game): at most ±1.5%
+    if (team.setPiece && opp.setPiece) m *= 1 + clamp((team.setPiece.f + opp.setPiece.a) / 2 - 0.3, -0.3, 0.3) * 0.05;
     if (team.table && opp.table && team.table.size === opp.table.size) {
       // table gap (points per game), small bounded nudge
       const gap = team.table.pts / team.table.played - opp.table.pts / opp.table.played;
@@ -368,6 +372,11 @@ export function scoreMatch(input: PickInput): PickResult {
   if (xiTxt.length) reasons.splice(1, 0, `Line-up strength: ${xiTxt.join("; ")}.`);
   const forms = [...fl(home, input.homeName), ...fl(away, input.awayName)];
   if (forms.length) reasons.push(`Key players' form score: ${forms.slice(0, 4).join(", ")}.`);
+  const gk = [[input.homeName, home.keeperPrevented], [input.awayName, away.keeperPrevented]] as const;
+  const gkNotes = gk.filter(([, v]) => v != null && Math.abs(v) >= 0.15).map(([n, v]) => `${n} keeper ${v! > 0 ? "+" : ""}${v!.toFixed(2)} goals/game vs expected`);
+  if (gkNotes.length) reasons.push(`Goalkeeping (last 10 games): ${gkNotes.join("; ")}.`);
+  if ((pick.code.startsWith("corners") || pick.code.startsWith("btts")) && home.setPiece && away.setPiece)
+    reasons.push(`Set-piece xG per game (for/against): ${input.homeName} ${home.setPiece.f.toFixed(2)}/${home.setPiece.a.toFixed(2)}, ${input.awayName} ${away.setPiece.f.toFixed(2)}/${away.setPiece.a.toFixed(2)}.`);
   if (cx && ((cx.rainMm ?? 0) >= 2 || (cx.windKmh ?? 0) >= 30)) reasons.push(`Kickoff forecast: ${cx.tempC != null ? `${Math.round(cx.tempC)}°C, ` : ""}${(cx.rainMm ?? 0).toFixed(1)} mm rain, wind ${Math.round(cx.windKmh ?? 0)} km/h.`);
   if (cx?.awayTravelKm != null && cx.awayTravelKm >= 1500) reasons.push(`${input.awayName} travel about ${cx.awayTravelKm.toLocaleString("en")} km to this game.`);
   if ((home.games14 ?? 0) >= 4 || (away.games14 ?? 0) >= 4) reasons.push(`Games in last 14 days: ${input.homeName} ${home.games14 ?? "?"}, ${input.awayName} ${away.games14 ?? "?"}.`);
