@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { getMatchPicks } from "@/lib/match-picks.functions";
+import { PickShare } from "@/components/PickShare";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
@@ -76,11 +77,27 @@ export function MatchPicks() {
                 <span className="text-sm font-semibold">{p.market}: {p.selection}</span>
                 <span className="font-mono text-sm tabular-nums">{pct(p.probability)}</span>
               </div>
-              <ul className="mt-2 space-y-1">
-                {p.reasons.map((r, i) => (
-                  <li key={i} className="text-[11px] text-muted-foreground">• {r}</li>
-                ))}
-              </ul>
+              {(() => {
+                const agree = p.reasons.find((r) => /independent sources agree/.test(r));
+                const top = p.reasons.filter((r) => r !== agree && !r.startsWith("Model goal rates")).slice(0, 3);
+                const rest = p.reasons.filter((r) => r !== agree && !top.includes(r));
+                return (
+                  <>
+                    <p className="mt-2 text-[11px] font-medium">Why: top 3 reasons</p>
+                    <ol className="mt-1 list-decimal space-y-1 pl-4">
+                      {top.map((r, i) => <li key={i} className="text-[11px]">{r}</li>)}
+                    </ol>
+                    {agree ? <p className="mt-2 text-[11px] text-muted-foreground">{agree}</p> : null}
+                    {rest.length ? (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-[11px] text-muted-foreground">All reasons ({rest.length} more)</summary>
+                        <ul className="mt-1 space-y-1">{rest.map((r, i) => <li key={i} className="text-[11px] text-muted-foreground">• {r}</li>)}</ul>
+                      </details>
+                    ) : null}
+                    <div className="mt-2 flex justify-end"><PickShare pick={p} top={top} /></div>
+                  </>
+                );
+              })()}
             </article>
           ))}
         </div>

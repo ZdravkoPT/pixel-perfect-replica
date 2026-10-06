@@ -4,7 +4,7 @@
 - [x] B8 Line-up-aware strength
 - [x] A2 Team style profiles
 - [x] B9 Goalkeeper factor / B10 Set-piece strength
-- [ ] A3 Pick explainer + share card
+- [x] A3 Pick explainer + share card
 - [ ] B12 Self-correcting market thresholds
 - [ ] D19 Public transparency page
 - [ ] D20 Job auto-retry + alerts
