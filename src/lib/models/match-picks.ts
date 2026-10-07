@@ -50,6 +50,8 @@ export interface TeamExtras {
   keeperPrevented?: number | null;
   /** set-piece xG per game created (f) and conceded (a), same window */
   setPiece?: { f: number; a: number } | null;
+  /** latest confirmed formation differs from the team's settled shape in the 5 games before */
+  shapeChange?: { from: string; to: string } | null;
 }
 
 export type Motivation = "title" | "europe" | "relegation" | "nothing" | null;
@@ -170,6 +172,7 @@ export function scoreMatch(input: PickInput): PickResult {
     if (opp.keeperPrevented != null) m *= 1 - clamp(opp.keeperPrevented, -0.4, 0.4) * 0.05;
     // set-piece threat vs opponent set-piece defending (league-typical ≈0.3 xG/game): at most ±1.5%
     if (team.setPiece && opp.setPiece) m *= 1 + clamp((team.setPiece.f + opp.setPiece.a) / 2 - 0.3, -0.3, 0.3) * 0.05;
+    if (team.shapeChange) m *= 0.985; // new formation: a little less trust in its attack
     if (team.table && opp.table && team.table.size === opp.table.size) {
       // table gap (points per game), small bounded nudge
       const gap = team.table.pts / team.table.played - opp.table.pts / opp.table.played;
@@ -379,6 +382,9 @@ export function scoreMatch(input: PickInput): PickResult {
   if (gkNotes.length) reasons.push(`Goalkeeping (last 10 games): ${gkNotes.join("; ")}.`);
   if ((pick.code.startsWith("corners") || pick.code.startsWith("btts")) && home.setPiece && away.setPiece)
     reasons.push(`Set-piece xG per game (for/against): ${input.homeName} ${home.setPiece.f.toFixed(2)}/${home.setPiece.a.toFixed(2)}, ${input.awayName} ${away.setPiece.f.toFixed(2)}/${away.setPiece.a.toFixed(2)}.`);
+  const shapes = [[input.homeName, home.shapeChange], [input.awayName, away.shapeChange]] as const;
+  const shapeNotes = shapes.filter(([, s]) => s).map(([n, s]) => `${n} switched from ${s!.from} to ${s!.to}`);
+  if (shapeNotes.length) reasons.push(`Tactical change (last 3 games): ${shapeNotes.join("; ")} — a little extra caution.`);
   if (cx && ((cx.rainMm ?? 0) >= 2 || (cx.windKmh ?? 0) >= 30)) reasons.push(`Kickoff forecast: ${cx.tempC != null ? `${Math.round(cx.tempC)}°C, ` : ""}${(cx.rainMm ?? 0).toFixed(1)} mm rain, wind ${Math.round(cx.windKmh ?? 0)} km/h.`);
   if (cx?.awayTravelKm != null && cx.awayTravelKm >= 1500) reasons.push(`${input.awayName} travel about ${cx.awayTravelKm.toLocaleString("en")} km to this game.`);
   if ((home.games14 ?? 0) >= 4 || (away.games14 ?? 0) >= 4) reasons.push(`Games in last 14 days: ${input.homeName} ${home.games14 ?? "?"}, ${input.awayName} ${away.games14 ?? "?"}.`);
