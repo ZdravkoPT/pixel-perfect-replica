@@ -539,6 +539,7 @@ export async function computeMatchPicks() {
   }).sort((a, b) => b.picks - a.picks);
   for (let i = picks.length - 1; i >= 0; i--) {
     const p = picks[i];
+    if (!p) continue;
     const kinds = [...new Set(p.reasons.map(reasonKind))];
     let f = 1;
     const moved: string[] = [];
