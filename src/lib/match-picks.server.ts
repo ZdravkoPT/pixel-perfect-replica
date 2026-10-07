@@ -308,6 +308,31 @@ export async function computeMatchPicks() {
     coachBy.set(s.team_id, { rate: coachRate.get(s.coach_id) ?? null, name: (s.coach as { name?: string } | null)?.name ?? null });
   }
 
+  // ---- formation change: last 3 confirmed formations vs the 5 before them ----
+  const shapeBy = new Map<string, { from: string; to: string }>();
+  {
+    const { data: fl } = await sb.from("lineups").select("team_id, formation, match:matches!inner(kickoff_at, status)")
+      .in("team_id", teamIds).eq("is_predicted", false).not("formation", "is", null)
+      .eq("match.status", "FINISHED").limit(5000);
+    const byTeam = new Map<string, Array<{ f: string; t: string }>>();
+    for (const l of (fl ?? []) as Array<{ team_id: string; formation: string; match: { kickoff_at: string } | null }>) {
+      if (!l.match) continue;
+      const a = byTeam.get(l.team_id) ?? []; a.push({ f: l.formation, t: l.match.kickoff_at }); byTeam.set(l.team_id, a);
+    }
+    for (const [tid, a] of byTeam) {
+      a.sort((x, y) => y.t.localeCompare(x.t));
+      if (a.length < 6) continue; // need a real "usual" shape
+      const before = a.slice(3, 8);
+      const counts = new Map<string, number>();
+      for (const x of before) counts.set(x.f, (counts.get(x.f) ?? 0) + 1);
+      const [usual, n] = [...counts.entries()].sort((x, y) => y[1] - x[1])[0]!;
+      if (n < Math.ceil(before.length * 0.6)) continue; // no settled shape before
+      const recent = a.slice(0, 3).map((x) => x.f);
+      const changed = recent.find((f) => f !== usual);
+      if (changed && recent.filter((f) => f !== usual).length >= 1 && recent[0] !== usual) shapeBy.set(tid, { from: usual, to: recent[0]! });
+    }
+  }
+
   const extras = (tid: string, kickoff: string): TeamExtras => {
     const c = condBy.get(tid);
     const last = lastPlayed.get(tid);
@@ -330,6 +355,7 @@ export async function computeMatchPicks() {
       keyForm: formBy.get(tid) ?? null,
       keeperPrevented: gkBy.get(tid) ?? null,
       setPiece: spBy.get(tid) ?? null,
+      shapeChange: shapeBy.get(tid) ?? null,
       games14: pastRows.length ? pastRows.filter((p) => (p.home_team_id === tid || p.away_team_id === tid)
         && new Date(p.kickoff_at).getTime() < new Date(kickoff).getTime()
         && new Date(kickoff).getTime() - new Date(p.kickoff_at).getTime() <= 14 * 86400e3).length : null,
