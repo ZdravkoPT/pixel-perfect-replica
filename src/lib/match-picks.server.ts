@@ -22,7 +22,7 @@ export async function computeMatchPicks() {
     id: string; kickoff_at: string; home_team_id: string; away_team_id: string; league_id: string | null; season_id: string | null;
     league: { name: string } | null; home: { name: string } | null; away: { name: string } | null;
   }>;
-  if (!rows.length) return { picks: [], noBets: [], track: [], signalTrack: [], summary: null, generatedAt: now.toISOString() };
+  if (!rows.length) return { picks: [], noBets: [], track: [], signalTrack: [], reasonTrack: [], summary: null, generatedAt: now.toISOString() };
 
   const ids = rows.map((r) => r.id);
   const teamIds = [...new Set(rows.flatMap((r) => [r.home_team_id, r.away_team_id]))];
@@ -39,7 +39,7 @@ export async function computeMatchPicks() {
     sb.from("injuries").select("team_id, player_id, player:players(name)").in("team_id", teamIds).is("resolved_at", null),
     sb.from("player_conditions").select("player_id, team_id, sharpness, load_index, minutes_share").in("team_id", teamIds),
     sb.from("coach_spells").select("team_id, coach_id, coach:coaches(name)").in("team_id", teamIds).eq("is_current", true),
-    sb.from("ai_bet_log").select("pick_code, probability, result, slip_type, signals, kickoff_at").in("result", ["hit", "miss"])
+    sb.from("ai_bet_log").select("pick_code, probability, result, slip_type, signals, facts, kickoff_at").in("result", ["hit", "miss"])
       .gte("kickoff_at", new Date(now.getTime() - 70 * 86400e3).toISOString()).limit(5000),
   ]);
 
@@ -519,6 +519,43 @@ export async function computeMatchPicks() {
     if (result.pick) picks.push({ ...base, ...result.pick, confidence: result.confidence!, reasons: result.reasons });
     else noBets.push({ ...base, reason: result.noBetReason ?? "No clear edge." });
   }
+  // ---- reason accuracy: kinds of reasons that keep under/over-delivering shade new picks a little ----
+  const reasonKind = (r: string) => (r.split(/[:(]/)[0] ?? "").trim().slice(0, 48);
+  const rAgg = new Map<string, { n: number; hit: number; exp: number }>();
+  for (const s of settled.data ?? []) {
+    const facts = (s as { facts?: unknown }).facts;
+    if (s.slip_type !== "match_pick" || !Array.isArray(facts)) continue;
+    for (const k of new Set((facts as string[]).map(reasonKind).filter(Boolean))) {
+      const e = rAgg.get(k) ?? { n: 0, hit: 0, exp: 0 };
+      e.n++; e.exp += Number(s.probability); if (s.result === "hit") e.hit++;
+      rAgg.set(k, e);
+    }
+  }
+  const reasonFactor = new Map<string, number>();
+  const reasonTrack = [...rAgg.entries()].filter(([, e]) => e.n >= 10).map(([kind, e]) => {
+    const ratio = e.hit / Math.max(e.exp, 1e-6);
+    if (e.n >= 30) reasonFactor.set(kind, 1 + (ratio - 1) * (e.n / (e.n + 60)));
+    return { kind, picks: e.n, hitRate: e.hit / e.n, expected: e.exp / e.n, factor: reasonFactor.get(kind) ?? 1 };
+  }).sort((a, b) => b.picks - a.picks);
+  for (let i = picks.length - 1; i >= 0; i--) {
+    const p = picks[i];
+    const kinds = [...new Set(p.reasons.map(reasonKind))];
+    let f = 1;
+    const moved: string[] = [];
+    for (const k of kinds) { const x = reasonFactor.get(k); if (x && Math.abs(x - 1) >= 0.01) { f *= x; moved.push(`${k} ${x > 1 ? "+" : ""}${Math.round((x - 1) * 100)}%`); } }
+    f = Math.min(1.03, Math.max(0.97, f));
+    if (f === 1) continue;
+    const prob = Math.min(0.97, p.probability * f);
+    const floor = marketFloors[p.code] ?? 0.62;
+    if (prob < floor) {
+      noBets.push({ matchId: p.matchId, fixture: p.fixture, league: p.league, kickoffAt: p.kickoffAt, reason: `Reasons behind ${p.selection} have under-delivered before (${moved.join(", ")}), leaving it below the ${Math.round(floor * 100)}% bar.` });
+      picks.splice(i, 1);
+      continue;
+    }
+    p.probability = prob;
+    p.reasons = [...p.reasons, `Reason track record: ${moved.join(", ")} from past graded picks.`];
+  }
+
   picks.sort((a, b) => b.probability - a.probability);
 
   // Save today's picks for automatic grading (idempotent).
@@ -540,7 +577,7 @@ export async function computeMatchPicks() {
     ? { picks: settledPicks.length, hits: settledPicks.filter((h) => h.result === "hit").length, expected: settledPicks.reduce((a, h) => a + Number(h.probability), 0) / settledPicks.length }
     : null;
 
-  return { picks, noBets, track, signalTrack, summary, generatedAt: now.toISOString() };
+  return { picks, noBets, track, signalTrack, reasonTrack, summary, generatedAt: now.toISOString() };
 }
 
 /** Computes picks and stores them for instant page loads. */
