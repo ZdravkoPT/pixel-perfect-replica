@@ -369,14 +369,25 @@ export async function computeMatchPicks() {
     .map(([code, e]) => ({ code, picks: e.n, hitRate: e.hit / e.n, expected: e.exp / e.n }))
     .sort((a, b) => b.picks - a.picks);
 
-  // ---- weak markets: last 30 settled picks of a market hit under 60% -> that market needs a higher bar ----
-  const byCode = new Map<string, boolean[]>();
+  // ---- self-correcting market floors from each market's last 60 settled picks ----
+  const byCode = new Map<string, { hit: boolean; p: number }[]>();
   for (const s of [...(settled.data ?? [])].sort((a, b) => String(b.kickoff_at).localeCompare(String(a.kickoff_at)))) {
     const arr = byCode.get(s.pick_code) ?? [];
-    if (arr.length < 30) arr.push(s.result === "hit");
+    if (arr.length < 60) arr.push({ hit: s.result === "hit", p: Number(s.probability) });
     byCode.set(s.pick_code, arr);
   }
-  const weakMarkets = [...byCode.entries()].filter(([, a]) => a.length >= 20 && a.filter(Boolean).length / a.length < 0.6).map(([c]) => c);
+  const marketFloors: Record<string, number> = {};
+  for (const [code, a] of byCode) {
+    if (a.length < 20) continue;
+    const hit = a.filter((x) => x.hit).length / a.length;
+    const exp = a.reduce((t, x) => t + x.p, 0) / a.length;
+    const gap = exp - hit; // positive = market underdelivers
+    let floor = 0.62;
+    if (gap > 0.03) floor = 0.62 + gap * (a.length / (a.length + 20));
+    else if (gap < -0.05 && a.length >= 40) floor = 0.6;
+    marketFloors[code] = Math.min(0.75, Math.max(0.6, Math.round(floor * 100) / 100));
+  }
+  const weakMarkets = Object.entries(marketFloors).filter(([, f]) => f >= 0.7).map(([c]) => c);
 
   // ---- per-source report: how often each source was right when it backed a settled pick ----
   const srcAgg = new Map<string, { n: number; right: number; exp: number }>();
@@ -469,6 +480,7 @@ export async function computeMatchPicks() {
       calibration,
       sourceWeights,
       weakMarkets,
+      marketFloors,
       elo: eloBy.has(r.home_team_id) && eloBy.has(r.away_team_id) ? { home: eloBy.get(r.home_team_id)!, away: eloBy.get(r.away_team_id)!, neutral: false } : null,
       champion: cp ? { name: comp!.winner!, ...cp } : null,
       context: (() => { const c = ctxBy.get(r.id); return c ? {
