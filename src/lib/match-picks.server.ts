@@ -22,7 +22,7 @@ export async function computeMatchPicks() {
     id: string; kickoff_at: string; home_team_id: string; away_team_id: string; league_id: string | null; season_id: string | null;
     league: { name: string } | null; home: { name: string } | null; away: { name: string } | null;
   }>;
-  if (!rows.length) return { picks: [], noBets: [], track: [], signalTrack: [], reasonTrack: [], summary: null, generatedAt: now.toISOString() };
+  if (!rows.length) return { picks: [], noBets: [], track: [], signalTrack: [], reasonTrack: [], upsets: [], summary: null, generatedAt: now.toISOString() };
 
   const ids = rows.map((r) => r.id);
   const teamIds = [...new Set(rows.flatMap((r) => [r.home_team_id, r.away_team_id]))];
@@ -559,6 +559,30 @@ export async function computeMatchPicks() {
 
   picks.sort((a, b) => b.probability - a.probability);
 
+  // ---- upset radar (information only, never a pick): model gives the Elo underdog clearly more than usual ----
+  const upsets: { matchId: string; fixture: string; league: string | null; kickoffAt: string; underdog: string; winChance: number; modelShare: number; usualShare: number }[] = [];
+  const pois = (l: number, k: number) => { let f = 1; for (let i = 2; i <= k; i++) f *= i; return Math.exp(-l) * l ** k / f; };
+  for (const r of rows) {
+    const lam = lambdas.get(r.id);
+    const eh = eloBy.get(r.home_team_id), ea = eloBy.get(r.away_team_id);
+    if (!lam || eh === undefined || ea === undefined) continue;
+    let ph = 0, pd = 0, pa = 0;
+    for (let i = 0; i <= 10; i++) for (let j = 0; j <= 10; j++) {
+      const p = pois(lam.lh, i) * pois(lam.la, j);
+      if (i > j) ph += p; else if (i === j) pd += p; else pa += p;
+    }
+    const eloHome = 1 / (1 + 10 ** (-(eh + 65 - ea) / 400));
+    const homeDog = eloHome < 0.5;
+    const usual = homeDog ? eloHome : 1 - eloHome;
+    const model = homeDog ? ph + pd / 2 : pa + pd / 2;
+    const win = homeDog ? ph : pa;
+    if (model - usual >= 0.1 && win >= 0.3) upsets.push({
+      matchId: r.id, fixture: `${r.home?.name ?? "Home"} vs ${r.away?.name ?? "Away"}`, league: r.league?.name ?? null, kickoffAt: r.kickoff_at,
+      underdog: (homeDog ? r.home?.name : r.away?.name) ?? "Underdog", winChance: win, modelShare: model, usualShare: usual,
+    });
+  }
+  upsets.sort((a, b) => (b.modelShare - b.usualShare) - (a.modelShare - a.usualShare));
+
   // Save today's picks for automatic grading (idempotent).
   try {
     const { logDailyPicks } = await import("@/lib/bet-log.server");
@@ -578,17 +602,18 @@ export async function computeMatchPicks() {
     ? { picks: settledPicks.length, hits: settledPicks.filter((h) => h.result === "hit").length, expected: settledPicks.reduce((a, h) => a + Number(h.probability), 0) / settledPicks.length }
     : null;
 
-  return { picks, noBets, track, signalTrack, reasonTrack, summary, generatedAt: now.toISOString() };
+  return { picks, noBets, track, signalTrack, reasonTrack, upsets, summary, generatedAt: now.toISOString() };
 }
 
 /** Computes picks and stores them for instant page loads. */
 export async function refreshMatchPicks() {
   const result = await computeMatchPicks();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await supabaseAdmin.from("match_picks_cache").upsert({
+  const { error: saveErr } = await supabaseAdmin.from("match_picks_cache").upsert({
     id: "latest",
     payload: JSON.parse(JSON.stringify(result)),
     computed_at: new Date().toISOString(),
   });
+  if (saveErr) console.error("match_picks_cache save failed", saveErr.message);
   return result;
 }

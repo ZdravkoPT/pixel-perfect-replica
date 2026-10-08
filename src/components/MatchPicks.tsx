@@ -142,6 +142,35 @@ export function MatchPicks() {
           </div>
         </details>
       ) : null}
+
+      {(data.reasonTrack ?? []).length > 0 ? (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground">Which reasons are right most often</summary>
+          <p className="mt-2 text-muted-foreground">Reason types with 30+ graded picks nudge new picks up or down (at most 3%).</p>
+          <div className="mt-2 grid gap-1 sm:grid-cols-2">
+            {(data.reasonTrack ?? []).map((t) => (
+              <div key={t.kind} className="flex justify-between gap-2 font-mono">
+                <span className="truncate">{t.kind}</span>
+                <span className="shrink-0">{t.picks} · {pct(t.hitRate)} vs {pct(t.expected)} · ×{t.factor.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
+
+      {(data.upsets ?? []).length > 0 ? (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground">Upset radar — {(data.upsets ?? []).length} matches (information, not picks)</summary>
+          <ul className="mt-2 space-y-1">
+            {(data.upsets ?? []).map((u) => (
+              <li key={u.matchId}>
+                <Link to="/matches/$matchId" params={{ matchId: u.matchId }} className="font-medium hover:underline">{u.fixture}</Link>{" "}
+                <span className="text-muted-foreground">— {u.underdog} win chance {pct(u.winChance)}; usual for this gap {pct(u.usualShare)}, model now {pct(u.modelShare)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </section>
   );
 }

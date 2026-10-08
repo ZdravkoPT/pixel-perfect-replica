@@ -13,7 +13,7 @@
 - [ ] A4 My day panel / A5 Personal bet tracker
 - [ ] C14 AI match preview / C15 Ask the AI / C16 Weekly report card
 - [x] B11 Tactics change
-- [ ] B13 Upset radar
+- [x] B13 Upset radar
 - [ ] A6 Openfootball extra leagues + ClubElo history
 - [ ] C17 Prediction game / C18 Installable app + alerts
 - [ ] A7 Polish (leaderboard cache, duplicate players, mobile)
