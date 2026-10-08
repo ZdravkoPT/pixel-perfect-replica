@@ -609,10 +609,11 @@ export async function computeMatchPicks() {
 export async function refreshMatchPicks() {
   const result = await computeMatchPicks();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await supabaseAdmin.from("match_picks_cache").upsert({
+  const { error: saveErr } = await supabaseAdmin.from("match_picks_cache").upsert({
     id: "latest",
     payload: JSON.parse(JSON.stringify(result)),
     computed_at: new Date().toISOString(),
   });
+  if (saveErr) console.error("match_picks_cache save failed", saveErr.message);
   return result;
 }
