@@ -118,7 +118,10 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
   const gl = new Map<string, Gl>();
   const ids = new Map<string, string>();
   const XI = 0.0019; // per-day decay (Dixon-Coles)
-  const names: ModelName[] = ["baseline", "poisson", "dixon_coles", "elo", "bivariate", "zero_inflated", "ensemble", "xg_dixon_coles", "pi_ratings", "glicko"];
+  const names: ModelName[] = ["baseline", "poisson", "dixon_coles", "elo", "bivariate", "zero_inflated", "ensemble", "xg_dixon_coles", "pi_ratings", "glicko", "stacked"];
+  // Stacked learner: log-linear pool of the other models, weights learned online from games already played.
+  const base: ModelName[] = ["poisson", "dixon_coles", "elo", "bivariate", "zero_inflated", "xg_dixon_coles", "pi_ratings", "glicko", "baseline"];
+  const sw: Record<string, number> = Object.fromEntries(base.map((n) => [n, 1 / base.length]));
   const score = Object.fromEntries(names.map((n) => [n, { ll: 0, brier: 0, rps: 0, hits: 0, n: 0, bins: Array.from({ length: 10 }, () => ({ p: 0, hit: 0, n: 0 })) }]));
 
   for (const r of rows) {
@@ -134,7 +137,7 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
     const ph = pi.get(hk) ?? { h: 0, a: 0 }, pa = pi.get(ak) ?? { h: 0, a: 0 };
     const gh = glAge(gl.get(hk), t), ga = glAge(gl.get(ak), t);
 
-    if (t >= evalFrom && L.n >= 60 && eh && ea && eh.n >= 6 && ea.n >= 6 && dh && da && xh && xa) {
+    if (L.n >= 60 && eh && ea && eh.n >= 6 && ea.n >= 6 && dh && da && xh && xa) {
       const lh = L.h / L.n, la = L.a / L.n, all = (lh + la) / 2;
       const dcl = (() => {
         const hgf = dh.gf / dh.w, hga = dh.ga / dh.w, agf = da.gf / da.w, aga = da.ga / da.w;
@@ -156,9 +159,20 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
           clamp(xa.gf / xa.w / all * (xh.ga / xh.w) / all * la, 0.2, 4.5), -0.1),
         pi_ratings: piProbs(ph.h, pa.a, lh, la),
         glicko: glickoProbs(gh, ga, L.d / L.n),
+        stacked: { home: 0, draw: 0, away: 0, o25: 0.5, btts: 0.5 },
       };
+      preds.stacked = stackProbs(preds, sw);
       const out = r.home_goals > r.away_goals ? "home" : r.home_goals === r.away_goals ? "draw" : "away";
-      for (const n of names) {
+      // online update (after predicting, so the score never sees its own game)
+      {
+        const q = preds.stacked, lr = 0.004;
+        for (const n of base) {
+          const lp = (k: "home" | "draw" | "away") => Math.log(Math.max(1e-6, preds[n][k]));
+          const g = -(lp(out) - (q.home * lp("home") + q.draw * lp("draw") + q.away * lp("away")));
+          sw[n] = clamp(sw[n]! - lr * g, -0.5, 1.5);
+        }
+      }
+      if (t >= evalFrom) for (const n of names) {
         const p = preds[n];
         const s = score[n]!;
         s.ll += -Math.log(Math.max(1e-6, p[out]));
@@ -231,6 +245,8 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
     };
   }).sort((a, b) => a.logLoss - b.logLoss);
   const winner = results[0]!.model;
+  const stackedRow = results.find((x) => x.model === "stacked") as (typeof results)[number] & { weights?: Record<string, number> };
+  if (stackedRow) stackedRow.weights = { ...sw };
 
   // Current ratings for linked teams (latest league wins if a team moved).
   const ratings: Record<string, { league: string; lh: number; la: number; gf: number; ga: number; dgf: number; dga: number; xgf: number; xga: number; elo: number; drawRate: number; piH: number; piA: number; glR: number; glRd: number }> = {};
@@ -255,8 +271,27 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
 type Rating = { lh: number; la: number; gf: number; ga: number; dgf: number; dga: number; xgf?: number; xga?: number; elo: number; drawRate: number; piH?: number; piA?: number; glR?: number; glRd?: number };
 
 /** Winner-model probabilities for a fixture, or null when either team lacks ratings. */
-export function championProbs(winner: string, h: Rating | undefined, a: Rating | undefined): Probs | null {
+export function stackProbs(preds: Partial<Record<string, Probs>>, w: Record<string, number>): Probs {
+  let lh = 0, ld = 0, la = 0, o = 0, b = 0, gw = 0;
+  for (const [n, wt] of Object.entries(w)) {
+    const p = preds[n]; if (!p) continue;
+    lh += wt * Math.log(Math.max(1e-6, p.home)); ld += wt * Math.log(Math.max(1e-6, p.draw)); la += wt * Math.log(Math.max(1e-6, p.away));
+    if (n !== "baseline" && n !== "elo" && n !== "glicko" && n !== "pi_ratings") { o += p.o25; b += p.btts; gw += 1; }
+  }
+  const m = Math.max(lh, ld, la), eh = Math.exp(lh - m), ed = Math.exp(ld - m), ea = Math.exp(la - m), z = eh + ed + ea;
+  return { home: eh / z, draw: ed / z, away: ea / z, o25: gw ? o / gw : 0.5, btts: gw ? b / gw : 0.5 };
+}
+
+export function championProbs(winner: string, h: Rating | undefined, a: Rating | undefined, weights?: Record<string, number>): Probs | null {
   if (!h || !a) return null;
+  if (winner === "stacked") {
+    if (!weights) return null;
+    const parts: Record<string, Probs> = {};
+    for (const n of Object.keys(weights)) { if (n === "baseline") continue; const p = championProbs(n, h, a); if (p) parts[n] = p; }
+    const dr = (h.drawRate + a.drawRate) / 2;
+    parts.baseline = { home: (1 - dr) * 0.58, draw: dr, away: (1 - dr) * 0.42, o25: 0.5, btts: 0.5 };
+    return Object.keys(parts).length >= 4 ? stackProbs(parts, weights) : null;
+  }
   const lh = (h.lh + a.lh) / 2, la = (h.la + a.la) / 2, all = (lh + la) / 2;
   if (winner === "elo") return eloProbs(h.elo, a.elo, (h.drawRate + a.drawRate) / 2);
   if (winner === "dixon_coles") return goalProbs(clamp(h.dgf / all * a.dga / all * lh, 0.2, 4.5), clamp(a.dgf / all * h.dga / all * la, 0.2, 4.5), -0.1);
