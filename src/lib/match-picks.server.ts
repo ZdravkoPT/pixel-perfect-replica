@@ -22,7 +22,7 @@ export async function computeMatchPicks() {
     id: string; kickoff_at: string; home_team_id: string; away_team_id: string; league_id: string | null; season_id: string | null;
     league: { name: string } | null; home: { name: string } | null; away: { name: string } | null;
   }>;
-  if (!rows.length) return { picks: [], noBets: [], track: [], signalTrack: [], reasonTrack: [], summary: null, generatedAt: now.toISOString() };
+  if (!rows.length) return { picks: [], noBets: [], track: [], signalTrack: [], reasonTrack: [], upsets: [], summary: null, generatedAt: now.toISOString() };
 
   const ids = rows.map((r) => r.id);
   const teamIds = [...new Set(rows.flatMap((r) => [r.home_team_id, r.away_team_id]))];
@@ -602,7 +602,7 @@ export async function computeMatchPicks() {
     ? { picks: settledPicks.length, hits: settledPicks.filter((h) => h.result === "hit").length, expected: settledPicks.reduce((a, h) => a + Number(h.probability), 0) / settledPicks.length }
     : null;
 
-  return { picks, noBets, track, signalTrack, reasonTrack, summary, generatedAt: now.toISOString() };
+  return { picks, noBets, track, signalTrack, reasonTrack, upsets, summary, generatedAt: now.toISOString() };
 }
 
 /** Computes picks and stores them for instant page loads. */
