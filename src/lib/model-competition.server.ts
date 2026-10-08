@@ -9,7 +9,7 @@ type Row = {
   home_team_id: string | null; away_team_id: string | null; home_goals: number; away_goals: number; home_xg: number | null; away_xg: number | null;
 };
 export type Probs = { home: number; draw: number; away: number; o25: number; btts: number };
-export type ModelName = "baseline" | "poisson" | "dixon_coles" | "elo" | "bivariate" | "zero_inflated" | "ensemble" | "xg_dixon_coles" | "pi_ratings" | "glicko";
+export type ModelName = "baseline" | "poisson" | "dixon_coles" | "elo" | "bivariate" | "zero_inflated" | "ensemble" | "xg_dixon_coles" | "pi_ratings" | "glicko" | "stacked";
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 function pmf(k: number, l: number) { let f = 1; for (let i = 2; i <= k; i++) f *= i; return Math.exp(-l) * Math.pow(l, k) / f; }
@@ -289,7 +289,7 @@ export function championProbs(winner: string, h: Rating | undefined, a: Rating |
     const parts: Record<string, Probs> = {};
     for (const n of Object.keys(weights)) { if (n === "baseline") continue; const p = championProbs(n, h, a); if (p) parts[n] = p; }
     const dr = (h.drawRate + a.drawRate) / 2;
-    parts.baseline = { home: (1 - dr) * 0.58, draw: dr, away: (1 - dr) * 0.42, o25: 0.5, btts: 0.5 };
+    parts["baseline"] = { home: (1 - dr) * 0.58, draw: dr, away: (1 - dr) * 0.42, o25: 0.5, btts: 0.5 };
     return Object.keys(parts).length >= 4 ? stackProbs(parts, weights) : null;
   }
   const lh = (h.lh + a.lh) / 2, la = (h.la + a.la) / 2, all = (lh + la) / 2;
