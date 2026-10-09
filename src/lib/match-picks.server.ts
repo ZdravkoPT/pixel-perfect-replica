@@ -438,10 +438,12 @@ export async function computeMatchPicks() {
   }).sort((a, b) => b.picks - a.picks);
 
   // ---- latest model-competition winner (walk-forward best on league history) ----
-  const { data: comp } = await sb.from("model_competitions").select("winner, ratings")
+  const { data: comp } = await sb.from("model_competitions").select("winner, ratings, results")
     .order("run_at", { ascending: false }).limit(1).maybeSingle();
   const { championProbs } = await import("./model-competition.server");
   const compRatings = (comp?.ratings ?? {}) as Record<string, Parameters<typeof championProbs>[1] & object>;
+  const stackW = ((comp?.results ?? []) as Array<{ model: string; weights?: Record<string, number> }>)
+    .find((x) => x.model === "stacked")?.weights;
 
   // ---- league table built from our own finished league games this season (no data = no line) ----
   const seasonIds = [...new Set(rows.map((r) => r.season_id).filter((x): x is string => !!x))];
@@ -494,7 +496,7 @@ export async function computeMatchPicks() {
     const awayName = r.away?.name ?? "Away";
     const lam = lambdas.get(r.id);
     const cp = comp?.winner && comp.winner !== "baseline"
-      ? championProbs(comp.winner, compRatings[r.home_team_id], compRatings[r.away_team_id]) : null;
+      ? championProbs(comp.winner, compRatings[r.home_team_id], compRatings[r.away_team_id], stackW) : null;
     const result = scoreMatch({
       homeName, awayName,
       lambdaHome: lam?.lh ?? null, lambdaAway: lam?.la ?? null,
