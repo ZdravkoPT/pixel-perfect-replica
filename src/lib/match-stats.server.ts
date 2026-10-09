@@ -135,6 +135,9 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
   const deadline = Date.now() + (opts.budgetMs ?? 75_000);
   let skipped = 0;
   let playersSaved = 0;
+  let espnFilled = 0;
+  const { data: espnRows } = await supabaseAdmin.from("team_match_stats").select("match_id").eq("payload->>source", "espn").limit(20000);
+  const espnTried = new Set((espnRows ?? []).map((r) => r.match_id));
   for (const m of todo) {
     if (Date.now() > deadline) { skipped++; continue; }
     try {
@@ -155,13 +158,26 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
             .upsert({ match_id: m.id, source_id: "fotmob", provider_match_id: pid }, { onConflict: "source_id,provider_match_id", ignoreDuplicates: true });
         }
       }
-      if (!pid) {
-        missing += 1;
-        continue;
-      }
-      const res = await fotmob.getMatchFacts(pid);
-      const box = res.ok ? parseBoxScore(res.data) : null;
-      if (!box) {
+      const res = pid ? await fotmob.getMatchFacts(pid) : null;
+      const box = res?.ok ? parseBoxScore(res.data) : null;
+      if (!box || !res?.ok) {
+        // Backup: ESPN team statistics (no shots/players there, so the FotMob retry stays open).
+        if (!espnTried.has(m.id)) {
+          const { findEspnEvent, getEspnBox } = await import("./providers/espn.server");
+          const ev = await findEspnEvent(m.kickoff_at, home, away).catch(() => null);
+          const eb = ev ? await getEspnBox(ev).catch(() => null) : null;
+          if (eb) {
+            await supabaseAdmin.from("team_match_stats").upsert(
+              [
+                { match_id: m.id, team_id: m.home_team_id, is_home: true, ...eb.home, payload: { source: "espn", espn_event: ev } },
+                { match_id: m.id, team_id: m.away_team_id, is_home: false, ...eb.away, payload: { source: "espn", espn_event: ev } },
+              ],
+              { onConflict: "match_id,team_id" },
+            );
+            espnFilled += 1;
+            continue;
+          }
+        }
         missing += 1;
         continue;
       }
@@ -182,7 +198,7 @@ export async function ingestMatchStats(opts: { days?: number; limit?: number; tr
       missing += 1;
     }
   }
-  return { candidates: todo.length, imported, missing, skipped, playersSaved, triggeredBy: opts.triggeredBy ?? "manual" };
+  return { candidates: todo.length, imported, espnFilled, missing, skipped, playersSaved, triggeredBy: opts.triggeredBy ?? "manual" };
 }
 
 /** Per-player match lines from FotMob, linked only to players we already know by FotMob id. */
