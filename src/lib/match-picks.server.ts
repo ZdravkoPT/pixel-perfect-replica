@@ -443,7 +443,7 @@ export async function computeMatchPicks() {
   const { championProbs } = await import("./model-competition.server");
   const compRatings = (comp?.ratings ?? {}) as Record<string, Parameters<typeof championProbs>[1] & object>;
   const stackW = ((comp?.results ?? []) as Array<{ model: string; weights?: Record<string, number> }>)
-    .find((x) => x.model === "stacked")?.weights;
+    .find((x) => x.model === comp?.winner)?.weights;
 
   // ---- league table built from our own finished league games this season (no data = no line) ----
   const seasonIds = [...new Set(rows.map((r) => r.season_id).filter((x): x is string => !!x))];

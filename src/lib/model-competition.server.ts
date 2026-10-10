@@ -9,7 +9,7 @@ type Row = {
   home_team_id: string | null; away_team_id: string | null; home_goals: number; away_goals: number; home_xg: number | null; away_xg: number | null;
 };
 export type Probs = { home: number; draw: number; away: number; o25: number; btts: number };
-export type ModelName = "baseline" | "poisson" | "dixon_coles" | "elo" | "bivariate" | "zero_inflated" | "ensemble" | "xg_dixon_coles" | "pi_ratings" | "glicko" | "stacked";
+export type ModelName = "baseline" | "poisson" | "dixon_coles" | "elo" | "bivariate" | "zero_inflated" | "ensemble" | "xg_dixon_coles" | "pi_ratings" | "glicko" | "stacked" | "features" | "dc_fast";
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 function pmf(k: number, l: number) { let f = 1; for (let i = 2; i <= k; i++) f *= i; return Math.exp(-l) * Math.pow(l, k) / f; }
@@ -112,13 +112,17 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
   const lg = new Map<string, League>();
   const ew = new Map<string, Ew>();
   const dc = new Map<string, Dc>();
+  const dcf = new Map<string, Dc>(); // Dixon-Coles with faster time decay (recent games weigh more)
   const dx = new Map<string, Dc>(); // Dixon-Coles on goals blended 50/50 with xG when known
   const elo = new Map<string, number>();
   const pi = new Map<string, Pi>();
   const gl = new Map<string, Gl>();
   const ids = new Map<string, string>();
   const XI = 0.0019; // per-day decay (Dixon-Coles)
-  const names: ModelName[] = ["baseline", "poisson", "dixon_coles", "elo", "bivariate", "zero_inflated", "ensemble", "xg_dixon_coles", "pi_ratings", "glicko", "stacked"];
+  const names: ModelName[] = ["baseline", "poisson", "dixon_coles", "elo", "bivariate", "zero_inflated", "ensemble", "xg_dixon_coles", "pi_ratings", "glicko", "stacked", "features", "dc_fast"];
+  const XIF = 0.0045;
+  // Feature learner: softmax over match features (Elo gap, goal/xG strengths, Pi gap, Glicko gap), trained online.
+  const fw: number[][] = [0, 1, 2].map(() => new Array(FEAT_N).fill(0));
   // Stacked learner: log-linear pool of the other models, weights learned online from games already played.
   const base: ModelName[] = ["poisson", "dixon_coles", "elo", "bivariate", "zero_inflated", "xg_dixon_coles", "pi_ratings", "glicko", "baseline"];
   const sw: Record<string, number> = Object.fromEntries(base.map((n) => [n, 1 / base.length]));
@@ -133,11 +137,12 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
     const eh = ew.get(hk), ea = ew.get(ak);
     const dh = dc.get(hk), da = dc.get(ak);
     const xh = dx.get(hk), xa = dx.get(ak);
+    const fh = dcf.get(hk), fa = dcf.get(ak);
     const rh = elo.get(hk) ?? 1500, ra = elo.get(ak) ?? 1500;
     const ph = pi.get(hk) ?? { h: 0, a: 0 }, pa = pi.get(ak) ?? { h: 0, a: 0 };
     const gh = glAge(gl.get(hk), t), ga = glAge(gl.get(ak), t);
 
-    if (L.n >= 60 && eh && ea && eh.n >= 6 && ea.n >= 6 && dh && da && xh && xa) {
+    if (L.n >= 60 && eh && ea && eh.n >= 6 && ea.n >= 6 && dh && da && xh && xa && fh && fa) {
       const lh = L.h / L.n, la = L.a / L.n, all = (lh + la) / 2;
       const dcl = (() => {
         const hgf = dh.gf / dh.w, hga = dh.ga / dh.w, agf = da.gf / da.w, aga = da.ga / da.w;
@@ -160,7 +165,13 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
         pi_ratings: piProbs(ph.h, pa.a, lh, la),
         glicko: glickoProbs(gh, ga, L.d / L.n),
         stacked: { home: 0, draw: 0, away: 0, o25: 0.5, btts: 0.5 },
+        features: { home: 0, draw: 0, away: 0, o25: 0.5, btts: 0.5 },
+        dc_fast: goalProbs(clamp(fh.gf / fh.w / all * (fa.ga / fa.w) / all * lh, 0.2, 4.5), clamp(fa.gf / fa.w / all * (fh.ga / fh.w) / all * la, 0.2, 4.5), -0.1),
       };
+      const fx = matchFeatures(rh, ra, dcl[0], dcl[1],
+        clamp(xh.gf / xh.w / all * (xa.ga / xa.w) / all * lh, 0.2, 4.5), clamp(xa.gf / xa.w / all * (xh.ga / xh.w) / all * la, 0.2, 4.5),
+        piGd(ph.h) - piGd(pa.a), gh.r - ga.r);
+      { const g = goalProbs(dcl[0], dcl[1], -0.1); preds.features = { ...softmaxProbs(fw, fx), o25: g.o25, btts: g.btts }; }
       preds.stacked = stackProbs(preds, sw);
       const out = r.home_goals > r.away_goals ? "home" : r.home_goals === r.away_goals ? "draw" : "away";
       // online update (after predicting, so the score never sees its own game)
@@ -171,6 +182,11 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
           const g = -(lp(out) - (q.home * lp("home") + q.draw * lp("draw") + q.away * lp("away")));
           sw[n] = clamp(sw[n]! - lr * g, -0.5, 1.5);
         }
+      }
+      {
+        const q = preds.features, lr = 0.01;
+        const y = [out === "home" ? 1 : 0, out === "draw" ? 1 : 0, out === "away" ? 1 : 0], pq = [q.home, q.draw, q.away];
+        for (let c = 0; c < 3; c++) for (let j = 0; j < FEAT_N; j++) fw[c]![j]! -= lr * ((pq[c]! - y[c]!) * fx[j]! + 1e-4 * fw[c]![j]!);
       }
       if (t >= evalFrom) for (const n of names) {
         const p = preds[n];
@@ -206,6 +222,12 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
       dc.set(k, { gf: (e?.gf ?? 0) * f + gf, ga: (e?.ga ?? 0) * f + ga, w: (e?.w ?? 0) * f + 1, last: t });
     };
     upDc(hk, r.home_goals, r.away_goals); upDc(ak, r.away_goals, r.home_goals);
+    const upDf = (k: string, gf: number, ga: number) => {
+      const e = dcf.get(k);
+      const f = e ? Math.exp(-XIF * (t - e.last) / 86400e3) : 0;
+      dcf.set(k, { gf: (e?.gf ?? 0) * f + gf, ga: (e?.ga ?? 0) * f + ga, w: (e?.w ?? 0) * f + 1, last: t });
+    };
+    upDf(hk, r.home_goals, r.away_goals); upDf(ak, r.away_goals, r.home_goals);
     const hp = r.home_xg != null && r.away_xg != null ? (r.home_goals + Number(r.home_xg)) / 2 : r.home_goals;
     const ap = r.home_xg != null && r.away_xg != null ? (r.away_goals + Number(r.away_xg)) / 2 : r.away_goals;
     const upDx = (k: string, gf: number, ga: number) => {
@@ -247,17 +269,20 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
   const winner = results[0]!.model;
   const stackedRow = results.find((x) => x.model === "stacked") as (typeof results)[number] & { weights?: Record<string, number> };
   if (stackedRow) stackedRow.weights = { ...sw };
+  const featRow = results.find((x) => x.model === "features") as (typeof results)[number] & { weights?: Record<string, number> };
+  if (featRow) featRow.weights = Object.fromEntries(fw.flatMap((row, c) => row.map((v, j) => [`${c}_${j}`, v])));
 
   // Current ratings for linked teams (latest league wins if a team moved).
-  const ratings: Record<string, { league: string; lh: number; la: number; gf: number; ga: number; dgf: number; dga: number; xgf: number; xga: number; elo: number; drawRate: number; piH: number; piA: number; glR: number; glRd: number }> = {};
+  const ratings: Record<string, { league: string; lh: number; la: number; gf: number; ga: number; dgf: number; dga: number; xgf: number; xga: number; elo: number; drawRate: number; piH: number; piA: number; glR: number; glRd: number; fgf: number; fga: number }> = {};
   for (const [key, teamId] of ids) {
     const league = key.split("|")[0]!;
-    const L = lg.get(league)!, e = ew.get(key), d = dc.get(key), x = dx.get(key);
+    const L = lg.get(league)!, e = ew.get(key), d = dc.get(key), x = dx.get(key), fd = dcf.get(key);
     if (!e || !d || !x || e.n < 6) continue;
     ratings[teamId] = {
       league, lh: L.h / L.n, la: L.a / L.n, gf: e.gf, ga: e.ga, dgf: d.gf / d.w, dga: d.ga / d.w, xgf: x.gf / x.w, xga: x.ga / x.w,
       elo: elo.get(key) ?? 1500, drawRate: L.d / L.n,
       piH: pi.get(key)?.h ?? 0, piA: pi.get(key)?.a ?? 0, glR: gl.get(key)?.r ?? 1500, glRd: gl.get(key)?.rd ?? 350,
+      fgf: fd ? fd.gf / fd.w : d.gf / d.w, fga: fd ? fd.ga / fd.w : d.ga / d.w,
     };
   }
 
@@ -268,7 +293,17 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
   return { winner, results, linkedTeams: Object.keys(ratings).length };
 }
 
-type Rating = { lh: number; la: number; gf: number; ga: number; dgf: number; dga: number; xgf?: number; xga?: number; elo: number; drawRate: number; piH?: number; piA?: number; glR?: number; glRd?: number };
+type Rating = { lh: number; la: number; gf: number; ga: number; dgf: number; dga: number; xgf?: number; xga?: number; elo: number; drawRate: number; piH?: number; piA?: number; glR?: number; glRd?: number; fgf?: number; fga?: number };
+
+export const FEAT_N = 8;
+export function matchFeatures(rh: number, ra: number, dh: number, da: number, xh: number, xa: number, piDiff: number, glDiff: number): number[] {
+  return [1, (rh - ra + 60) / 400, Math.log(dh), Math.log(da), Math.log(xh), Math.log(xa), clamp(piDiff, -3.5, 3.5) / 2, glDiff / 400];
+}
+export function softmaxProbs(w: number[][], f: number[]) {
+  const z = w.map((row) => row.reduce((a, v, j) => a + v * f[j]!, 0));
+  const m = Math.max(...z), e = z.map((v) => Math.exp(v - m)), s = e[0]! + e[1]! + e[2]!;
+  return { home: e[0]! / s, draw: e[1]! / s, away: e[2]! / s };
+}
 
 /** Winner-model probabilities for a fixture, or null when either team lacks ratings. */
 export function stackProbs(preds: Partial<Record<string, Probs>>, w: Record<string, number>): Probs {
@@ -287,12 +322,25 @@ export function championProbs(winner: string, h: Rating | undefined, a: Rating |
   if (winner === "stacked") {
     if (!weights) return null;
     const parts: Record<string, Probs> = {};
-    for (const n of Object.keys(weights)) { if (n === "baseline") continue; const p = championProbs(n, h, a); if (p) parts[n] = p; }
+    for (const n of Object.keys(weights)) { if (n === "baseline" || n === "stacked" || n === "features") continue; const p = championProbs(n, h, a); if (p) parts[n] = p; }
     const dr = (h.drawRate + a.drawRate) / 2;
     parts["baseline"] = { home: (1 - dr) * 0.58, draw: dr, away: (1 - dr) * 0.42, o25: 0.5, btts: 0.5 };
     return Object.keys(parts).length >= 4 ? stackProbs(parts, weights) : null;
   }
   const lh = (h.lh + a.lh) / 2, la = (h.la + a.la) / 2, all = (lh + la) / 2;
+  if (winner === "features") {
+    if (!weights || h.xgf == null || h.xga == null || a.xgf == null || a.xga == null) return null;
+    const w = [0, 1, 2].map((c) => Array.from({ length: FEAT_N }, (_, j) => weights[`${c}_${j}`] ?? 0));
+    const dh0 = clamp(h.dgf / all * a.dga / all * lh, 0.2, 4.5), da0 = clamp(a.dgf / all * h.dga / all * la, 0.2, 4.5);
+    const f = matchFeatures(h.elo, a.elo, dh0, da0, clamp(h.xgf / all * a.xga / all * lh, 0.2, 4.5), clamp(a.xgf / all * h.xga / all * la, 0.2, 4.5),
+      piGd(h.piH ?? 0) - piGd(a.piA ?? 0), (h.glR ?? 1500) - (a.glR ?? 1500));
+    const g = goalProbs(dh0, da0, -0.1);
+    return { ...softmaxProbs(w, f), o25: g.o25, btts: g.btts };
+  }
+  if (winner === "dc_fast") {
+    if (h.fgf == null || h.fga == null || a.fgf == null || a.fga == null) return null;
+    return goalProbs(clamp(h.fgf / all * a.fga / all * lh, 0.2, 4.5), clamp(a.fgf / all * h.fga / all * la, 0.2, 4.5), -0.1);
+  }
   if (winner === "elo") return eloProbs(h.elo, a.elo, (h.drawRate + a.drawRate) / 2);
   if (winner === "dixon_coles") return goalProbs(clamp(h.dgf / all * a.dga / all * lh, 0.2, 4.5), clamp(a.dgf / all * h.dga / all * la, 0.2, 4.5), -0.1);
   const dh = clamp(h.dgf / all * a.dga / all * lh, 0.2, 4.5), da = clamp(a.dgf / all * h.dga / all * la, 0.2, 4.5);
