@@ -85,6 +85,7 @@ export const getPickReview = createServerFn({ method: "GET" })
         .limit(10000);
       const agg = new Map<string, { pts: number; gd: number; played: number }>();
       for (const g of prior ?? []) {
+        if (g.home_score === null || g.away_score === null) continue;
         const add = (id: string, f: number, a: number) => {
           const e = agg.get(id) ?? { pts: 0, gd: 0, played: 0 };
           e.played++; e.gd += f - a; e.pts += f > a ? 3 : f === a ? 1 : 0;
@@ -110,8 +111,12 @@ export const getPickReview = createServerFn({ method: "GET" })
           .eq("status", "FINISHED").not("home_score", "is", null)
           .lt("kickoff_at", m.kickoff_at)
           .order("kickoff_at", { ascending: false }).limit(5);
-        if (rows && rows.length >= 3) {
-          snapshot[key] = rows
+        const usable = (rows ?? []).filter(
+          (g): g is typeof g & { home_score: number; away_score: number } =>
+            g.home_score !== null && g.away_score !== null,
+        );
+        if (usable.length >= 3) {
+          snapshot[key] = usable
             .map((g) => {
               const gf = g.home_team_id === tid ? g.home_score : g.away_score;
               const ga = g.home_team_id === tid ? g.away_score : g.home_score;
@@ -131,7 +136,8 @@ export const getPickReview = createServerFn({ method: "GET" })
         .lte("as_of", kickoff.toISOString())
         .order("as_of", { ascending: false })
         .limit(1);
-      if (er?.length) snapshot[key] = Number(er[0].rating);
+      const top = er?.[0];
+      if (top) snapshot[key] = Number(top.rating);
     }
 
     // ---- contradiction flags per pick ----
