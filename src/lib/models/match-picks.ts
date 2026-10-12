@@ -395,7 +395,7 @@ export function scoreMatch(input: PickInput): PickResult {
     return false;
   };
   const ent = -[model.home, model.draw, model.away].reduce((a, p) => a + (p > 0 ? p * Math.log(p) : 0), 0) / Math.log(3);
-  const uncertain = ent >= 0.92;
+  const uncertain = ent >= 0.98;
   const eligible = scores
     .filter(passes)
     .sort((a, b) => lift(b) * (1 + 0.04 * b.signals) - lift(a) * (1 + 0.04 * a.signals));
