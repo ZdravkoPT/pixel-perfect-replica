@@ -102,6 +102,9 @@ export interface PickInput {
   /** self-correcting minimum chance per market (0.60–0.75) from its last 60 settled picks */
   marketFloors?: Record<string, number>;
   /** kickoff weather forecast + away travel (null when unknown) */
+  /** actual/expected per `${league}|${code}` (≥40 settled picks) — replaces the global factor when present */
+  leagueCalibration?: Record<string, number>;
+  league?: string | null;
   context?: { rainMm: number | null; windKmh: number | null; tempC: number | null; awayTravelKm: number | null } | null;
 }
 
@@ -121,6 +124,10 @@ export interface PickResult {
   reasons: string[];
   noBetReason: string | null;
   alternatives: MarketScore[];
+  /** sanity-gate code when a candidate was suppressed (table / evidence) */
+  gate?: string | null;
+  /** score grid is spread out — outcome is genuinely uncertain */
+  uncertain?: boolean;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -243,6 +250,16 @@ export function scoreMatch(input: PickInput): PickResult {
     const sum = h + draw + a;
     e = { home: h / sum, draw: draw / sum, away: a / sum };
   }
+  // League table as its own source: points per game -> 1X2 (needs 5+ games each)
+  let st: { home: number; draw: number; away: number } | null = null;
+  if (home.table && away.table && home.table.played >= 5 && away.table.played >= 5) {
+    const gap = home.table.pts / home.table.played - away.table.pts / away.table.played + 0.25; // + home edge
+    const we = 1 / (1 + Math.exp(-gap * 1.6));
+    const draw = clamp(0.29 - 0.3 * Math.abs(we - 0.5), 0.14, 0.29);
+    const h = clamp(we - draw / 2, 0.03, 0.95), a = clamp(1 - we - draw / 2, 0.03, 0.95);
+    const sum = h + draw + a;
+    st = { home: h / sum, draw: draw / sum, away: a / sum };
+  }
   const tailOver = (lambda: number, line: number) => {
     let cdf = 0;
     for (let k = 0; k <= Math.floor(line); k++) cdf += poissonPmf(k, lambda);
@@ -250,6 +267,25 @@ export function scoreMatch(input: PickInput): PickResult {
   };
 
   type Def = { code: string; market: string; selection: string; m: number; f: number | null; h: number | null; e?: number | null };
+  const tri = (t: { home: number; draw: number; away: number } | null, code: string): number | null => {
+    if (!t) return null;
+    switch (code) {
+      case "home": return t.home; case "away": return t.away;
+      case "dc_home": return t.home + t.draw; case "dc_away": return t.away + t.draw;
+      case "dc_nodraw": return t.home + t.away; default: return null;
+    }
+  };
+  /** a source agrees with a result pick only when that side is genuinely its own favourite outcome */
+  const dirAgree = (code: string, t: { home: number; draw: number; away: number }): boolean => {
+    const top = t.home >= t.draw && t.home >= t.away ? "home" : t.away >= t.draw ? "away" : "draw";
+    switch (code) {
+      case "home": return top === "home";
+      case "away": return top === "away";
+      case "dc_home": return top !== "away" || t.home + t.draw >= 0.65;
+      case "dc_away": return top !== "home" || t.away + t.draw >= 0.65;
+      default: return t.home + t.away >= 0.5;
+    }
+  };
   const defs: Def[] = [
     { code: "home", market: "1X2", selection: `${input.homeName} win`, m: model.home, f: f?.home ?? null, h: hh?.home ?? null, e: e?.home ?? null },
     { code: "away", market: "1X2", selection: `${input.awayName} win`, m: model.away, f: f?.away ?? null, h: hh?.away ?? null, e: e?.away ?? null },
@@ -304,13 +340,23 @@ export function scoreMatch(input: PickInput): PickResult {
     if (d.e !== undefined && d.e !== null) parts.push([d.e, 0.25 * sw("elo"), "elo"]);
     const cv = champFor(d.code);
     if (cv !== null) parts.push([cv, 0.3 * sw("champion"), "champion"]);
+    const sv = tri(st, d.code);
+    if (sv !== null) parts.push([sv, 0.2 * sw("standings"), "standings"]);
     const w = parts.reduce((a, [, x]) => a + x, 0);
     let p = parts.reduce((a, [v, x]) => a + v * x, 0) / w;
-    const cal = input.calibration[d.code];
+    const lc = input.league ? input.leagueCalibration?.[`${input.league}|${d.code}`] : undefined;
+    const cal = lc ?? input.calibration[d.code];
     if (cal !== undefined) p *= clamp(cal, 0.85, 1.05);
     p = clamp(p * reliability, 0.01, 0.97);
     const signals = parts.length;
-    const agree = parts.filter(([v]) => v >= 0.5).length;
+    const triOf: Record<string, { home: number; draw: number; away: number } | null> = {
+      model, form: f, h2h: hh, elo: e, standings: st, champion: c ? { home: c.home, draw: c.draw, away: c.away } : null,
+    };
+    const isResult = ["home", "away", "dc_home", "dc_away", "dc_nodraw"].includes(d.code);
+    const agree = parts.filter(([v, , name]) => {
+      const t = isResult ? triOf[name] : null;
+      return t ? dirAgree(d.code, t) && v >= 0.5 : v >= 0.5;
+    }).length;
     const sources = parts.map(([v, , name]) => ({ name, p: Number(v.toFixed(3)) }));
     return { code: d.code, market: d.market, selection: d.selection, probability: p, agree, signals, sources };
   });
@@ -327,8 +373,31 @@ export function scoreMatch(input: PickInput): PickResult {
     const b = BASE[s.code] ?? 0.5;
     return (s.probability - b) / (1 - b);
   };
+  // ---- pre-publish sanity gate ----------------------------------------------
+  const floorOf = (code: string) => input.marketFloors?.[code] ?? (input.weakMarkets?.includes(code) ? 0.7 : 0.62);
+  const thin = (hf?.matches ?? 0) < 4 || (af?.matches ?? 0) < 4 || (!input.elo && !c);
+  const backs = (code: string): "home" | "away" | null =>
+    code === "home" || code === "dc_home" ? "home" : code === "away" || code === "dc_away" ? "away" : null;
+  const tableAgainst = (code: string): boolean => {
+    const side = backs(code);
+    if (!side || !home.table || !away.table || home.table.played < 5 || away.table.played < 5) return false;
+    const own = side === "home" ? home.table : away.table, opp = side === "home" ? away.table : home.table;
+    return own.pos - opp.pos >= 5 && opp.pts / opp.played - own.pts / own.played >= 0.4;
+  };
+  let gate: string | null = null;
+  const passes = (s: MarketScore) => {
+    if (!(s.agree === s.signals && s.signals >= 2 && lift(s) >= 0.15)) return false;
+    let need = floorOf(s.code);
+    if (thin) need = Math.max(need, floorOf(s.code) + 0.05);
+    if (tableAgainst(s.code)) need = Math.max(need, floorOf(s.code) + 0.04);
+    if (s.probability >= need) return true;
+    if (s.probability >= floorOf(s.code)) gate ??= tableAgainst(s.code) ? "table" : thin ? "evidence" : null;
+    return false;
+  };
+  const ent = -[model.home, model.draw, model.away].reduce((a, p) => a + (p > 0 ? p * Math.log(p) : 0), 0) / Math.log(3);
+  const uncertain = ent >= 0.92;
   const eligible = scores
-    .filter((s) => s.agree === s.signals && s.signals >= 2 && s.probability >= (input.marketFloors?.[s.code] ?? (input.weakMarkets?.includes(s.code) ? 0.7 : 0.62)) && lift(s) >= 0.15)
+    .filter(passes)
     .sort((a, b) => lift(b) * (1 + 0.04 * b.signals) - lift(a) * (1 + 0.04 * a.signals));
   const pick = eligible[0] ?? null;
 
@@ -338,14 +407,21 @@ export function scoreMatch(input: PickInput): PickResult {
       pick: null,
       confidence: null,
       reasons: [],
-      noBetReason: !formOk
+      gate,
+      uncertain,
+      noBetReason: gate === "table"
+        ? "Backing the underdog against the league table — needs stronger support from every source."
+        : gate === "evidence"
+        ? "Evidence too thin (few recent games or no ratings) for a pick at this chance."
+        : !formOk
         ? "Not enough recent results for both clubs to confirm the model."
         : `Signals disagree — best option (${best.selection}, ${pct(best.probability)}) lacks support from every source.`,
       alternatives: scores.sort((a, b) => b.probability - a.probability).slice(0, 3),
     };
   }
 
-  const confidence = pick.probability >= 0.75 && pick.signals >= 3 ? "high" : pick.probability >= 0.7 ? "high" : "medium";
+  let confidence: "high" | "medium" = pick.probability >= 0.75 && pick.signals >= 3 ? "high" : pick.probability >= 0.7 ? "high" : "medium";
+  if (thin || uncertain) confidence = "medium";
 
   // ---- reasons (facts only) ------------------------------------------------
   const reasons: string[] = [];
@@ -416,6 +492,9 @@ export function scoreMatch(input: PickInput): PickResult {
   if (home.restDays !== null && away.restDays !== null && Math.abs(home.restDays - away.restDays) >= 2) {
     reasons.push(`Rest: ${home.restDays} days vs ${away.restDays} days.`);
   }
+  if (uncertain) reasons.splice(1, 0, "High uncertainty: the score model spreads its chances widely across home, draw and away — treated as medium confidence.");
+  if (tableAgainst(pick.code)) reasons.splice(1, 0, "Backs the side lower in the table — passed the stricter bar (higher chance and every source agreeing).");
+  if (st && ["home", "away", "dc_home", "dc_away", "dc_nodraw"].includes(pick.code)) reasons.push(`League-table estimate (points per game): ${pct(st.home)} / ${pct(st.draw)} / ${pct(st.away)}.`);
   reasons.push(`${pick.agree} of ${pick.signals} independent sources agree; lineups ${input.lineupStatus === "none" ? "not yet known" : input.lineupStatus}.`);
 
   return {
@@ -423,6 +502,8 @@ export function scoreMatch(input: PickInput): PickResult {
     confidence,
     reasons: reasons.slice(0, 6),
     noBetReason: null,
+    gate: null,
+    uncertain,
     alternatives: eligible.slice(1, 3),
   };
 }
