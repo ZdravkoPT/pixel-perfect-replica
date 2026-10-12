@@ -222,7 +222,7 @@ function MatchDetail() {
         </TabsContent>
 
         <TabsContent value="AI review" className="mt-4">
-          <PickReviewPanel matchId={match.id} />
+          <PickReviewPanel matchId={matchId} />
         </TabsContent>
 
         <TabsContent value="Lineups" className="mt-4 space-y-6">
