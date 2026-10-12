@@ -23,10 +23,12 @@ import { HeadToHeadPanel } from "@/components/HeadToHeadPanel";
 import { MatchFactsPanel } from "@/components/MatchFactsPanel";
 import { MatchShotsPanel } from "@/components/MatchShotsPanel";
 import { MatchCenter } from "@/components/MatchCenter";
+import { PickReviewPanel } from "@/components/PickReviewPanel";
 
 const TABS = [
   "Overview",
   "AI Prediction",
+  "AI review",
   "Lineups",
   "Injuries",
   "Player props",
@@ -217,6 +219,10 @@ function MatchDetail() {
             homeName={match.home?.name ?? "Home"}
             awayName={match.away?.name ?? "Away"}
           />
+        </TabsContent>
+
+        <TabsContent value="AI review" className="mt-4">
+          <PickReviewPanel matchId={matchId} />
         </TabsContent>
 
         <TabsContent value="Lineups" className="mt-4 space-y-6">

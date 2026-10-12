@@ -39,7 +39,7 @@ export async function computeMatchPicks() {
     sb.from("injuries").select("team_id, player_id, player:players(name)").in("team_id", teamIds).is("resolved_at", null),
     sb.from("player_conditions").select("player_id, team_id, sharpness, load_index, minutes_share").in("team_id", teamIds),
     sb.from("coach_spells").select("team_id, coach_id, coach:coaches(name)").in("team_id", teamIds).eq("is_current", true),
-    sb.from("ai_bet_log").select("pick_code, probability, result, slip_type, signals, facts, kickoff_at").in("result", ["hit", "miss"])
+    sb.from("ai_bet_log").select("pick_code, probability, result, slip_type, signals, facts, kickoff_at, league").in("result", ["hit", "miss"])
       .gte("kickoff_at", new Date(now.getTime() - 70 * 86400e3).toISOString()).limit(5000),
   ]);
 
@@ -118,14 +118,14 @@ export async function computeMatchPicks() {
     } : null;
     return { corners, cards };
   };
-  const perTeam = new Map<string, Array<{ gf: number; ga: number }>>();
+  const perTeam = new Map<string, Array<{ gf: number; ga: number; opp: string }>>();
   const lastPlayed = new Map<string, string>();
   for (const p of pastRows) {
-    for (const [tid, gf, ga] of [[p.home_team_id, p.home_score, p.away_score], [p.away_team_id, p.away_score, p.home_score]] as const) {
+    for (const [tid, gf, ga, opp] of [[p.home_team_id, p.home_score, p.away_score, p.away_team_id], [p.away_team_id, p.away_score, p.home_score, p.home_team_id]] as const) {
       if (!teamIds.includes(tid)) continue;
       if (!lastPlayed.has(tid)) lastPlayed.set(tid, p.kickoff_at);
       const list = perTeam.get(tid) ?? [];
-      if (list.length < 12) { list.push({ gf, ga }); perTeam.set(tid, list); }
+      if (list.length < 12) { list.push({ gf, ga, opp }); perTeam.set(tid, list); }
     }
   }
   const formOf = (tid: string): TeamForm | null => {
@@ -133,11 +133,17 @@ export async function computeMatchPicks() {
     if (!l?.length) return null;
     const n = l.length;
     const r = (fn: (g: { gf: number; ga: number }) => boolean) => l.filter(fn).length / n;
+    // opponent-adjusted: a run against strong sides counts more, against weak sides less
+    const oe = l.map((g) => eloBy.get(g.opp)).filter((x): x is number => x != null);
+    const shift = oe.length >= Math.ceil(n / 2) ? Math.max(-0.08, Math.min(0.08, ((oe.reduce((a, x) => a + x, 0) / oe.length) - 1500) / 400 * 0.18)) : 0;
+    const wr0 = r((g) => g.gf > g.ga), lr0 = r((g) => g.gf < g.ga), dr = r((g) => g.gf === g.ga);
+    const wr = Math.max(0, Math.min(1 - dr, wr0 + shift)), lr = Math.max(0, 1 - dr - wr);
+    void lr0;
     return {
       matches: n,
       gf: l.reduce((a, g) => a + g.gf, 0) / n,
       ga: l.reduce((a, g) => a + g.ga, 0) / n,
-      winRate: r((g) => g.gf > g.ga), drawRate: r((g) => g.gf === g.ga), lossRate: r((g) => g.gf < g.ga),
+      winRate: wr, drawRate: dr, lossRate: lr,
       over15: r((g) => g.gf + g.ga > 1), over25: r((g) => g.gf + g.ga > 2), over35: r((g) => g.gf + g.ga > 3),
       btts: r((g) => g.gf > 0 && g.ga > 0), scored: r((g) => g.gf > 0),
       last5: l.slice(0, 5).map((g) => (g.gf > g.ga ? "W" : g.gf === g.ga ? "D" : "L")).join(""),
@@ -390,6 +396,17 @@ export async function computeMatchPicks() {
     const w = e.n / (e.n + 30); // shrink toward 1
     calibration[code] = 1 + (ratio - 1) * w;
   }
+  // per-league calibration (≥40 settled picks for that league + market), else the global factor
+  const lgAgg = new Map<string, { n: number; hit: number; exp: number }>();
+  for (const s of settled.data ?? []) {
+    if (!s.league) continue;
+    const k = `${s.league}|${s.pick_code}`;
+    const e = lgAgg.get(k) ?? { n: 0, hit: 0, exp: 0 };
+    e.n++; e.exp += Number(s.probability); if (s.result === "hit") e.hit++;
+    lgAgg.set(k, e);
+  }
+  const leagueCalibration: Record<string, number> = {};
+  for (const [k, e] of lgAgg) if (e.n >= 40) leagueCalibration[k] = 1 + (e.hit / e.exp - 1) * (e.n / (e.n + 40));
   const track = [...calAgg.entries()]
     .filter(([, e]) => e.n >= 5)
     .map(([code, e]) => ({ code, picks: e.n, hitRate: e.hit / e.n, expected: e.exp / e.n }))
@@ -506,6 +523,8 @@ export async function computeMatchPicks() {
       away: { ...extras(r.away_team_id, r.kickoff_at), table: tableOf(r.season_id, r.away_team_id), cupSoon: cupSoon(r, r.away_team_id), xi: xiBy.get(`${r.id}|${r.away_team_id}`) ?? null },
       h2h: h2hOf(r.home_team_id, r.away_team_id),
       calibration,
+      leagueCalibration,
+      league: r.league?.name ?? null,
       sourceWeights,
       weakMarkets,
       marketFloors,
@@ -518,8 +537,8 @@ export async function computeMatchPicks() {
       ...setPieceInputs(r.home_team_id, r.away_team_id, r.id),
     });
     const base = { matchId: r.id, fixture: `${homeName} vs ${awayName}`, league: r.league?.name ?? null, kickoffAt: r.kickoff_at };
-    if (result.pick) picks.push({ ...base, ...result.pick, confidence: result.confidence!, reasons: result.reasons });
-    else noBets.push({ ...base, reason: result.noBetReason ?? "No clear edge." });
+    if (result.pick) picks.push({ ...base, ...result.pick, confidence: result.confidence!, reasons: result.reasons, uncertain: !!result.uncertain });
+    else noBets.push({ ...base, reason: result.noBetReason ?? "No clear edge.", gate: result.gate ?? null });
   }
   // ---- reason accuracy: kinds of reasons that keep under/over-delivering shade new picks a little ----
   const reasonKind = (r: string) => (r.split(/[:(]/)[0] ?? "").trim().slice(0, 48);
