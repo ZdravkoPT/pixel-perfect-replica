@@ -11,7 +11,7 @@ const decode = (s: string) =>
 
 const tag = (block: string, name: string) => {
   const m = new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, "i").exec(block);
-  return m ? decode(m[1]) : null;
+  return m ? decode(m[1] ?? "") : null;
 };
 
 export function parseRss(xml: string): FeedItem[] {
