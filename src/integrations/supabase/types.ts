@@ -1733,6 +1733,107 @@ export type Database = {
         }
         Relationships: []
       }
+      news_articles: {
+        Row: {
+          analyzed_at: string | null
+          canonical_url: string
+          category: string | null
+          id: string
+          impact: string | null
+          importance: number | null
+          ingested_at: string
+          language: string
+          published_at: string | null
+          source_id: string
+          status: string | null
+          story_key: string | null
+          summary: string | null
+          team_ids: string[]
+          title: string
+        }
+        Insert: {
+          analyzed_at?: string | null
+          canonical_url: string
+          category?: string | null
+          id?: string
+          impact?: string | null
+          importance?: number | null
+          ingested_at?: string
+          language: string
+          published_at?: string | null
+          source_id: string
+          status?: string | null
+          story_key?: string | null
+          summary?: string | null
+          team_ids?: string[]
+          title: string
+        }
+        Update: {
+          analyzed_at?: string | null
+          canonical_url?: string
+          category?: string | null
+          id?: string
+          impact?: string | null
+          importance?: number | null
+          ingested_at?: string
+          language?: string
+          published_at?: string | null
+          source_id?: string
+          status?: string | null
+          story_key?: string | null
+          summary?: string | null
+          team_ids?: string[]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_articles_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "news_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      news_sources: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          feed_url: string
+          id: string
+          language: string
+          last_count: number | null
+          last_error: string | null
+          last_error_at: string | null
+          last_success_at: string | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          feed_url: string
+          id: string
+          language: string
+          last_count?: number | null
+          last_error?: string | null
+          last_error_at?: string | null
+          last_success_at?: string | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          feed_url?: string
+          id?: string
+          language?: string
+          last_count?: number | null
+          last_error?: string | null
+          last_error_at?: string | null
+          last_success_at?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
       odds_snapshots: {
         Row: {
           bookmaker: string
