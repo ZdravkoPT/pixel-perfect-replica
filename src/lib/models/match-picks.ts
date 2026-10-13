@@ -134,7 +134,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 function scoreGrid(lh: number, la: number) {
-  let home = 0, draw = 0, away = 0, o15 = 0, o25 = 0, o35 = 0, btts = 0, hs = 0, as = 0;
+  let home = 0, draw = 0, away = 0, o15 = 0, o25 = 0, o35 = 0, btts = 0, hs = 0, as = 0, ho15 = 0, ao15 = 0;
   for (let i = 0; i <= 10; i++) {
     for (let j = 0; j <= 10; j++) {
       const p = poissonPmf(i, lh) * poissonPmf(j, la);
@@ -145,9 +145,11 @@ function scoreGrid(lh: number, la: number) {
       if (i > 0 && j > 0) btts += p;
       if (i > 0) hs += p;
       if (j > 0) as += p;
+      if (i > 1) ho15 += p;
+      if (j > 1) ao15 += p;
     }
   }
-  return { home, draw, away, o15, o25, o35, btts, hs, as };
+  return { home, draw, away, o15, o25, o35, btts, hs, as, ho15, ao15 };
 }
 
 export function scoreMatch(input: PickInput): PickResult {
@@ -300,6 +302,11 @@ export function scoreMatch(input: PickInput): PickResult {
     { code: "btts_no", market: "Both teams to score", selection: "No", m: 1 - model.btts, f: f ? 1 - f.btts : null, h: hh ? 1 - hh.btts : null },
     { code: "home_scores", market: "Team to score", selection: `${input.homeName} to score`, m: model.hs, f: f?.hs ?? null, h: null },
     { code: "away_scores", market: "Team to score", selection: `${input.awayName} to score`, m: model.as, f: f?.as ?? null, h: null },
+    // Draw no bet: chance of the win given there is a winner (stake back on a draw).
+    { code: "dnb_home", market: "Draw no bet", selection: `${input.homeName} (draw no bet)`, m: model.home / Math.max(1e-6, model.home + model.away), f: f ? f.home / Math.max(1e-6, f.home + f.away) : null, h: null, e: e ? e.home / Math.max(1e-6, e.home + e.away) : null },
+    { code: "dnb_away", market: "Draw no bet", selection: `${input.awayName} (draw no bet)`, m: model.away / Math.max(1e-6, model.home + model.away), f: f ? f.away / Math.max(1e-6, f.home + f.away) : null, h: null, e: e ? e.away / Math.max(1e-6, e.home + e.away) : null },
+    { code: "home_over15", market: "Team goals", selection: `${input.homeName} over 1.5 goals`, m: model.ho15, f: null, h: null },
+    { code: "away_over15", market: "Team goals", selection: `${input.awayName} over 1.5 goals`, m: model.ao15, f: null, h: null },
   ];
   if (input.corners && input.corners.samples >= 5) {
     const o = tailOver(input.corners.expected, 9.5);
@@ -366,7 +373,7 @@ export function scoreMatch(input: PickInput): PickResult {
   const BASE: Record<string, number> = {
     home: 0.45, away: 0.3, dc_home: 0.72, dc_away: 0.55, dc_nodraw: 0.74,
     over15: 0.76, over25: 0.52, under25: 0.48, under35: 0.73, btts: 0.52, btts_no: 0.48,
-    home_scores: 0.78, away_scores: 0.68,
+    home_scores: 0.78, away_scores: 0.68, dnb_home: 0.6, dnb_away: 0.4, home_over15: 0.42, away_over15: 0.3,
     corners_over95: 0.5, corners_under95: 0.5, cards_over45: 0.45, cards_under45: 0.55,
   };
   const lift = (s: MarketScore) => {
@@ -377,7 +384,7 @@ export function scoreMatch(input: PickInput): PickResult {
   const floorOf = (code: string) => input.marketFloors?.[code] ?? (input.weakMarkets?.includes(code) ? 0.7 : 0.62);
   const thin = (hf?.matches ?? 0) < 4 || (af?.matches ?? 0) < 4 || (!input.elo && !c);
   const backs = (code: string): "home" | "away" | null =>
-    code === "home" || code === "dc_home" ? "home" : code === "away" || code === "dc_away" ? "away" : null;
+    code === "home" || code === "dc_home" || code === "dnb_home" ? "home" : code === "away" || code === "dc_away" || code === "dnb_away" ? "away" : null;
   const tableAgainst = (code: string): boolean => {
     const side = backs(code);
     if (!side || !home.table || !away.table || home.table.played < 5 || away.table.played < 5) return false;
