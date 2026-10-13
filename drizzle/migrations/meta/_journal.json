@@ -78,6 +78,13 @@
       "when": 1791015601236,
       "tag": "0010_match_shots",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791868094424,
+      "tag": "0011_news_feed",
+      "breakpoints": true
     }
   ]
 }
