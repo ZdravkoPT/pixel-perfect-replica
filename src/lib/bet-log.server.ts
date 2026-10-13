@@ -20,8 +20,12 @@ export type LoggedPick = {
 };
 
 /** Decides whether a stored pick landed, given the final score. */
-export function gradePick(pickCode: string, home: number, away: number): "hit" | "miss" {
+export function gradePick(pickCode: string, home: number, away: number): "hit" | "miss" | "void" {
   const total = home + away;
+  if (pickCode === "dnb_home") return home === away ? "void" : home > away ? "hit" : "miss";
+  if (pickCode === "dnb_away") return home === away ? "void" : away > home ? "hit" : "miss";
+  if (pickCode === "home_over15") return home > 1 ? "hit" : "miss";
+  if (pickCode === "away_over15") return away > 1 ? "hit" : "miss";
   const win = (value: boolean) => (value ? "hit" : "miss");
   const overLine = /^over(\d+)$/.exec(pickCode);
   const underLine = /^under(\d+)$/.exec(pickCode);
