@@ -373,7 +373,7 @@ export function scoreMatch(input: PickInput): PickResult {
   const BASE: Record<string, number> = {
     home: 0.45, away: 0.3, dc_home: 0.72, dc_away: 0.55, dc_nodraw: 0.74,
     over15: 0.76, over25: 0.52, under25: 0.48, under35: 0.73, btts: 0.52, btts_no: 0.48,
-    home_scores: 0.78, away_scores: 0.68,
+    home_scores: 0.78, away_scores: 0.68, dnb_home: 0.6, dnb_away: 0.4, home_over15: 0.42, away_over15: 0.3,
     corners_over95: 0.5, corners_under95: 0.5, cards_over45: 0.45, cards_under45: 0.55,
   };
   const lift = (s: MarketScore) => {
@@ -384,7 +384,7 @@ export function scoreMatch(input: PickInput): PickResult {
   const floorOf = (code: string) => input.marketFloors?.[code] ?? (input.weakMarkets?.includes(code) ? 0.7 : 0.62);
   const thin = (hf?.matches ?? 0) < 4 || (af?.matches ?? 0) < 4 || (!input.elo && !c);
   const backs = (code: string): "home" | "away" | null =>
-    code === "home" || code === "dc_home" ? "home" : code === "away" || code === "dc_away" ? "away" : null;
+    code === "home" || code === "dc_home" || code === "dnb_home" ? "home" : code === "away" || code === "dc_away" || code === "dnb_away" ? "away" : null;
   const tableAgainst = (code: string): boolean => {
     const side = backs(code);
     if (!side || !home.table || !away.table || home.table.played < 5 || away.table.played < 5) return false;
