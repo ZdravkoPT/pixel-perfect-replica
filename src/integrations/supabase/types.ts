@@ -100,6 +100,30 @@ export type Database = {
           },
         ]
       }
+      analyst_reports: {
+        Row: {
+          evidence: Json | null
+          generated_at: string
+          match_id: string
+          model: string | null
+          reports: Json
+        }
+        Insert: {
+          evidence?: Json | null
+          generated_at?: string
+          match_id: string
+          model?: string | null
+          reports: Json
+        }
+        Update: {
+          evidence?: Json | null
+          generated_at?: string
+          match_id?: string
+          model?: string | null
+          reports?: Json
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string

@@ -6,7 +6,10 @@ export type CheckItem = { label: string; value: string; tone: "good" | "warn" | 
 /** One-glance pre-kickoff checklist from stored data only; unknown items say so. */
 export const getPrematchChecklist = createServerFn({ method: "GET" })
   .inputValidator((d: { matchId: string }) => d)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }) => buildChecklist(data.matchId));
+
+export async function buildChecklist(matchId: string): Promise<CheckItem[]> {
+    const data = { matchId };
     const sb = publicClient();
     const { data: m } = await sb.from("matches").select("id, kickoff_at, home_team_id, away_team_id, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name)").eq("id", data.matchId).maybeSingle();
     if (!m) return [] as CheckItem[];
@@ -60,4 +63,4 @@ export const getPrematchChecklist = createServerFn({ method: "GET" })
       : nb ? { label: "AI verdict", value: `No bet — ${nb.noBetReason ?? nb.reason ?? "no market clears the bar"}`, tone: "neutral" }
       : { label: "AI verdict", value: "Not scored yet", tone: "unknown" });
     return items;
-  });
+}
