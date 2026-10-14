@@ -31,17 +31,17 @@ async function gatherEvidence(matchId: string) {
     sb.from("match_picks_cache").select("payload").eq("id", "latest").maybeSingle(),
     sb.from("news_articles").select("title, status, category, impact, published_at").overlaps("team_ids", [m.home_team_id, m.away_team_id])
       .gte("published_at", new Date(new Date(m.kickoff_at).getTime() - 7 * 864e5).toISOString()).order("published_at", { ascending: false }).limit(10),
-    sb.from("team_match_stats").select("team_id, possession, shots, shots_on_target, xg, corners, fouls, matches!inner(kickoff_at)")
+    sb.from("team_match_stats").select("team_id, possession, shots, shots_on_target, corners, fouls, matches!inner(kickoff_at)")
       .in("team_id", [m.home_team_id, m.away_team_id]).lt("matches.kickoff_at", m.kickoff_at).limit(40),
   ]);
   const payload = cache.data?.payload as { picks?: Array<Record<string, unknown>>; noBets?: Array<Record<string, unknown>> } | undefined;
   const pick = payload?.picks?.find((p) => p["matchId"] === matchId) ?? null;
   const noBet = payload?.noBets?.find((p) => p["matchId"] === matchId) ?? null;
   const avg = (team: string, k: string) => {
-    const v = (stats.data ?? []).filter((r) => r.team_id === team).map((r) => (r as Record<string, unknown>)[k]).filter((x): x is number => typeof x === "number");
+    const v = (stats.data ?? []).filter((r) => r.team_id === team).map((r) => (r as unknown as Record<string, unknown>)[k]).filter((x): x is number => typeof x === "number");
     return v.length >= 3 ? { avg: Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 100) / 100, games: v.length } : null;
   };
-  const style = Object.fromEntries(["possession", "shots", "shots_on_target", "xg", "corners", "fouls"].map((k) => [k, { [home]: avg(m.home_team_id, k), [away]: avg(m.away_team_id, k) }]));
+  const style = Object.fromEntries(["possession", "shots", "shots_on_target", "corners", "fouls"].map((k) => [k, { [home]: avg(m.home_team_id, k), [away]: avg(m.away_team_id, k) }]));
   return {
     match: { home, away, league: (m.league as { name: string } | null)?.name ?? null, kickoff: m.kickoff_at, status: m.status },
     checklist: checklist.map((c) => `${c.label}: ${c.value}`),
