@@ -63,4 +63,4 @@ export async function buildChecklist(matchId: string): Promise<CheckItem[]> {
       : nb ? { label: "AI verdict", value: `No bet — ${nb.noBetReason ?? nb.reason ?? "no market clears the bar"}`, tone: "neutral" }
       : { label: "AI verdict", value: "Not scored yet", tone: "unknown" });
     return items;
-  });
+}
