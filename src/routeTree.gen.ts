@@ -17,8 +17,10 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as FixturesRouteImport } from './routes/fixtures'
 import { Route as LiveRouteImport } from './routes/live'
+import { Route as NewsRouteImport } from './routes/news'
 import { Route as ProvidersRouteImport } from './routes/providers'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as TrackRecordRouteImport } from './routes/track-record'
 import { Route as ValueRouteImport } from './routes/value'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
@@ -97,6 +99,11 @@ const LiveRoute = LiveRouteImport.update({
   path: '/live',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NewsRoute = NewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProvidersRoute = ProvidersRouteImport.update({
   id: '/providers',
   path: '/providers',
@@ -105,6 +112,11 @@ const ProvidersRoute = ProvidersRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SourcesRoute = SourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrackRecordRoute = TrackRecordRouteImport.update({
@@ -314,8 +326,10 @@ export interface FileRoutesByFullPath {
   '/compare': typeof CompareRoute
   '/fixtures': typeof FixturesRoute
   '/live': typeof LiveRoute
+  '/news': typeof NewsRoute
   '/providers': typeof ProvidersRoute
   '/search': typeof SearchRoute
+  '/sources': typeof SourcesRoute
   '/track-record': typeof TrackRecordRoute
   '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
@@ -363,8 +377,10 @@ export interface FileRoutesByTo {
   '/compare': typeof CompareRoute
   '/fixtures': typeof FixturesRoute
   '/live': typeof LiveRoute
+  '/news': typeof NewsRoute
   '/providers': typeof ProvidersRoute
   '/search': typeof SearchRoute
+  '/sources': typeof SourcesRoute
   '/track-record': typeof TrackRecordRoute
   '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
@@ -413,8 +429,10 @@ export interface FileRoutesById {
   '/compare': typeof CompareRoute
   '/fixtures': typeof FixturesRoute
   '/live': typeof LiveRoute
+  '/news': typeof NewsRoute
   '/providers': typeof ProvidersRoute
   '/search': typeof SearchRoute
+  '/sources': typeof SourcesRoute
   '/track-record': typeof TrackRecordRoute
   '/value': typeof ValueRoute
   '/watchlist': typeof WatchlistRoute
@@ -464,8 +482,10 @@ export interface FileRouteTypes {
     | '/compare'
     | '/fixtures'
     | '/live'
+    | '/news'
     | '/providers'
     | '/search'
+    | '/sources'
     | '/track-record'
     | '/value'
     | '/watchlist'
@@ -513,8 +533,10 @@ export interface FileRouteTypes {
     | '/compare'
     | '/fixtures'
     | '/live'
+    | '/news'
     | '/providers'
     | '/search'
+    | '/sources'
     | '/track-record'
     | '/value'
     | '/watchlist'
@@ -562,8 +584,10 @@ export interface FileRouteTypes {
     | '/compare'
     | '/fixtures'
     | '/live'
+    | '/news'
     | '/providers'
     | '/search'
+    | '/sources'
     | '/track-record'
     | '/value'
     | '/watchlist'
@@ -612,8 +636,10 @@ export interface RootRouteChildren {
   CompareRoute: typeof CompareRoute
   FixturesRoute: typeof FixturesRoute
   LiveRoute: typeof LiveRoute
+  NewsRoute: typeof NewsRoute
   ProvidersRoute: typeof ProvidersRoute
   SearchRoute: typeof SearchRoute
+  SourcesRoute: typeof SourcesRoute
   TrackRecordRoute: typeof TrackRecordRoute
   ValueRoute: typeof ValueRoute
   WatchlistRoute: typeof WatchlistRoute
@@ -711,6 +737,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/news': {
+      id: '/news'
+      path: '/news'
+      fullPath: '/news'
+      preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/providers': {
       id: '/providers'
       path: '/providers'
@@ -723,6 +756,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sources': {
+      id: '/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof SourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/track-record': {
@@ -996,8 +1036,10 @@ const rootRouteChildren: RootRouteChildren = {
   CompareRoute: CompareRoute,
   FixturesRoute: FixturesRoute,
   LiveRoute: LiveRoute,
+  NewsRoute: NewsRoute,
   ProvidersRoute: ProvidersRoute,
   SearchRoute: SearchRoute,
+  SourcesRoute: SourcesRoute,
   TrackRecordRoute: TrackRecordRoute,
   ValueRoute: ValueRoute,
   WatchlistRoute: WatchlistRoute,

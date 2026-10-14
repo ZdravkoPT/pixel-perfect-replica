@@ -24,6 +24,7 @@ import { MatchFactsPanel } from "@/components/MatchFactsPanel";
 import { MatchShotsPanel } from "@/components/MatchShotsPanel";
 import { MatchCenter } from "@/components/MatchCenter";
 import { PickReviewPanel } from "@/components/PickReviewPanel";
+import { MatchNewsPanel } from "@/components/MatchNewsPanel";
 
 const TABS = [
   "Overview",
@@ -280,13 +281,15 @@ function MatchDetail() {
           <HeadToHeadPanel matchId={matchId} />
         </TabsContent>
 
-        {(["Odds", "News"] as const).map((tab) => (
-          <TabsContent key={tab} value={tab} className="mt-4">
-            <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              {tab} arrives in a later phase.
-            </div>
-          </TabsContent>
-        ))}
+        <TabsContent value="News" className="mt-4">
+          <MatchNewsPanel matchId={matchId} />
+        </TabsContent>
+
+        <TabsContent value="Odds" className="mt-4">
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            Odds arrive in a later phase.
+          </div>
+        </TabsContent>
 
 
       </Tabs>
