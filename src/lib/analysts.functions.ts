@@ -20,7 +20,7 @@ export type AnalystBundle = { reports: AnalystReport[]; generatedAt: string | nu
 const ROLES = ["Statistics", "Squad", "Tactical", "Risk", "Market", "Chief"] as const;
 const MAX_AGE_MS = 6 * 3600e3;
 
-async function gatherEvidence(matchId: string) {
+export async function gatherEvidence(matchId: string) {
   const sb = publicClient();
   const { data: m } = await sb.from("matches").select("id, kickoff_at, status, home_team_id, away_team_id, home:teams!matches_home_team_id_fkey(name), away:teams!matches_away_team_id_fkey(name), league:leagues(name)").eq("id", matchId).maybeSingle();
   if (!m) return null;
