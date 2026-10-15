@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-type Result = { model: string; samples: number; logLoss: number; brier: number; accuracy: number; rps?: number; calibration?: { predicted: number; actual: number; n: number }[] };
+type Result = { model: string; samples: number; logLoss: number; brier: number; accuracy: number; rps?: number; accuracyRange?: [number, number]; logLossRange?: [number, number]; recent?: { samples: number; accuracy: number | null; logLoss: number | null }; alwaysHomeAccuracy?: number | null; calibration?: { predicted: number; actual: number; n: number }[] };
 const LABEL: Record<string, string> = {
   dixon_coles: "Dixon-Coles (time-weighted)",
   elo: "Elo ratings",
@@ -40,20 +40,39 @@ export function ModelLeaderboard() {
       </div>
       <table className="w-full text-xs">
         <thead className="text-muted-foreground">
-          <tr><th className="text-left font-normal">#</th><th className="text-left font-normal">Model</th><th className="text-right font-normal">Right result</th><th className="text-right font-normal">Error score (lower is better)</th><th className="text-right font-normal">Ranked score</th></tr>
+          <tr><th className="text-left font-normal">#</th><th className="text-left font-normal">Model</th><th className="text-right font-normal">Right result</th><th className="text-right font-normal">Error score (lower is better)</th><th className="text-right font-normal">Ranked score</th><th className="text-right font-normal">Last 8 weeks</th></tr>
         </thead>
         <tbody className="font-mono">
           {results.map((r, i) => (
             <tr key={r.model} className={r.model === data.winner ? "text-primary" : ""}>
               <td>{i + 1}</td>
               <td className="font-sans">{LABEL[r.model] ?? r.model}</td>
-              <td className="text-right">{Math.round(r.accuracy * 100)}%</td>
+              <td className="text-right">{Math.round(r.accuracy * 100)}%{r.accuracyRange && <span className="text-muted-foreground"> ({Math.round(r.accuracyRange[0] * 100)}–{Math.round(r.accuracyRange[1] * 100)})</span>}</td>
               <td className="text-right">{r.logLoss.toFixed(3)}</td>
               <td className="text-right">{r.rps != null ? r.rps.toFixed(3) : "—"}</td>
+              <td className="text-right">{!r.recent ? "—" : r.recent.samples < 100 ? <span className="text-muted-foreground" title="Too few recent games to judge">{r.recent.samples} games</span>
+                : <>{Math.round((r.recent.accuracy ?? 0) * 100)}%{(() => { const d = (r.recent.accuracy ?? 0) - r.accuracy; return Math.abs(d) >= 0.02 ? <span className={d > 0 ? "text-primary" : "text-destructive"}> {d > 0 ? "▲" : "▼"}</span> : null; })()}</>}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      {(() => {
+        const r0 = results[0];
+        if (!r0) return null;
+        const home = r0.alwaysHomeAccuracy;
+        const lg = results.find((r) => r.model === "baseline");
+        const w = results.find((r) => r.model === data.winner);
+        return (
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p><span className="font-medium text-foreground">Simple yardsticks:</span>{" "}
+              {home != null ? `always picking the home team was right ${Math.round(home * 100)}%` : "always-home yardstick appears after the next weekly run"}
+              {lg ? `; league averages only: ${Math.round(lg.accuracy * 100)}%` : ""}
+              {w && home != null ? `. The winner beats always-home by ${Math.round((w.accuracy - home) * 100)} points.` : "."}</p>
+            <p>Numbers in brackets are the likely range (95%). When two models' ranges overlap, the difference may be luck.
+              "Last 8 weeks" shows recent accuracy; ▲/▼ means it moved 2+ points from the long-run figure. Under 100 recent games is too few to judge.</p>
+          </div>
+        );
+      })()}
       {(() => {
         const cal = results.find((r) => r.model === data.winner)?.calibration;
         if (!cal?.length) return null;
