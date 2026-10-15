@@ -14,6 +14,9 @@ const LABEL: Record<string, string> = {
   ensemble: "Blend: Dixon-Coles + Elo",
   pi_ratings: "Pi-ratings (home/away strength)",
   glicko: "Glicko (Elo with uncertainty)",
+  stacked: "Blended learner (weights all models)",
+  features: "Pattern learner",
+  dc_fast: "Dixon-Coles (recent games count more)",
 };
 
 /** Latest weekly walk-forward model competition over imported league history. */
