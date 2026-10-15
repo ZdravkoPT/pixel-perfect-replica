@@ -25,11 +25,13 @@ import { MatchShotsPanel } from "@/components/MatchShotsPanel";
 import { MatchCenter } from "@/components/MatchCenter";
 import { PickReviewPanel } from "@/components/PickReviewPanel";
 import { MatchNewsPanel } from "@/components/MatchNewsPanel";
+import { AnalystsPanel } from "@/components/AnalystsPanel";
 
 const TABS = [
   "Overview",
   "AI Prediction",
   "AI review",
+  "Analysts",
   "Lineups",
   "Injuries",
   "Player props",
@@ -283,6 +285,10 @@ function MatchDetail() {
 
         <TabsContent value="News" className="mt-4">
           <MatchNewsPanel matchId={matchId} />
+        </TabsContent>
+
+        <TabsContent value="Analysts" className="mt-4">
+          <AnalystsPanel matchId={matchId} homeName={homeName} awayName={awayName} />
         </TabsContent>
 
         <TabsContent value="Odds" className="mt-4">
