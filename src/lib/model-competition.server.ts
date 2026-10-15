@@ -126,8 +126,10 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
   // Stacked learner: log-linear pool of the other models, weights learned online from games already played.
   const base: ModelName[] = ["poisson", "dixon_coles", "elo", "bivariate", "zero_inflated", "xg_dixon_coles", "pi_ratings", "glicko", "baseline"];
   const sw: Record<string, number> = Object.fromEntries(base.map((n) => [n, 1 / base.length]));
-  const score = Object.fromEntries(names.map((n) => [n, { ll: 0, brier: 0, rps: 0, hits: 0, n: 0, bins: Array.from({ length: 10 }, () => ({ p: 0, hit: 0, n: 0 })) }]));
+  const score = Object.fromEntries(names.map((n) => [n, { ll: 0, ll2: 0, brier: 0, rps: 0, hits: 0, n: 0, rh: 0, rn: 0, rll: 0, bins: Array.from({ length: 10 }, () => ({ p: 0, hit: 0, n: 0 })) }]));
 
+  const recentFrom = Date.now() - 56 * 864e5;
+  let homeN = 0, homeHits = 0;
   for (const r of rows) {
     const L = lg.get(r.league_code) ?? { n: 0, h: 0, a: 0, hw: 0, d: 0, aw: 0 };
     const hk = `${r.league_code}|${r.home_name}`, ak = `${r.league_code}|${r.away_name}`;
@@ -191,10 +193,12 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
       if (t >= evalFrom) for (const n of names) {
         const p = preds[n];
         const s = score[n]!;
-        s.ll += -Math.log(Math.max(1e-6, p[out]));
+        const l1 = -Math.log(Math.max(1e-6, p[out]));
+        s.ll += l1; s.ll2 += l1 * l1;
         s.brier += (["home", "draw", "away"] as const).reduce((a, k) => a + ((k === out ? 1 : 0) - p[k]) ** 2, 0);
         const top = (["home", "draw", "away"] as const).reduce((a, k) => (p[k] > p[a] ? k : a), "home" as "home" | "draw" | "away");
         if (top === out) s.hits += 1;
+        if (t >= recentFrom) { s.rn += 1; s.rll += l1; if (top === out) s.rh += 1; }
         // Ranked probability score: respects home < draw < away ordering.
         const c1 = p.home - (out === "home" ? 1 : 0), c2 = p.home + p.draw - (out === "away" ? 0 : 1);
         s.rps += (c1 * c1 + c2 * c2) / 2;
@@ -204,6 +208,7 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
         }
         s.n += 1;
       }
+      if (t >= evalFrom) { homeN += 1; if (out === "home") homeHits += 1; }
     }
 
     // ---- update state with the result ----
@@ -261,12 +266,19 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
 
   const results = names.map((n) => {
     const s = score[n]!;
+    const acc = s.hits / s.n, ll = s.ll / s.n;
+    const llSe = Math.sqrt(Math.max(0, s.ll2 / s.n - ll * ll) / s.n);
     return {
+      accuracyRange: [Math.max(0, acc - 1.96 * Math.sqrt(acc * (1 - acc) / s.n)), Math.min(1, acc + 1.96 * Math.sqrt(acc * (1 - acc) / s.n))],
+      logLossRange: [ll - 1.96 * llSe, ll + 1.96 * llSe],
+      recent: { samples: s.rn, accuracy: s.rn ? s.rh / s.rn : null, logLoss: s.rn ? s.rll / s.rn : null },
       model: n, samples: s.n, logLoss: s.ll / s.n, brier: s.brier / s.n, rps: s.rps / s.n, accuracy: s.hits / s.n,
       calibration: s.bins.filter((b) => b.n >= 30).map((b) => ({ predicted: b.p / b.n, actual: b.hit / b.n, n: b.n })),
     };
   }).sort((a, b) => a.logLoss - b.logLoss);
   const winner = results[0]!.model;
+  const alwaysHome = homeN ? homeHits / homeN : null;
+  for (const r of results) (r as Record<string, unknown>)["alwaysHomeAccuracy"] = alwaysHome;
   const stackedRow = results.find((x) => x.model === "stacked") as (typeof results)[number] & { weights?: Record<string, number> };
   if (stackedRow) stackedRow.weights = { ...sw };
   const featRow = results.find((x) => x.model === "features") as (typeof results)[number] & { weights?: Record<string, number> };
