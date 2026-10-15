@@ -277,7 +277,8 @@ export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
     };
   }).sort((a, b) => a.logLoss - b.logLoss);
   const winner = results[0]!.model;
-  const baselines = { alwaysHome: { samples: homeN, accuracy: homeN ? homeHits / homeN : null }, recentFromDays: 56 };
+  const alwaysHome = homeN ? homeHits / homeN : null;
+  for (const r of results) (r as Record<string, unknown>)["alwaysHomeAccuracy"] = alwaysHome;
   const stackedRow = results.find((x) => x.model === "stacked") as (typeof results)[number] & { weights?: Record<string, number> };
   if (stackedRow) stackedRow.weights = { ...sw };
   const featRow = results.find((x) => x.model === "features") as (typeof results)[number] & { weights?: Record<string, number> };
