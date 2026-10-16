@@ -27,6 +27,7 @@ import { PickReviewPanel } from "@/components/PickReviewPanel";
 import { MatchNewsPanel } from "@/components/MatchNewsPanel";
 import { AnalystsPanel } from "@/components/AnalystsPanel";
 import { AskMatchPanel } from "@/components/AskMatchPanel";
+import { NewsOpinionCard } from "@/components/NewsOpinionCard";
 
 const TABS = [
   "Overview",
@@ -216,6 +217,7 @@ function MatchDetail() {
         </TabsContent>
 
         <TabsContent value="AI Prediction" className="mt-4">
+          <NewsOpinionCard matchId={matchId} homeName={homeName} awayName={awayName} />
           <PredictionPanel
             prediction={(predictionQuery.data?.prediction ?? null) as never}
             markets={(predictionQuery.data?.markets ?? []) as never}
@@ -227,6 +229,7 @@ function MatchDetail() {
         </TabsContent>
 
         <TabsContent value="AI review" className="mt-4">
+          <NewsOpinionCard matchId={matchId} homeName={homeName} awayName={awayName} />
           <PickReviewPanel matchId={matchId} />
         </TabsContent>
 

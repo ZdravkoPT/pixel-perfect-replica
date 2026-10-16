@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { publicClient } from "./leagues.functions";
 import { buildChecklist } from "./checklist.functions";
+import { newsOpinion, type NewsOpinion } from "./models/news-opinion";
 
 /**
  * Six analyst reports per match, written by AI from stored evidence only.
@@ -29,7 +30,7 @@ export async function gatherEvidence(matchId: string) {
   const [checklist, cache, news, stats] = await Promise.all([
     buildChecklist(matchId),
     sb.from("match_picks_cache").select("payload").eq("id", "latest").maybeSingle(),
-    sb.from("news_articles").select("title, status, category, impact, published_at").overlaps("team_ids", [m.home_team_id, m.away_team_id])
+    sb.from("news_articles").select("title, status, category, importance, impact, team_ids, published_at").overlaps("team_ids", [m.home_team_id, m.away_team_id])
       .gte("published_at", new Date(new Date(m.kickoff_at).getTime() - 7 * 864e5).toISOString()).order("published_at", { ascending: false }).limit(10),
     sb.from("team_match_stats").select("team_id, possession, shots, shots_on_target, corners, fouls, matches!inner(kickoff_at)")
       .in("team_id", [m.home_team_id, m.away_team_id]).lt("matches.kickoff_at", m.kickoff_at).limit(40),
@@ -48,6 +49,7 @@ export async function gatherEvidence(matchId: string) {
     aiPick: pick ? { selection: pick["selection"], probability: pick["probability"], confidence: pick["confidence"], reasons: pick["reasons"] } : null,
     noBet: noBet ? { reason: noBet["noBetReason"] ?? noBet["reason"] ?? null, bestCandidate: noBet["selection"] ?? null } : null,
     recentStatAverages: style,
+    newsOpinion: newsOpinion((news.data ?? []) as never, m.home_team_id, m.away_team_id, home, away),
     news: (news.data ?? []).map((n) => ({ title: n.title, status: n.status, category: n.category, impact: n.impact })),
   };
 }
@@ -72,7 +74,7 @@ const schema = {
   },
 };
 
-const SYSTEM = `You are a panel of six football analysts. Use ONLY the JSON evidence given; never invent numbers, players, injuries or facts. If something is not in the evidence, list it under "missing".
+const SYSTEM = `You are a panel of six football analysts. Use ONLY the JSON evidence given (newsOpinion is the per-team news read; rumours never count); never invent numbers, players, injuries or facts. If something is not in the evidence, list it under "missing".
 Write exactly one report per role, in this order:
 - Statistics: recent stat averages, Elo, form, table from the checklist and pick reasons.
 - Squad: line-ups, players out, key-player form, squad news.
@@ -121,3 +123,8 @@ export const getAnalystReports = createServerFn({ method: "GET" })
     await supabaseAdmin.from("analyst_reports").upsert({ match_id: data.matchId, reports: reports as never, evidence: evidence as never, model: "openai/gpt-6-astra", generated_at: generatedAt });
     return { reports, generatedAt, status: "ok" };
   });
+
+/** The news read for one match, shown on the AI Prediction and AI review tabs. */
+export const getMatchNewsOpinion = createServerFn({ method: "GET" })
+  .inputValidator((d: { matchId: string }) => d)
+  .handler(async ({ data }): Promise<NewsOpinion | null> => (await gatherEvidence(data.matchId))?.newsOpinion ?? null);
