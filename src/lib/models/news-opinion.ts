@@ -3,7 +3,7 @@
  * Only official/reported items count as evidence; rumours are listed but never weigh in.
  * It never changes probabilities — callers may only add a reason line or lower confidence.
  */
-export type NewsItem = { title: string; category: string | null; status: string | null; importance: number | null; impact: string | null; team_ids: string[] | null; published_at: string };
+export type NewsItem = { title: string; category: string | null; status: string | null; importance: number | null; impact: string | null; team_ids: string[] | null; published_at: string | null };
 export type TeamNewsRead = { negatives: string[]; positives: string[]; rumours: number };
 export type NewsOpinion = { home: TeamNewsRead; away: TeamNewsRead; total: number; tagged: number; opinion: string };
 
