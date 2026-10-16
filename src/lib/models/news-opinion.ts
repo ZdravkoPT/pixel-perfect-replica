@@ -7,8 +7,8 @@ export type NewsItem = { title: string; category: string | null; status: string 
 export type TeamNewsRead = { negatives: string[]; positives: string[]; rumours: number };
 export type NewsOpinion = { home: TeamNewsRead; away: TeamNewsRead; total: number; tagged: number; opinion: string };
 
-const NEGATIVE = new Set(["injury", "suspension", "manager", "discipline", "off_field"]);
-const POSITIVE = new Set(["return", "fitness", "signing"]);
+const NEGATIVE = new Set(["injury", "suspension", "manager"]);
+const POSITIVE = new Set(["lineup", "transfer"]);
 
 export function newsOpinion(items: NewsItem[], homeId: string, awayId: string, homeName: string, awayName: string): NewsOpinion {
   const read = (): TeamNewsRead => ({ negatives: [], positives: [], rumours: 0 });
