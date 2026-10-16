@@ -102,6 +102,26 @@ export async function refreshNews(): Promise<{ sources: Array<{ id: string; ok: 
     }
   }
   const analyzed = await analyzeNews(sb).catch((e) => { console.error("news analysis failed", e); return 0; });
+  // Important team news (confirmed/reported injury, suspension, manager or line-up news) updates
+  // match and team opinions right away instead of waiting for the next hourly picks run.
+  if (analyzed > 0) {
+    try {
+      const { data: hot } = await sb.from("news_articles").select("team_ids")
+        .in("category", ["injury", "suspension", "manager", "lineup"]).in("status", ["official", "reported"])
+        .gte("importance", 4).gte("analyzed_at", new Date(Date.now() - 20 * 60e3).toISOString()).limit(50);
+      const teamIds = [...new Set((hot ?? []).flatMap((h) => h.team_ids ?? []))];
+      if (teamIds.length) {
+        const soon = new Date(Date.now() + 48 * 3600e3).toISOString();
+        const { data: affected } = await sb.from("matches").select("id")
+          .or(`home_team_id.in.(${teamIds.join(",")}),away_team_id.in.(${teamIds.join(",")})`)
+          .gte("kickoff_at", new Date().toISOString()).lte("kickoff_at", soon).limit(1);
+        if (affected?.length) {
+          const { refreshMatchPicks } = await import("./match-picks.server");
+          await refreshMatchPicks();
+        }
+      }
+    } catch (e) { console.error("news-driven picks refresh failed", e); }
+  }
   return { sources: out, analyzed };
 }
 
