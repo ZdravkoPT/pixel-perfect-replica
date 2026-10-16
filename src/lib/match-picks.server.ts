@@ -454,6 +454,14 @@ export async function computeMatchPicks() {
     return { name, picks: e.n, rightRate: e.right / e.n, expected: e.exp / e.n, weight: sourceWeights[name] ?? 1 };
   }).sort((a, b) => b.picks - a.picks);
 
+  // ---- news read: AI-tagged headlines from the last 7 days for every team in the list ----
+  const { newsOpinion, backedSide } = await import("./models/news-opinion");
+  const allTeams = [...new Set(rows.flatMap((r) => [r.home_team_id, r.away_team_id]))];
+  const { data: newsRows } = allTeams.length
+    ? await sb.from("news_articles").select("title, category, status, importance, impact, team_ids, published_at")
+        .overlaps("team_ids", allTeams).gte("published_at", new Date(Date.now() - 7 * 864e5).toISOString()).limit(2000)
+    : { data: [] };
+
   // ---- latest model-competition winner (walk-forward best on league history) ----
   const { data: comp } = await sb.from("model_competitions").select("winner, ratings, results")
     .order("run_at", { ascending: false }).limit(1).maybeSingle();
@@ -537,8 +545,18 @@ export async function computeMatchPicks() {
       ...setPieceInputs(r.home_team_id, r.away_team_id, r.id),
     });
     const base = { matchId: r.id, fixture: `${homeName} vs ${awayName}`, league: r.league?.name ?? null, kickoffAt: r.kickoff_at };
-    if (result.pick) picks.push({ ...base, ...result.pick, confidence: result.confidence!, reasons: result.reasons, uncertain: !!result.uncertain });
-    else noBets.push({ ...base, reason: result.noBetReason ?? "No clear edge.", gate: result.gate ?? null });
+    const news = newsOpinion((newsRows ?? []).filter((n) => n.team_ids?.includes(r.home_team_id) || n.team_ids?.includes(r.away_team_id)),
+      r.home_team_id, r.away_team_id, homeName, awayName);
+    if (result.pick) {
+      // News never moves the chance: a setback for the backed side only lowers confidence and adds a reason.
+      const side = backedSide(result.pick.code);
+      const hit = side ? news[side].negatives : [];
+      let confidence = result.confidence!;
+      const reasons = [...result.reasons];
+      if (hit.length) { confidence = "medium"; reasons.unshift(`News (official/reported): ${hit[0]} — confidence lowered`); }
+      else if (news.tagged) reasons.push(`News check: ${news.opinion}`);
+      picks.push({ ...base, ...result.pick, confidence, reasons, uncertain: !!result.uncertain, news });
+    } else noBets.push({ ...base, reason: result.noBetReason ?? "No clear edge.", gate: result.gate ?? null, news });
   }
   // ---- reason accuracy: kinds of reasons that keep under/over-delivering shade new picks a little ----
   const reasonKind = (r: string) => (r.split(/[:(]/)[0] ?? "").trim().slice(0, 48);
