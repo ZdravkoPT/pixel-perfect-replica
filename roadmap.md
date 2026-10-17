@@ -1,5 +1,7 @@
 # Roadmap (final plan)
 
+- [ ] Automatic detailed news reading: safe article extraction, durable queue/credit pause, updated team and match opinions, verification.
+
 - [x] A1 form score in line-ups + picks factor
 - [x] B8 Line-up-aware strength
 - [x] A2 Team style profiles
