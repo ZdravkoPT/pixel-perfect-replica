@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { publicClient } from "./leagues.functions";
 import { buildChecklist } from "./checklist.functions";
 import { newsOpinion, type NewsOpinion } from "./models/news-opinion";
+import { newsWindow } from "./news-content";
 
 /**
  * Six analyst reports per match, written by AI from stored evidence only.
@@ -27,11 +28,12 @@ export async function gatherEvidence(matchId: string) {
   if (!m) return null;
   const home = (m.home as { name: string } | null)?.name ?? "Home";
   const away = (m.away as { name: string } | null)?.name ?? "Away";
+  const window = newsWindow(m.kickoff_at);
   const [checklist, cache, news, stats] = await Promise.all([
     buildChecklist(matchId),
     sb.from("match_picks_cache").select("payload").eq("id", "latest").maybeSingle(),
-    sb.from("news_articles").select("title, status, category, importance, impact, team_ids, published_at").overlaps("team_ids", [m.home_team_id, m.away_team_id])
-      .gte("published_at", new Date(new Date(m.kickoff_at).getTime() - 7 * 864e5).toISOString()).order("published_at", { ascending: false }).limit(10),
+    sb.from("news_articles").select("title, status, category, importance, impact, team_ids, published_at, news_facts, detailed_analyzed_at").overlaps("team_ids", [m.home_team_id, m.away_team_id])
+      .gte("published_at", window.start).lte("published_at", window.end).order("published_at", { ascending: false }).limit(500),
     sb.from("team_match_stats").select("team_id, possession, shots, shots_on_target, corners, fouls, matches!inner(kickoff_at)")
       .in("team_id", [m.home_team_id, m.away_team_id]).lt("matches.kickoff_at", m.kickoff_at).limit(40),
   ]);
@@ -50,7 +52,7 @@ export async function gatherEvidence(matchId: string) {
     noBet: noBet ? { reason: noBet["noBetReason"] ?? noBet["reason"] ?? null, bestCandidate: noBet["selection"] ?? null } : null,
     recentStatAverages: style,
     newsOpinion: newsOpinion((news.data ?? []) as never, m.home_team_id, m.away_team_id, home, away),
-    news: (news.data ?? []).map((n) => ({ title: n.title, status: n.status, category: n.category, impact: n.impact })),
+    news: (news.data ?? []).map((n) => ({ title: n.title, status: n.status, category: n.category, impact: n.impact, facts: n.news_facts })),
   };
 }
 

@@ -8,6 +8,7 @@ import { TeamFormChart } from "@/components/TeamFormChart";
 import { useQuery } from "@tanstack/react-query";
 import { getTeamAbsences } from "@/lib/leagues.functions";
 import { getTeamStyle } from "@/lib/team-style.functions";
+import { TeamNewsOpinion } from "@/components/NewsOpinionCard";
 
 const teamStatsQuery = (teamId: string) =>
   queryOptions({ queryKey: ["team-stats", teamId], queryFn: () => getTeamStats({ data: { teamId } }) });
@@ -92,6 +93,8 @@ function TeamStatsPage() {
         </div>
 
         <StyleProfile teamId={teamId} />
+
+        <TeamNewsOpinion teamId={teamId} />
 
         <Absences teamId={teamId} />
 

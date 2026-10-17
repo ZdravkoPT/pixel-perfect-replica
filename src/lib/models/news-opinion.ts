@@ -3,7 +3,8 @@
  * Only official/reported items count as evidence; rumours are listed but never weigh in.
  * It never changes probabilities — callers may only add a reason line or lower confidence.
  */
-export type NewsItem = { title: string; category: string | null; status: string | null; importance: number | null; impact: string | null; team_ids: string[] | null; published_at: string | null };
+export type NewsFact = { category: string; status: string; importance: number; impact: string; sentiment?: string; team_ids?: string[] };
+export type NewsItem = { title: string; category: string | null; status: string | null; importance: number | null; impact: string | null; team_ids: string[] | null; published_at: string | null; news_facts?: unknown; detailed_analyzed_at?: string | null };
 export type TeamNewsRead = { negatives: string[]; positives: string[]; rumours: number };
 export type NewsOpinion = { home: TeamNewsRead; away: TeamNewsRead; total: number; tagged: number; opinion: string };
 
@@ -14,16 +15,22 @@ export function newsOpinion(items: NewsItem[], homeId: string, awayId: string, h
   const read = (): TeamNewsRead => ({ negatives: [], positives: [], rumours: 0 });
   const home = read(), away = read();
   let tagged = 0;
-  for (const n of items) {
+  for (const item of items) {
+    if (item.category) tagged++;
+    const facts = Array.isArray(item.news_facts) ? item.news_facts as NewsFact[] : [];
+    const entries = facts.length ? facts.map((f) => ({ ...item, ...f, team_ids: f.team_ids ?? [] })) : [item];
+    for (const n of entries) {
     if (!n.category) continue;
-    tagged++;
     const sides = [n.team_ids?.includes(homeId) ? home : null, n.team_ids?.includes(awayId) ? away : null].filter(Boolean) as TeamNewsRead[];
     for (const t of sides) {
       if (n.status === "rumour") { t.rumours++; continue; }
+      if (n.status !== "official" && n.status !== "reported") continue;
       if ((n.importance ?? 0) < 3) continue;
       const line = n.impact?.trim() || n.title;
-      if (NEGATIVE.has(n.category) && t.negatives.length < 3) t.negatives.push(line);
-      else if (POSITIVE.has(n.category) && t.positives.length < 3) t.positives.push(line);
+      const sentiment = "sentiment" in n ? n.sentiment : undefined;
+      if ((sentiment === "negative" || (!sentiment && NEGATIVE.has(n.category))) && !t.negatives.includes(line)) t.negatives.push(line);
+      else if ((sentiment === "positive" || (!sentiment && POSITIVE.has(n.category))) && !t.positives.includes(line)) t.positives.push(line);
+    }
     }
   }
   const parts: string[] = [];

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
-import { listNewsSources } from "@/lib/news.functions";
+import { listNewsSources, getNewsReaderStatus } from "@/lib/news.functions";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/sources")({
@@ -29,8 +29,14 @@ function fmt(iso: string | null): string {
 
 function SourcesPage() {
   const { data, isLoading } = useQuery({ queryKey: ["news-sources"], queryFn: () => listNewsSources() });
+  const status = useQuery({ queryKey: ["news-reader-status"], queryFn: () => getNewsReaderStatus(), refetchInterval: 60_000 });
   return (
     <AppShell title="News sources" subtitle="Every feed, its last successful fetch and its last error">
+      <section className="mb-5 border-b border-border pb-4">
+        <h2 className="text-sm font-semibold">Automatic news reading</h2>
+        <p className="mt-1 text-xs text-muted-foreground">{status.data?.read ?? 0} articles analysed · {status.data?.pending ?? 0} waiting · {status.data?.full ?? 0} full articles available</p>
+        {status.data?.message && <p role="status" className="mt-2 text-xs text-destructive">{status.data.message}</p>}
+      </section>
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (

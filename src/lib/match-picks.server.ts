@@ -458,7 +458,7 @@ export async function computeMatchPicks() {
   const { newsOpinion, backedSide } = await import("./models/news-opinion");
   const allTeams = [...new Set(rows.flatMap((r) => [r.home_team_id, r.away_team_id]))];
   const { data: newsRows } = allTeams.length
-    ? await sb.from("news_articles").select("title, category, status, importance, impact, team_ids, published_at")
+    ? await sb.from("news_articles").select("title, category, status, importance, impact, team_ids, published_at, news_facts, detailed_analyzed_at")
         .overlaps("team_ids", allTeams).gte("published_at", new Date(Date.now() - 7 * 864e5).toISOString()).limit(2000)
     : { data: [] };
 
@@ -545,7 +545,7 @@ export async function computeMatchPicks() {
       ...setPieceInputs(r.home_team_id, r.away_team_id, r.id),
     });
     const base = { matchId: r.id, fixture: `${homeName} vs ${awayName}`, league: r.league?.name ?? null, kickoffAt: r.kickoff_at };
-    const news = newsOpinion((newsRows ?? []).filter((n) => n.team_ids?.includes(r.home_team_id) || n.team_ids?.includes(r.away_team_id)),
+    const news = newsOpinion((newsRows ?? []).filter((n) => n.published_at && new Date(n.published_at).getTime() <= Math.min(Date.now(), new Date(r.kickoff_at).getTime()) && (n.team_ids?.includes(r.home_team_id) || n.team_ids?.includes(r.away_team_id))),
       r.home_team_id, r.away_team_id, homeName, awayName);
     if (result.pick) {
       // News never moves the chance: a setback for the backed side only lowers confidence and adds a reason.

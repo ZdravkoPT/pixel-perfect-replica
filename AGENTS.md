@@ -16,3 +16,5 @@ Match-center presentation uses stored confirmed/projected lineup rows and live F
 - Squad market values are summed from FotMob per-player values (`src/lib/market-values.server.ts`) because Transfermarkt blocks automated access; a club needs 11+ valued current players or stays unvalued.
 - Player form score lives in src/lib/models/player-form.ts (pure, shared by pages and picks) — one formula everywhere.
 - ESPN (providers/espn.server.ts) is only a fallback for team match statistics when FotMob has none; rows carry payload.source='espn' and stay eligible for a FotMob retry because ESPN has no shots or player lines.
+- Detailed news reading uses a publisher-restricted extractor and a durable oldest-first queue with a database lease and persistent gateway pause; this avoids duplicate spending and unsafe article requests.
+- News facts are linked per fact to canonical teams and evidence is bounded to min(now, kickoff); this prevents cross-team attribution and future news leaking into historical predictions.
