@@ -1,4 +1,4 @@
-/** RSS news ingestion, team linking and AI tagging. Headline + summary only; never invents articles. */
+/** RSS ingestion and queued detailed news reading. Never invents article content. */
 
 export type FeedItem = { title: string; link: string; summary: string | null; published: string | null };
 
@@ -24,7 +24,7 @@ export function parseRss(xml: string): FeedItem[] {
     const pub = tag(b, "pubDate") ?? tag(b, "dc:date");
     const d = pub ? new Date(pub) : null;
     const summary = tag(b, "description");
-    items.push({ title, link, summary: summary ? summary.slice(0, 500) : null, published: d && !isNaN(d.getTime()) ? d.toISOString() : null });
+    items.push({ title, link, summary: summary ? summary : null, published: d && !isNaN(d.getTime()) ? d.toISOString() : null });
   }
   return items;
 }
@@ -59,31 +59,32 @@ export function storyKey(title: string): string {
 }
 
 async function loadTeams(sb: Awaited<ReturnType<typeof admin>>) {
-  const { data: upcoming } = await sb.from("matches").select("home_team_id, away_team_id")
-    .gte("kickoff_at", new Date(Date.now() - 2 * 864e5).toISOString()).lte("kickoff_at", new Date(Date.now() + 14 * 864e5).toISOString()).limit(2000);
-  const ids = [...new Set((upcoming ?? []).flatMap((m) => [m.home_team_id, m.away_team_id]))];
-  if (ids.length === 0) return [];
   const map = new Map<string, Set<string>>();
-  for (let i = 0; i < ids.length; i += 200) {
-    const chunk = ids.slice(i, i + 200);
-    const { data: t } = await sb.from("teams").select("id, name, short_name").in("id", chunk);
+  for (let from = 0; ; from += 1000) {
+    const { data: t, error } = await sb.from("teams").select("id, name, short_name").order("id").range(from, from + 999);
+    if (error) throw error;
     for (const r of t ?? []) map.set(r.id, new Set([norm(r.name), ...(r.short_name ? [norm(r.short_name)] : [])]));
-    const { data: a } = await sb.from("team_aliases").select("team_id, normalized_alias").in("team_id", chunk);
+    if (!t || t.length < 1000) break;
+  }
+  for (let from = 0; ; from += 1000) {
+    const { data: a, error } = await sb.from("team_aliases").select("team_id, normalized_alias").order("team_id").order("normalized_alias").range(from, from + 999);
+    if (error) throw error;
     for (const r of a ?? []) map.get(r.team_id)?.add(norm(r.normalized_alias));
+    if (!a || a.length < 1000) break;
   }
   return [...map].map(([id, s]) => ({ id, names: [...s].filter((n) => !/^(fc|cf|sc|ac)$/.test(n)) }));
 }
 
 const admin = async () => (await import("@/integrations/supabase/client.server")).supabaseAdmin;
 
-export async function refreshNews(): Promise<{ sources: Array<{ id: string; ok: boolean; items: number; inserted: number; error?: string }>; analyzed: number }> {
+export async function refreshNews(): Promise<{ sources: Array<{ id: string; ok: boolean; items: number; inserted: number; error?: string }>; analyzed: number; message?: string }> {
   const sb = await admin();
   const { data: sources } = await sb.from("news_sources").select("*").eq("enabled", true);
   const teams = await loadTeams(sb);
   const out = [];
   for (const s of sources ?? []) {
     try {
-      const res = await fetch(s.feed_url, { headers: { "User-Agent": "Mozilla/5.0 (FootballIntel news reader)" } });
+      const res = await fetch(s.feed_url, { signal: AbortSignal.timeout(10000), headers: { "User-Agent": "Mozilla/5.0 (FootballIntel news reader)" } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const items = parseRss(await res.text());
       if (items.length === 0) throw new Error("Feed returned no articles");
@@ -101,67 +102,19 @@ export async function refreshNews(): Promise<{ sources: Array<{ id: string; ok: 
       out.push({ id: s.id, ok: false, items: 0, inserted: 0, error: msg });
     }
   }
-  const analyzed = await analyzeNews(sb).catch((e) => { console.error("news analysis failed", e); return 0; });
-  // Important team news (confirmed/reported injury, suspension, manager or line-up news) updates
-  // match and team opinions right away instead of waiting for the next hourly picks run.
-  if (analyzed > 0) {
+  const { readDetailedNews } = await import("./news-reader.server");
+  const result = await readDetailedNews(sb, teams, linkTeams);
+  // Every new linked detail invalidates upcoming match evidence, not only breaking headlines.
+  if (result.changedTeams.length) {
+    const { error } = await sb.from("analyst_reports").update({ generated_at: "1970-01-01T00:00:00.000Z" })
+      .in("match_id", (await sb.from("matches").select("id")
+        .or(`home_team_id.in.(${result.changedTeams.join(",")}),away_team_id.in.(${result.changedTeams.join(",")})`)
+        .gte("kickoff_at", new Date().toISOString()).lte("kickoff_at", new Date(Date.now() + 7 * 864e5).toISOString())).data?.map((m) => m.id) ?? []);
+    if (error) console.error("news evidence invalidation failed", error.message);
     try {
-      const { data: hot } = await sb.from("news_articles").select("team_ids")
-        .in("category", ["injury", "suspension", "manager", "lineup"]).in("status", ["official", "reported"])
-        .gte("importance", 4).gte("analyzed_at", new Date(Date.now() - 20 * 60e3).toISOString()).limit(50);
-      const teamIds = [...new Set((hot ?? []).flatMap((h) => h.team_ids ?? []))];
-      if (teamIds.length) {
-        const soon = new Date(Date.now() + 48 * 3600e3).toISOString();
-        const { data: affected } = await sb.from("matches").select("id")
-          .or(`home_team_id.in.(${teamIds.join(",")}),away_team_id.in.(${teamIds.join(",")})`)
-          .gte("kickoff_at", new Date().toISOString()).lte("kickoff_at", soon).limit(1);
-        if (affected?.length) {
-          const { refreshMatchPicks } = await import("./match-picks.server");
-          await refreshMatchPicks();
-        }
-      }
+      const { refreshMatchPicks } = await import("./match-picks.server");
+      await refreshMatchPicks();
     } catch (e) { console.error("news-driven picks refresh failed", e); }
   }
-  return { sources: out, analyzed };
-}
-
-const CATEGORIES = ["injury", "suspension", "transfer", "manager", "lineup", "match_report", "preview", "club_statement", "other"] as const;
-
-/** Tags up to 25 unanalysed articles per run (headline + summary only). Stops on gateway credit/permission errors. */
-async function analyzeNews(sb: Awaited<ReturnType<typeof admin>>): Promise<number> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) return 0;
-  const { data: rows } = await sb.from("news_articles").select("id, title, summary").is("analyzed_at", null)
-    .order("published_at", { ascending: false, nullsFirst: false }).limit(25);
-  if (!rows || rows.length === 0) return 0;
-  const schema = {
-    type: "object", additionalProperties: false, required: ["items"],
-    properties: { items: { type: "array", items: { type: "object", additionalProperties: false, required: ["i", "category", "status", "importance", "impact"],
-      properties: { i: { type: "integer" }, category: { type: "string", enum: [...CATEGORIES] }, status: { type: "string", enum: ["official", "reported", "rumour"] },
-        importance: { type: "integer", minimum: 1, maximum: 5 }, impact: { type: "string" } } } } },
-  };
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "openai/gpt-6-astra", reasoning_effort: "low",
-      response_format: { type: "json_schema", json_schema: { name: "news_tags", strict: true, schema } },
-      messages: [
-        { role: "system", content: "Classify football news using ONLY the headline and summary given. status: official = club/league confirmed, reported = journalist reports it as fact, rumour = speculation. importance 1-5 for impact on upcoming matches. impact: one short English sentence, no invented facts. Return one item per input index." },
-        { role: "user", content: rows.map((r, i) => `${i}. ${r.title}${r.summary ? ` — ${r.summary.slice(0, 280)}` : ""}`).join("\n") },
-      ],
-    }),
-  });
-  if (!res.ok) { console.error("news AI", res.status, (await res.text()).slice(0, 200)); return 0; }
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const parsed = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as { items?: Array<{ i: number; category: string; status: string; importance: number; impact: string }> };
-  let n = 0;
-  const now = new Date().toISOString();
-  for (const it of parsed.items ?? []) {
-    const r = rows[it.i];
-    if (!r) continue;
-    await sb.from("news_articles").update({ category: it.category, status: it.status, importance: Math.min(5, Math.max(1, it.importance)), impact: it.impact.slice(0, 240), analyzed_at: now }).eq("id", r.id);
-    n++;
-  }
-  return n;
+  return { sources: out, analyzed: result.analyzed, ...(result.message ? { message: result.message } : {}) };
 }

@@ -1,5 +1,8 @@
 # Roadmap (final plan)
 
+- [x] Automatic detailed news reader, durable queue/credit pause, team and match opinion wiring; extraction/attribution tests and real refresh checked.
+- [ ] Verify a real detailed AI news opinion and its prediction refresh — blocked by AI gateway “Not enough credits” (384 articles queued).
+
 - [x] A1 form score in line-ups + picks factor
 - [x] B8 Line-up-aware strength
 - [x] A2 Team style profiles

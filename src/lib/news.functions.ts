@@ -41,7 +41,8 @@ export const listNews = createServerFn({ method: "GET" })
     for (const r of all) {
       const key = r.story_key && r.story_key.split("-").length >= 4 ? r.story_key : null;
       const src = (r.source as { name: string } | null)?.name ?? r.source_id;
-      if (key && seen.has(key)) { seen.get(key)!.alsoIn.push({ source: src, url: r.canonical_url }); continue; }
+      const existing = key ? seen.get(key) : null;
+      if (existing) { existing.alsoIn.push({ source: src, url: r.canonical_url }); continue; }
       const item: NewsItem = {
         id: r.id, title: r.title, summary: r.summary, url: r.canonical_url, source: r.source_id, sourceName: src, language: r.language,
         publishedAt: r.published_at, category: r.category, status: r.status, importance: r.importance, impact: r.impact,
@@ -65,8 +66,30 @@ export const refreshNewsNow = createServerFn({ method: "POST" }).handler(async (
   if (data?.last_success_at && Date.now() - new Date(data.last_success_at).getTime() < 5 * 60_000) return { skipped: true as const };
   const { refreshNews } = await import("./news.server");
   const r = await refreshNews();
-  return { skipped: false as const, inserted: r.sources.reduce((a, s) => a + s.inserted, 0) };
+  return { skipped: false as const, inserted: r.sources.reduce((a, s) => a + s.inserted, 0), message: r.message };
 });
+
+export const getNewsReaderStatus = createServerFn({ method: "GET" }).handler(async () => {
+  const sb = publicClient();
+  const [state, pending, read, full] = await Promise.all([
+    sb.from("news_reader_state").select("pause_kind,message,updated_at").eq("id", "news").maybeSingle(),
+    sb.from("news_articles").select("id", { count: "exact", head: true }).is("detailed_analyzed_at", null),
+    sb.from("news_articles").select("id", { count: "exact", head: true }).not("detailed_analyzed_at", "is", null),
+    sb.from("news_articles").select("id", { count: "exact", head: true }).eq("content_status", "full"),
+  ]);
+  return { message: state.data?.message, paused: !!state.data?.pause_kind, pending: pending.count ?? 0, read: read.count ?? 0, full: full.count ?? 0 };
+});
+
+export const getTeamNewsOpinion = createServerFn({ method: "GET" })
+  .inputValidator((d: { teamId: string }) => z.object({ teamId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const sb = publicClient();
+    const { data: team } = await sb.from("teams").select("name").eq("id", data.teamId).maybeSingle();
+    const { data: rows } = await sb.from("news_articles").select("title,category,status,importance,impact,team_ids,published_at,news_facts,detailed_analyzed_at")
+      .contains("team_ids", [data.teamId]).gte("published_at", new Date(Date.now() - 7 * 864e5).toISOString()).lte("published_at", new Date().toISOString()).order("published_at", { ascending: false }).limit(500);
+    const { newsOpinion } = await import("./models/news-opinion");
+    return newsOpinion(rows ?? [], data.teamId, "", team?.name ?? "Team", "");
+  });
 
 const REVIEW = new Set(["injury", "suspension", "manager", "lineup"]);
 /** News linked to either side of a match from the 7 days before kickoff. */

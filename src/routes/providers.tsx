@@ -13,6 +13,8 @@ export const Route = createFileRoute("/providers")({
   head: () => ({
     meta: [
       { title: "Provider Health — Football Intelligence" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         name: "description",
         content: "Rate limits, priorities and ingestion job history for every football data provider.",

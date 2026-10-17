@@ -13,6 +13,8 @@ export const Route = createFileRoute("/watchlist")({
   head: () => ({
     meta: [
       { title: "My Watchlist — Football Intelligence" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         name: "description",
         content:

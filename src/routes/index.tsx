@@ -29,6 +29,8 @@ export const Route = createFileRoute("/")({
           "Live and upcoming football fixtures across Europe's top leagues, aggregated from multiple data providers.",
       },
       { property: "og:title", content: "Today's Fixtures — Football Intelligence" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         property: "og:description",
         content: "Live and upcoming fixtures from multiple football data providers.",
@@ -67,7 +69,8 @@ function Dashboard() {
   });
 
   const grouped = filtered.reduce<Record<string, MatchCardData[]>>((acc, match) => {
-    const day = new Date(match.kickoff_at).toLocaleDateString([], {
+    const day = new Date(match.kickoff_at).toLocaleDateString("en-GB", {
+      timeZone: "UTC",
       weekday: "long",
       day: "2-digit",
       month: "short",

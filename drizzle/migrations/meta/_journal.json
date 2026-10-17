@@ -92,6 +92,13 @@
       "when": 1791954713020,
       "tag": "0012_analyst_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792213163360,
+      "tag": "0013_detailed_automatic_news_reader",
+      "breakpoints": true
     }
   ]
 }

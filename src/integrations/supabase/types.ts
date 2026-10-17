@@ -1759,14 +1759,21 @@ export type Database = {
       }
       news_articles: {
         Row: {
+          analysis_error: string | null
           analyzed_at: string | null
+          article_text: string | null
           canonical_url: string
           category: string | null
+          content_error: string | null
+          content_fetched_at: string | null
+          content_status: string | null
+          detailed_analyzed_at: string | null
           id: string
           impact: string | null
           importance: number | null
           ingested_at: string
           language: string
+          news_facts: Json
           published_at: string | null
           source_id: string
           status: string | null
@@ -1776,14 +1783,21 @@ export type Database = {
           title: string
         }
         Insert: {
+          analysis_error?: string | null
           analyzed_at?: string | null
+          article_text?: string | null
           canonical_url: string
           category?: string | null
+          content_error?: string | null
+          content_fetched_at?: string | null
+          content_status?: string | null
+          detailed_analyzed_at?: string | null
           id?: string
           impact?: string | null
           importance?: number | null
           ingested_at?: string
           language: string
+          news_facts?: Json
           published_at?: string | null
           source_id: string
           status?: string | null
@@ -1793,14 +1807,21 @@ export type Database = {
           title: string
         }
         Update: {
+          analysis_error?: string | null
           analyzed_at?: string | null
+          article_text?: string | null
           canonical_url?: string
           category?: string | null
+          content_error?: string | null
+          content_fetched_at?: string | null
+          content_status?: string | null
+          detailed_analyzed_at?: string | null
           id?: string
           impact?: string | null
           importance?: number | null
           ingested_at?: string
           language?: string
+          news_facts?: Json
           published_at?: string | null
           source_id?: string
           status?: string | null
@@ -1818,6 +1839,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      news_reader_state: {
+        Row: {
+          id: string
+          lease_token: string | null
+          lease_until: string | null
+          message: string | null
+          pause_kind: string | null
+          retry_after: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          lease_token?: string | null
+          lease_until?: string | null
+          message?: string | null
+          pause_kind?: string | null
+          retry_after?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          lease_token?: string | null
+          lease_until?: string | null
+          message?: string | null
+          pause_kind?: string | null
+          retry_after?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       news_sources: {
         Row: {
@@ -3181,6 +3232,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_news_reader: { Args: { p_token: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -1,0 +1,10 @@
+ALTER TABLE public.news_articles ADD COLUMN IF NOT EXISTS article_text text, ADD COLUMN IF NOT EXISTS content_status text, ADD COLUMN IF NOT EXISTS content_error text, ADD COLUMN IF NOT EXISTS content_fetched_at timestamptz, ADD COLUMN IF NOT EXISTS detailed_analyzed_at timestamptz, ADD COLUMN IF NOT EXISTS news_facts jsonb NOT NULL DEFAULT '[]'::jsonb, ADD COLUMN IF NOT EXISTS analysis_error text;
+CREATE INDEX IF NOT EXISTS news_detail_queue_idx ON public.news_articles (ingested_at, id) WHERE detailed_analyzed_at IS NULL;
+CREATE TABLE public.news_reader_state (id text PRIMARY KEY DEFAULT 'news', lease_token uuid, lease_until timestamptz, pause_kind text, message text, retry_after timestamptz, updated_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT ON public.news_reader_state TO anon, authenticated;
+GRANT ALL ON public.news_reader_state TO service_role;
+ALTER TABLE public.news_reader_state ENABLE ROW LEVEL SECURITY;
+CREATE POLICY news_reader_public_status ON public.news_reader_state FOR SELECT TO anon, authenticated USING (true);
+CREATE OR REPLACE FUNCTION public.acquire_news_reader(p_token uuid) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ BEGIN INSERT INTO public.news_reader_state(id) VALUES ('news') ON CONFLICT DO NOTHING; UPDATE public.news_reader_state SET lease_token=p_token,lease_until=now()+interval '8 minutes' WHERE id='news' AND (lease_until IS NULL OR lease_until<now()); RETURN FOUND; END $$;
+REVOKE ALL ON FUNCTION public.acquire_news_reader(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.acquire_news_reader(uuid) TO service_role;
