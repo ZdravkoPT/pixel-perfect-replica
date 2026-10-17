@@ -125,7 +125,7 @@ export async function readDetailedNews(sb: Admin, teams: Array<{ id: string; nam
       const ids = [...new Set([...(row.team_ids ?? []), ...link(`${row.title} ${text} ${facts.map((f) => f.impact).join(" ")}`, teams)])];
       const top = [...facts].sort((a, b) => b.importance - a.importance)[0];
       const now = new Date().toISOString();
-      const { error: writeError } = await sb.from("news_articles").update({ news_facts: facts as never, team_ids: ids,
+      const { error: writeError } = await sb.from("news_articles").update({ news_facts: facts.map((f) => ({ ...f, team_ids: link(f.impact, teams) })) as never, team_ids: ids,
         category: top?.category ?? "other", status: top?.status ?? "reported", importance: top?.importance ?? 1,
         impact: top?.impact ?? "No match-relevant details in the available text.", analyzed_at: now, detailed_analyzed_at: now, analysis_error: null }).eq("id", row.id).is("detailed_analyzed_at", null);
       if (writeError) throw writeError;
