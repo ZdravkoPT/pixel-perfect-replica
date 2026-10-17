@@ -15,6 +15,8 @@ export const Route = createFileRoute("/live")({
   head: () => ({
     meta: [
       { title: "Live Scores & In-Play Model — Football Intelligence" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         name: "description",
         content:

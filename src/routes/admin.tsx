@@ -25,6 +25,8 @@ export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: "Diagnostics — Football Intelligence" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "description", content: "Trigger fixture ingestion and review provider errors and conflicts." },
       { property: "og:title", content: "Diagnostics — Football Intelligence" },
       {

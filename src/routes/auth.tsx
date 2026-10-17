@@ -10,6 +10,8 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign In — Football Intelligence" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "description", content: "Sign in to save favourites and access diagnostics tools." },
       { property: "og:title", content: "Sign In — Football Intelligence" },
       { property: "og:description", content: "Sign in to save favourites and diagnostics access." },

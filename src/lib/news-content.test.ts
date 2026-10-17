@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { describe, it, expect } from "bun:test";
 import { allowedNewsUrl, articleText, newsChunks, newsWindow } from "./news-content";
 import { newsOpinion } from "./models/news-opinion";
