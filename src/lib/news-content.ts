@@ -6,7 +6,7 @@ export function allowedNewsUrl(raw: string, feed: string): boolean {
     const url = new URL(raw), source = new URL(feed);
     const host = (s: string) => s.toLowerCase().replace(/^www\./, "");
     const a = host(url.hostname), b = host(source.hostname);
-    const family = b.endsWith("bbc.co.uk") ? ["bbc.co.uk", "bbc.com"]
+    const family = b === "feeds.bbci.co.uk" || b.endsWith("bbc.co.uk") ? ["bbc.co.uk", "bbc.com"]
       : [b.replace(/^feeds\./, "")];
     return url.protocol === "https:" && !url.username && !url.password && !url.port
       && family.some((h) => a === h || a.endsWith(`.${h}`));

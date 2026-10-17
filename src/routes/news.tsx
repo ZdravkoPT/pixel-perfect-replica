@@ -54,8 +54,10 @@ function NewsPage() {
     try {
       const r = await refreshNewsNow();
       toast(r.skipped ? "Feeds were refreshed less than 5 minutes ago" : `Fetched feeds — ${r.inserted} new articles`);
+      if ("message" in r && r.message) toast.error(r.message);
       await qc.invalidateQueries({ queryKey: ["news"] });
       await qc.invalidateQueries({ queryKey: ["news-sources"] });
+      await Promise.all(["news-reader-status", "news-opinion", "team-news-opinion", "analysts"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
     } catch {
       toast.error("Refresh failed — try again later");
     } finally {

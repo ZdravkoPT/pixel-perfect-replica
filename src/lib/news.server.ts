@@ -116,5 +116,5 @@ export async function refreshNews(): Promise<{ sources: Array<{ id: string; ok: 
       await refreshMatchPicks();
     } catch (e) { console.error("news-driven picks refresh failed", e); }
   }
-  return { sources: out, analyzed: result.analyzed, message: result.message };
+  return { sources: out, analyzed: result.analyzed, ...(result.message ? { message: result.message } : {}) };
 }
