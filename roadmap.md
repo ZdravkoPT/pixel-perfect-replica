@@ -1,6 +1,8 @@
 # Roadmap (final plan)
 
-- [ ] Move the shared database outside Lovable Cloud while preserving preview, accounts, data and all scheduled jobs — destination provisioning and source export required; do not remove the existing database before validation.
+- [x] Connect and inspect the external Neon destination — connection verified; no application tables exist yet.
+- [ ] Export and reconcile the full source schema and data — blocked by the paused Lovable Cloud database.
+- [ ] Migrate shared data access, account security and all 17 automatic hook tasks to the external setup; verify preview and online use before cutover. No existing data or jobs may be removed before validation.
 - [x] Automatic detailed news reader, durable queue/credit pause, team and match opinion wiring; extraction/attribution tests and real refresh checked.
 - [ ] Verify a real detailed AI news opinion and its prediction refresh — blocked by AI gateway “Not enough credits” (384 articles queued).
 
