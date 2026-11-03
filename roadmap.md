@@ -1,7 +1,7 @@
 # Roadmap (final plan)
 
 - [x] Connect and inspect the external Neon destination — connection verified; no application tables exist yet.
-- [ ] Export and reconcile schema and data — database awake again (Nov 3): 493 MB, fits Neon free 1 GB; ~180k rows in main tables. Next: create schema in Neon, copy in batches.
+- [x] Schema (60 tables) + data copied to Neon Nov 3 (scripted batch copy, on conflict do nothing). Re-sync the newest rows (predictions etc. keep growing) right before cutover.
 - [ ] Migrate shared data access, account security and all 17 automatic hook tasks to the external setup; verify preview and online use before cutover. No existing data or jobs may be removed before validation.
 - [x] Automatic detailed news reader, durable queue/credit pause, team and match opinion wiring; extraction/attribution tests and real refresh checked.
 - [ ] Verify a real detailed AI news opinion and its prediction refresh — blocked by AI gateway “Not enough credits” (384 articles queued).
