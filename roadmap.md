@@ -15,7 +15,7 @@
 - [ ] D19 Public transparency page
 - [ ] D20 Job auto-retry + alerts
 - [ ] D21 Data freshness labels
-- [ ] D22 Responsible-use notice
+- [x] D22 Responsible-use notice
 - [ ] A4 My day panel / A5 Personal bet tracker
 - [ ] C14 AI match preview / C15 Ask the AI / C16 Weekly report card
 - [x] B11 Tactics change
