@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
+import { authenticateJob as authenticateCronRequest } from "@/lib/cron-guard.server";
 
 /**
  * Weekly self-review: walk-forward grades the last N weeks of model picks so

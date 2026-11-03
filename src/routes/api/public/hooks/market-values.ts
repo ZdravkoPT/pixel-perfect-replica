@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
+import { authenticateJob as authenticateCronRequest } from "@/lib/cron-guard.server";
 
 /** Weekly recompute of squad market values from current squads. */
 export const Route = createFileRoute("/api/public/hooks/market-values")({
