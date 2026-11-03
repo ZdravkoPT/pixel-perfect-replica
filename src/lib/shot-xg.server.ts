@@ -47,7 +47,7 @@ function fit(X: number[][], y: number[]): ShotModel {
 }
 
 export async function trainShotModel(opts: { statsbomb?: boolean } = {}) {
-  const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin: db } = await import("@/lib/db/admin.server");
   const rows: any[] = [];
   for (let from = 0; ; from += 1000) {
     const { data } = await db.from("match_shots").select("id, match_id, x, y, situation, shot_type, is_goal, provider_xg").range(from, from + 999);

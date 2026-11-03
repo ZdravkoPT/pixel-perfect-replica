@@ -11,7 +11,7 @@
  * live bet builder — that is the learning loop.
  */
 
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/lib/db/admin.server";
 import {
   applyMatch,
   blendedLambdas,

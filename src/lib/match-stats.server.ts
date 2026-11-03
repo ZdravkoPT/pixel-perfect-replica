@@ -63,7 +63,7 @@ export function parseXg(facts: MatchFacts): { home: number; away: number } | nul
 }
 
 async function saveXg(
-  db: Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"],
+  db: Awaited<typeof import("@/lib/db/admin.server")>["supabaseAdmin"],
   m: { id: string; home_team_id: string; away_team_id: string },
   xg: { home: number; away: number },
 ) {
@@ -79,7 +79,7 @@ async function saveXg(
 /** Backfills xG for finished matches that already have a FotMob id but no xG row. */
 export async function backfillXg(opts: { limit?: number; budgetMs?: number } = {}) {
   const deadline = Date.now() + (opts.budgetMs ?? 60_000);
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const { FotmobProvider } = await import("./providers/fotmob.server");
   const fotmob = new FotmobProvider();
   const { data: have } = await supabaseAdmin.from("team_xg").select("match_id").limit(20000);
@@ -108,7 +108,7 @@ export async function backfillXg(opts: { limit?: number; budgetMs?: number } = {
 export async function ingestMatchStats(opts: { days?: number; limit?: number; triggeredBy?: string; budgetMs?: number } = {}) {
   const days = opts.days ?? 60;
   const limit = opts.limit ?? 80;
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const { FotmobProvider } = await import("./providers/fotmob.server");
   const fotmob = new FotmobProvider();
 

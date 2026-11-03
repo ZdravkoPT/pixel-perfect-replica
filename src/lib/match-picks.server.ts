@@ -6,7 +6,7 @@ type Past = { home_team_id: string; away_team_id: string; home_score: number; aw
 
 /** One best pick (or "no bet") for every fixture in the next 36 hours. */
 export async function computeMatchPicks() {
-  const { supabaseAdmin: sb } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin: sb } = await import("@/lib/db/admin.server");
   const now = new Date();
   const end = new Date(now.getTime() + 36 * 3600e3);
 
@@ -647,7 +647,7 @@ export async function computeMatchPicks() {
 /** Computes picks and stores them for instant page loads. */
 export async function refreshMatchPicks() {
   const result = await computeMatchPicks();
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const { error: saveErr } = await supabaseAdmin.from("match_picks_cache").upsert({
     id: "latest",
     payload: JSON.parse(JSON.stringify(result)),

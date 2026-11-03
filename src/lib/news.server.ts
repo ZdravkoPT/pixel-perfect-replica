@@ -75,7 +75,7 @@ async function loadTeams(sb: Awaited<ReturnType<typeof admin>>) {
   return [...map].map(([id, s]) => ({ id, names: [...s].filter((n) => !/^(fc|cf|sc|ac)$/.test(n)) }));
 }
 
-const admin = async () => (await import("@/integrations/supabase/client.server")).supabaseAdmin;
+const admin = async () => (await import("@/lib/db/admin.server")).supabaseAdmin;
 
 export async function refreshNews(): Promise<{ sources: Array<{ id: string; ok: boolean; items: number; inserted: number; error?: string }>; analyzed: number; message?: string }> {
   const sb = await admin();

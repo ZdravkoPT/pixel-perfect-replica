@@ -1,7 +1,7 @@
 /** Maps free-text team names from outside sources onto our team ids. */
 import { namesMatch, normalizeTeamName } from "@/lib/providers/normalize";
 
-type Admin = (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"];
+type Admin = (typeof import("@/lib/db/admin.server"))["supabaseAdmin"];
 
 export async function buildTeamResolver(admin: Admin) {
   const teams: Array<{ id: string; name: string; short_name: string | null; country: string | null }> = [];

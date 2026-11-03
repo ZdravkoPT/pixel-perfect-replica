@@ -2,7 +2,7 @@
 import { buildTeamResolver } from "@/lib/team-resolver.server";
 
 export async function importElo() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const resolve = await buildTeamResolver(supabaseAdmin);
   const errors: string[] = [];
   let national = 0, club = 0;

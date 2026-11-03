@@ -46,7 +46,7 @@ async function weather(lat: number, lon: number, kickoff: string) {
 export async function refreshMatchContext(opts: { budgetMs?: number; pastLimit?: number } = {}) {
   const t0 = Date.now();
   const budget = opts.budgetMs ?? 90_000;
-  const { supabaseAdmin: sb } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin: sb } = await import("@/lib/db/admin.server");
   const now = Date.now();
   const { data: upcoming } = await sb.from("matches")
     .select("id, kickoff_at, home_team_id, away_team_id, src:match_sources!inner(provider_match_id, source_id)")

@@ -9,7 +9,7 @@
  * ingestion job so the provider health page stays truthful.
  */
 
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/lib/db/admin.server";
 import { FOOTBALL_DATA_COMPETITIONS, FootballDataProvider } from "./providers/football-data.server";
 import { FotmobProvider } from "./providers/fotmob.server";
 import { normalizeTeamName, slugify } from "./providers/normalize";

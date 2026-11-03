@@ -16,7 +16,7 @@ type MatchRow = {
  * venue, the model's goal rates and the archived head-to-head record.
  */
 export async function buildLocalFacts(matchId: string): Promise<MatchFacts | null> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
 
   const { data: match } = await supabaseAdmin
     .from("matches")

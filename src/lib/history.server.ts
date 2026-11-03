@@ -38,7 +38,7 @@ function isoDate(d: string): string | null {
 }
 
 export async function importHistory(opts: { seasons?: number } = {}) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const resolve = await buildTeamResolver(supabaseAdmin);
   let inserted = 0;
   const errors: string[] = [];
@@ -81,7 +81,7 @@ export async function importHistory(opts: { seasons?: number } = {}) {
  * Stored as league_code "INT" so national-team form and head-to-head use it.
  */
 export async function importInternational(opts: { years?: number } = {}) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const res = await fetch("https://raw.githubusercontent.com/martj42/international_results/master/results.csv");
   if (!res.ok) return { ok: false, upserted: 0, linked: 0, errors: [`source ${res.status}`] };
   const resolve = await buildTeamResolver(supabaseAdmin);
@@ -122,7 +122,7 @@ export async function importInternational(opts: { years?: number } = {}) {
 const OPENFOOTBALL: Array<[string, string]> = [["en.3", "E2"], ["en.4", "E3"], ["at.1", "A1"], ["at.2", "A2"]];
 
 export async function importOpenfootball(opts: { seasons?: number } = {}) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const resolve = await buildTeamResolver(supabaseAdmin);
   let upserted = 0;
   const errors: string[] = [];

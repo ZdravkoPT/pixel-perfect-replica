@@ -21,7 +21,7 @@ export const getJobHealth = createServerFn({ method: "GET" })
       _role: "admin",
     });
     if (!isAdmin) return { isAdmin: false, jobs: [] as JobHealthRow[], overduePicks: 0 };
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/db/admin.server");
     const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
     const { data } = await supabaseAdmin
       .from("ingestion_jobs")

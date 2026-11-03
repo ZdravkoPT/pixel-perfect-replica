@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/lib/db/admin.server";
 import type { Database } from "@/integrations/supabase/types";
 import { ELO_CONFIG, expectedScore, regressToMean, updateElo } from "./models/elo";
 import { expectedGoals, fitDixonColes, type DcMatch, type DcParams } from "./models/dixon-coles";

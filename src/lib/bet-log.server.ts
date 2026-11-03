@@ -60,7 +60,7 @@ export function gradePick(pickCode: string, home: number, away: number): "hit" |
 /** Saves today's picks (idempotent — one row per fixture, slip and pick code). */
 export async function logDailyPicks(picks: LoggedPick[]): Promise<number> {
   if (picks.length === 0) return 0;
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const betDate = new Date().toISOString().slice(0, 10);
   const rows = picks.map((pick) => ({
     bet_date: betDate,
@@ -86,7 +86,7 @@ export async function logDailyPicks(picks: LoggedPick[]): Promise<number> {
 
 /** Grades every pending pick whose fixture has a final score. */
 export async function settlePendingPicks(): Promise<{ settled: number }> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const { data: pending } = await supabaseAdmin
     .from("ai_bet_log")
     .select("id, match_id, pick_code")

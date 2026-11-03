@@ -11,7 +11,7 @@ type UMatch = { isResult: boolean; h: { title: string }; a: { title: string }; g
 
 export async function importUnderstat(opts: { seasons?: number[]; budgetMs?: number } = {}) {
   const t0 = Date.now();
-  const { supabaseAdmin: sb } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin: sb } = await import("@/lib/db/admin.server");
   const resolve = await buildTeamResolver(sb);
   const y = new Date().getUTCFullYear();
   const startYear = new Date().getUTCMonth() >= 6 ? y : y - 1;

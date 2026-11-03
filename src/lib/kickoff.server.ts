@@ -8,7 +8,7 @@
  * fresh row is written and the UI always renders the latest one.
  */
 
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/lib/db/admin.server";
 import { FootballDataProvider, type MatchSheet } from "./providers/football-data.server";
 import { confidenceScore, fairOdds, marketsFromMatrix, scorelineMatrix } from "./models/poisson";
 import { positionGroup } from "./models/intel";

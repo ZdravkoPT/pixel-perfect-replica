@@ -16,7 +16,7 @@ export function parseValueLabel(label: string | null | undefined): number | null
 }
 
 export async function computeSquadValues() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const members: Array<{ player_id: string; team_id: string }> = [];
   for (let from = 0; ; from += 1000) {
     const { data } = await supabaseAdmin.from("squad_memberships").select("player_id, team_id")
