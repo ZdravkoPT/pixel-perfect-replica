@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
+import { authenticateJob as authenticateCronRequest } from "@/lib/cron-guard.server";
 
 /** Weekly import of international match results (national-team history). */
 export const Route = createFileRoute("/api/public/hooks/international")({

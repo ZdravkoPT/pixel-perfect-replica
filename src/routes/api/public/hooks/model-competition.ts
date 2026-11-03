@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
+import { authenticateJob as authenticateCronRequest } from "@/lib/cron-guard.server";
 
 /** Weekly walk-forward competition between goal models over league history. */
 export const Route = createFileRoute("/api/public/hooks/model-competition")({

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
+import { authenticateJob as authenticateCronRequest } from "@/lib/cron-guard.server";
 
 /**
  * In-play refresh: pulls the live score, clock and red cards for every fixture

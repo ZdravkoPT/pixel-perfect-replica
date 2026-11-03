@@ -1,23 +1,10 @@
+import { neonDb } from "@/lib/db/neon-client";
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
 function publicClient() {
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  const url = process.env["SUPABASE_URL"]!;
-  return createClient<Database>(url, key, {
-    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    global: {
-      fetch: (input, init) => {
-        const headers = new Headers(init?.headers);
-        if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`) {
-          headers.delete("Authorization");
-        }
-        headers.set("apikey", key);
-        return fetch(input, { ...init, headers });
-      },
-    },
-  });
+  return neonDb as unknown as ReturnType<typeof createClient<Database>>;
 }
 
 type MatchRow = {
@@ -984,7 +971,7 @@ export const getAiBets = createServerFn({ method: "GET" })
 
     let brief: string | null = null;
     const apiKey = process.env["LOVABLE_API_KEY"];
-    if (apiKey) {
+    if (apiKey && process.env["ENABLE_AI_BRIEF"] === "1") { // AI text is off by default: the app must run without AI credits.
       const historyLine = historyRun
         ? `Graded record over the last ${historyRun.weeks} weeks: ${historyRun.wins}/${historyRun.picks} bets won (${((Number(historyRun.hit_rate) || 0) * 100).toFixed(1)}% hit rate vs ${((Number(historyRun.expected_hit_rate) || 0) * 100).toFixed(1)}% expected, return per unit at a typical bookmaker price ${((Number(historyRun.roi_market) || 0) * 100).toFixed(1)}%). Per market: ${(
             (historyRun.by_market ?? []) as Array<{

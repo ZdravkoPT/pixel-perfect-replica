@@ -97,7 +97,7 @@ export const getAnalystReports = createServerFn({ method: "GET" })
     const stale = cached ? { reports: cached.reports as unknown as AnalystReport[], generatedAt: cached.generated_at } : null;
     const key = process.env["LOVABLE_API_KEY"];
     const evidence = await gatherEvidence(data.matchId);
-    if (!key || !evidence) return { ...(stale ?? { reports: [], generatedAt: null }), status: "unavailable", message: evidence ? "AI is not configured." : "Match not found." };
+    if (!key || !evidence || process.env["ENABLE_AI_BRIEF"] !== "1") return { ...(stale ?? { reports: [], generatedAt: null }), status: "unavailable", message: evidence ? "AI analyst reports are switched off to keep the app free of AI costs." : "Match not found." };
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

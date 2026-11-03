@@ -62,11 +62,11 @@ export async function readDetailedNews(sb: Admin, teams: Array<{ id: string; nam
     // Workspace credits/policy: at most one probe item per later run, never an immediate retry.
     const probing = state?.pause_kind === "workspace";
     const { data: rows, error } = await sb.from("news_articles").select("id,title,summary,canonical_url,source_id,article_text,content_status,news_facts,team_ids")
-      .is("detailed_analyzed_at", null).order("ingested_at").order("id").limit(probing ? 1 : 5);
+      .is("detailed_analyzed_at", null).order("ingested_at").order("id").limit(probing ? 1 : 20);
     if (error) throw error;
     const { data: sources } = await sb.from("news_sources").select("id,feed_url");
     for (const row of rows ?? []) {
-      if (calls >= 12 || Date.now() - started > 90_000) break;
+      if (calls >= 40 || Date.now() - started > 90_000) break;
       let text = row.article_text ?? "", status = row.content_status ?? "", contentError: string | null = null;
       if (!status) {
         try {

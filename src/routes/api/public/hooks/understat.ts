@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
+import { authenticateJob as authenticateCronRequest } from "@/lib/cron-guard.server";
 
 /** Weekly: attach Understat match xG to stored league history. */
 export const Route = createFileRoute("/api/public/hooks/understat")({
