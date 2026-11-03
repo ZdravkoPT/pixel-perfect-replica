@@ -8,7 +8,7 @@
  * Anything the providers do not give us stays null — no invented numbers.
  */
 
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/lib/db/admin.server";
 import { emptySquadContext, type SquadContext } from "./models/context";
 
 interface AttributeRow {

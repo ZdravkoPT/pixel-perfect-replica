@@ -12,7 +12,7 @@
  * store only what the squad feed gives us and leave the attribute bars empty.
  */
 
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/lib/db/admin.server";
 import { FotmobProvider, type SquadMember } from "./providers/fotmob.server";
 import { namesMatch, normalizeTeamName } from "./providers/normalize";
 

@@ -1,7 +1,7 @@
 import { allowedNewsUrl, articleText } from "./news-content";
 import { extractRuleFacts } from "./news-rules";
 
-type Admin = (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"];
+type Admin = (typeof import("@/lib/db/admin.server"))["supabaseAdmin"];
 type Fact = { category: string; status: string; importance: number; impact: string; sentiment: "negative" | "positive" | "neutral" };
 const categories = ["injury", "suspension", "transfer", "manager", "lineup", "match_report", "preview", "club_statement", "other"];
 

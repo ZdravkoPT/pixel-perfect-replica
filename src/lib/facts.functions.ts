@@ -10,7 +10,7 @@ import type { MatchFacts } from "./providers/fotmob.server";
 export const getMatchFacts = createServerFn({ method: "GET" })
   .inputValidator((input: { matchId: string }) => input)
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/db/admin.server");
     const { FotmobProvider } = await import("./providers/fotmob.server");
     const { buildLocalFacts } = await import("./facts.server");
 

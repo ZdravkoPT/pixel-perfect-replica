@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
+const appDb = async () => (await import("@/lib/db/admin.server")).supabaseAdmin;
 
 function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
@@ -175,7 +176,7 @@ export const searchPlayers = createServerFn({ method: "GET" })
 export const syncSquads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase as never, context.userId);
+    await assertAdmin((await appDb()) as never, context.userId);
     const { ingestSquads } = await import("./intel.server");
     return ingestSquads({ triggeredBy: "manual" });
   });
@@ -183,7 +184,7 @@ export const syncSquads = createServerFn({ method: "POST" })
 export const syncOfficials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase as never, context.userId);
+    await assertAdmin((await appDb()) as never, context.userId);
     const { ingestOfficials } = await import("./intel.server");
     return ingestOfficials({ triggeredBy: "manual" });
   });
@@ -191,7 +192,7 @@ export const syncOfficials = createServerFn({ method: "POST" })
 export const refreshIntel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase as never, context.userId);
+    await assertAdmin((await appDb()) as never, context.userId);
     const { runIntel } = await import("./intel.server");
     return runIntel({ triggeredBy: "manual" });
   });
@@ -475,7 +476,7 @@ export const getCoach = createServerFn({ method: "GET" })
 export const refreshKickoff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase as never, context.userId);
+    await assertAdmin((await appDb()) as never, context.userId);
     const { runKickoffRefresh } = await import("./kickoff.server");
     return runKickoffRefresh({ triggeredBy: "manual", windowMinutes: 70 });
   });
@@ -484,7 +485,7 @@ export const refreshKickoff = createServerFn({ method: "POST" })
 export const refreshAttributes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase as never, context.userId);
+    await assertAdmin((await appDb()) as never, context.userId);
     const { ingestPlayerAttributes } = await import("./attributes.server");
     return ingestPlayerAttributes({ triggeredBy: "manual" });
   });
@@ -493,7 +494,7 @@ export const refreshAttributes = createServerFn({ method: "POST" })
 export const refreshCoachProfiles = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase as never, context.userId);
+    await assertAdmin((await appDb()) as never, context.userId);
     const { ingestCoachProfiles } = await import("./coach-intel.server");
     return ingestCoachProfiles({ triggeredBy: "manual" });
   });
@@ -502,7 +503,7 @@ export const refreshCoachProfiles = createServerFn({ method: "POST" })
 export const refreshPlayerConditions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase as never, context.userId);
+    await assertAdmin((await appDb()) as never, context.userId);
     const { ingestPlayerConditions } = await import("./coach-intel.server");
     return ingestPlayerConditions({ triggeredBy: "manual" });
   });
@@ -511,7 +512,7 @@ export const refreshPlayerConditions = createServerFn({ method: "POST" })
 export const refreshCareers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase as never, context.userId);
+    await assertAdmin((await appDb()) as never, context.userId);
     const { ingestPlayerCareers } = await import("./attributes.server");
     return ingestPlayerCareers({ triggeredBy: "manual" });
   });
@@ -520,7 +521,7 @@ export const refreshCareers = createServerFn({ method: "POST" })
 export const runBetHistoryReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.supabase as never, context.userId);
+    await assertAdmin((await appDb()) as never, context.userId);
     const { runBetHistory } = await import("./bet-history.server");
     return runBetHistory({ weeks: 10, triggeredBy: "manual" });
   });

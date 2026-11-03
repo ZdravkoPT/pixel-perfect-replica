@@ -121,7 +121,7 @@ export const getAnalystReports = createServerFn({ method: "GET" })
     if (reports.length === 0) return { ...(stale ?? { reports: [], generatedAt: null }), status: "unavailable", message: "The analysts returned nothing usable." };
     reports = reports.map((r) => r.role === "Market" ? { ...r, leaning: "none" } : r);
     const generatedAt = new Date().toISOString();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/db/admin.server");
     await supabaseAdmin.from("analyst_reports").upsert({ match_id: data.matchId, reports: reports as never, evidence: evidence as never, model: "openai/gpt-6-astra", generated_at: generatedAt });
     return { reports, generatedAt, status: "ok" };
   });

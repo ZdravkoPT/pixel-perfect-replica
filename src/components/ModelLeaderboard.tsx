@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { getLatestCompetition } from "@/lib/public-reads.functions";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type Result = { model: string; samples: number; logLoss: number; brier: number; accuracy: number; rps?: number; accuracyRange?: [number, number]; logLossRange?: [number, number]; recent?: { samples: number; accuracy: number | null; logLoss: number | null }; alwaysHomeAccuracy?: number | null; calibration?: { predicted: number; actual: number; n: number }[] };
@@ -24,14 +24,12 @@ export function ModelLeaderboard() {
   const { data } = useQuery({
     queryKey: ["model-competition"],
     queryFn: async () => {
-      const { data } = await supabase.from("model_competitions").select("run_at, winner, results")
-        .order("run_at", { ascending: false }).limit(1).maybeSingle();
-      return data;
+      return getLatestCompetition();
     },
     staleTime: 30 * 60_000,
   });
   if (!data) return null;
-  const results = (data.results ?? []) as Result[];
+  const results = (data.results ?? []) as unknown as Result[];
   return (
     <section className="space-y-3 rounded-lg border border-border bg-card p-5">
       <div>

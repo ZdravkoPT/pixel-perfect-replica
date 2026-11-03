@@ -61,7 +61,7 @@ export const listNewsSources = createServerFn({ method: "GET" }).handler(async (
 
 /** Anyone may trigger a refresh, but at most once every 5 minutes. */
 export const refreshNewsNow = createServerFn({ method: "POST" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const { data } = await supabaseAdmin.from("news_sources").select("last_success_at").order("last_success_at", { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
   if (data?.last_success_at && Date.now() - new Date(data.last_success_at).getTime() < 5 * 60_000) return { skipped: true as const };
   const { refreshNews } = await import("./news.server");

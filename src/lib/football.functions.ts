@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
+const appDb = async () => (await import("@/lib/db/admin.server")).supabaseAdmin;
 
 function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
@@ -88,7 +89,7 @@ export const triggerIngestion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { days?: number } | undefined) => ({ days: input?.days ?? 7 }))
   .handler(async ({ data, context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+    const { data: isAdmin } = await (await appDb()).rpc("has_role", {
       _user_id: context.userId,
       _role: "admin",
     });
@@ -101,19 +102,19 @@ export const triggerIngestion = createServerFn({ method: "POST" })
 export const getDiagnostics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+    const { data: isAdmin } = await (await appDb()).rpc("has_role", {
       _user_id: context.userId,
       _role: "admin",
     });
     if (!isAdmin) return { isAdmin: false, errors: [], conflicts: [] };
 
-    const { data: errors } = await context.supabase
+    const { data: errors } = await (await appDb())
       .from("ingestion_errors")
       .select("id, source_id, stage, message, created_at")
       .order("created_at", { ascending: false })
       .limit(50);
 
-    const { data: conflicts } = await context.supabase
+    const { data: conflicts } = await (await appDb())
       .from("provider_conflicts")
       .select("id, entity_type, field, source_a, value_a, source_b, value_b, detected_at, resolved")
       .order("detected_at", { ascending: false })

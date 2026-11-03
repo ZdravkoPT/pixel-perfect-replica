@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/lib/db/admin.server";
 import { ApiFootballProvider } from "./providers/api-football.server";
 import { FotmobProvider } from "./providers/fotmob.server";
 import { FOOTBALL_DATA_COMPETITIONS, FootballDataProvider } from "./providers/football-data.server";

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+const appDb = async () => (await import("@/lib/db/admin.server")).supabaseAdmin;
 
 export type JobHealthRow = {
   jobType: string;
@@ -16,12 +17,12 @@ export type JobHealthRow = {
 export const getJobHealth = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+    const { data: isAdmin } = await (await appDb()).rpc("has_role", {
       _user_id: context.userId,
       _role: "admin",
     });
     if (!isAdmin) return { isAdmin: false, jobs: [] as JobHealthRow[], overduePicks: 0 };
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/db/admin.server");
     const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
     const { data } = await supabaseAdmin
       .from("ingestion_jobs")

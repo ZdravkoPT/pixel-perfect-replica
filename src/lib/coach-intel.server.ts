@@ -11,7 +11,7 @@
  * minutes and ratings, and missing inputs stay null.
  */
 
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "@/lib/db/admin.server";
 import { FotmobProvider } from "./providers/fotmob.server";
 import { normalizeTeamName, namesMatch } from "./providers/normalize";
 

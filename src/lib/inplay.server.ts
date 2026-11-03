@@ -24,7 +24,7 @@ export interface LiveRefreshResult {
 export async function runInPlayRefresh(options: { limit?: number } = {}): Promise<LiveRefreshResult> {
   const startedAt = Date.now();
   const errors: string[] = [];
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const { FotmobProvider } = await import("@/lib/providers/fotmob.server");
   const { settlePendingPicks } = await import("@/lib/bet-log.server");
 

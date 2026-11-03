@@ -19,7 +19,7 @@ export function parseReturn(n: Note | null): string | null {
 }
 
 export async function syncInjuries() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const [{ data: cond }, { data: car }, { data: mem }] = await Promise.all([
     supabaseAdmin.from("player_conditions").select("player_id, team_id, injury, fetched_at"),
     supabaseAdmin.from("player_careers").select("player_id, injury, fetched_at"),

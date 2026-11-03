@@ -37,7 +37,7 @@ type TeamRow = { id: string; name: string | null };
 export const getPickReview = createServerFn({ method: "GET" })
   .inputValidator((input: { matchId: string }) => input)
   .handler(async ({ data }): Promise<PickReview> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin } = await import("@/lib/db/admin.server");
     const emptySnapshot = { homeTable: null, awayTable: null, homeElo: null, awayElo: null, homeForm: null, awayForm: null };
     const { data: match } = await supabaseAdmin
       .from("matches")

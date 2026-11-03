@@ -95,7 +95,7 @@ const glAge = (g: Gl | undefined, t: number): Gl => {
 };
 
 export async function runModelCompetition(opts: { triggeredBy?: string } = {}) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { supabaseAdmin } = await import("@/lib/db/admin.server");
   const rows: Row[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabaseAdmin.from("historical_results")

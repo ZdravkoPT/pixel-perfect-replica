@@ -3,7 +3,7 @@ import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query"
 import { AppShell } from "@/components/AppShell";
 import { PrematchChecklist } from "@/components/PrematchChecklist";
 import { LiveWinChance } from "@/components/LiveWinChance";
-import { supabase } from "@/integrations/supabase/client";
+import { getMatchReferee } from "@/lib/public-reads.functions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { getMatchDetail } from "@/lib/football.functions";
@@ -316,8 +316,7 @@ function RefereeLink({ matchId }: { matchId: string }) {
   const { data } = useQuery({
     queryKey: ["match-referee", matchId],
     queryFn: async () => {
-      const { data } = await supabase.from("match_officials").select("referee:referees(id, name)").eq("match_id", matchId).eq("role", "referee").maybeSingle();
-      return (data?.referee as { id: string; name: string } | null) ?? null;
+      return getMatchReferee({ data: { matchId } });
     },
   });
   if (!data) return null;
