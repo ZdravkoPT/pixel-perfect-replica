@@ -971,7 +971,7 @@ export const getAiBets = createServerFn({ method: "GET" })
 
     let brief: string | null = null;
     const apiKey = process.env["LOVABLE_API_KEY"];
-    if (apiKey) {
+    if (apiKey && process.env["ENABLE_AI_BRIEF"] === "1") { // AI text is off by default: the app must run without AI credits.
       const historyLine = historyRun
         ? `Graded record over the last ${historyRun.weeks} weeks: ${historyRun.wins}/${historyRun.picks} bets won (${((Number(historyRun.hit_rate) || 0) * 100).toFixed(1)}% hit rate vs ${((Number(historyRun.expected_hit_rate) || 0) * 100).toFixed(1)}% expected, return per unit at a typical bookmaker price ${((Number(historyRun.roi_market) || 0) * 100).toFixed(1)}%). Per market: ${(
             (historyRun.by_market ?? []) as Array<{
