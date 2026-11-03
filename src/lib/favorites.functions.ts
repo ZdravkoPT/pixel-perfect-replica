@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+const appDb = async () => (await import("@/lib/db/admin.server")).supabaseAdmin;
 
 export type FavoriteEntity = "team" | "league";
 
@@ -15,9 +16,10 @@ function parseEntity(value: string): FavoriteEntity {
 export const listFavorites = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: rows } = await context.supabase
+    const { data: rows } = await (await appDb())
       .from("favorites")
       .select("id, entity_type, entity_id, created_at")
+      .eq("user_id", context.userId)
       .order("created_at", { ascending: false });
 
     const favorites = rows ?? [];
@@ -26,10 +28,10 @@ export const listFavorites = createServerFn({ method: "GET" })
 
     const [teams, leagues] = await Promise.all([
       teamIds.length
-        ? context.supabase.from("teams").select("id, name, crest_url").in("id", teamIds)
+        ? (await appDb()).from("teams").select("id, name, crest_url").in("id", teamIds)
         : Promise.resolve({ data: [] as { id: string; name: string; crest_url: string | null }[] }),
       leagueIds.length
-        ? context.supabase.from("leagues").select("id, name, logo_url").in("id", leagueIds)
+        ? (await appDb()).from("leagues").select("id, name, logo_url").in("id", leagueIds)
         : Promise.resolve({ data: [] as { id: string; name: string; logo_url: string | null }[] }),
     ]);
 
@@ -59,7 +61,7 @@ export const toggleFavorite = createServerFn({ method: "POST" })
     entityId: input.entityId,
   }))
   .handler(async ({ data, context }) => {
-    const { data: existing } = await context.supabase
+    const { data: existing } = await (await appDb())
       .from("favorites")
       .select("id")
       .eq("user_id", context.userId)
@@ -68,11 +70,11 @@ export const toggleFavorite = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (existing) {
-      await context.supabase.from("favorites").delete().eq("id", existing.id);
+      await (await appDb()).from("favorites").delete().eq("id", existing.id).eq("user_id", context.userId);
       return { following: false };
     }
 
-    const { error } = await context.supabase.from("favorites").insert({
+    const { error } = await (await appDb()).from("favorites").insert({
       user_id: context.userId,
       entity_type: data.entityType,
       entity_id: data.entityId,
@@ -86,9 +88,10 @@ export const listWatchlistMatches = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { days?: number } | undefined) => ({ days: input?.days ?? 14 }))
   .handler(async ({ data, context }) => {
-    const { data: rows } = await context.supabase
+    const { data: rows } = await (await appDb())
       .from("favorites")
-      .select("entity_type, entity_id");
+      .select("entity_type, entity_id")
+      .eq("user_id", context.userId);
     const favorites = rows ?? [];
     if (favorites.length === 0) return { matches: [], predictions: {}, empty: true };
 
@@ -106,7 +109,7 @@ export const listWatchlistMatches = createServerFn({ method: "GET" })
     }
     if (leagueIds.length) filters.push(`league_id.in.(${leagueIds.join(",")})`);
 
-    const { data: matches, error } = await context.supabase
+    const { data: matches, error } = await (await appDb())
       .from("matches")
       .select(MATCH_SELECT)
       .gte("kickoff_at", since.toISOString())
@@ -124,7 +127,7 @@ export const listWatchlistMatches = createServerFn({ method: "GET" })
     > = {};
 
     if (ids.length) {
-      const { data: preds } = await context.supabase
+      const { data: preds } = await (await appDb())
         .from("predictions")
         .select("match_id, p_home, p_draw, p_away, confidence, prediction_timestamp")
         .in("match_id", ids)

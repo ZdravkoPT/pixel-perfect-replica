@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabase as browserSafe } from "@/integrations/supabase/client";
+const appDb = async () => (await import("@/lib/db/admin.server")).supabaseAdmin;
 
 const rowSchema = z.object({
   matchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -41,9 +42,9 @@ export const saveTeamTracking = createServerFn({ method: "POST" })
     z.object({ teamId: z.string().uuid(), rows: z.array(rowSchema).min(1).max(500) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    const { data: isAdmin } = await (await appDb()).rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) throw new Error("Only admins can upload tracking data.");
-    const { error } = await context.supabase.from("team_tracking").upsert(
+    const { error } = await (await appDb()).from("team_tracking").upsert(
       data.rows.map((r) => ({
         team_id: data.teamId,
         match_date: r.matchDate,
@@ -63,7 +64,9 @@ export const deleteTeamTracking = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("team_tracking").delete().eq("id", data.id);
+    const { data: isAdmin } = await (await appDb()).rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Only admins can delete tracking data.");
+    const { error } = await (await appDb()).from("team_tracking").delete().eq("id", data.id);
     if (error) throw new Error("Could not delete row.");
     return { ok: true };
   });

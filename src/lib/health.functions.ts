@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+const appDb = async () => (await import("@/lib/db/admin.server")).supabaseAdmin;
 
 export type JobHealthRow = {
   jobType: string;
@@ -16,7 +17,7 @@ export type JobHealthRow = {
 export const getJobHealth = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+    const { data: isAdmin } = await (await appDb()).rpc("has_role", {
       _user_id: context.userId,
       _role: "admin",
     });

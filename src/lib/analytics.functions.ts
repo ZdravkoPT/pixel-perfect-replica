@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
+const appDb = async () => (await import("@/lib/db/admin.server")).supabaseAdmin;
 
 function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
@@ -22,7 +23,7 @@ function publicClient() {
 }
 
 async function assertAdmin(context: { supabase: ReturnType<typeof publicClient>; userId: string }) {
-  const { data: isAdmin } = await context.supabase.rpc("has_role", {
+  const { data: isAdmin } = await (await appDb()).rpc("has_role", {
     _user_id: context.userId,
     _role: "admin",
   });
