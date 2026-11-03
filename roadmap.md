@@ -2,7 +2,9 @@
 
 - [x] Connect and inspect the external Neon destination — connection verified; no application tables exist yet.
 - [x] Schema (60 tables) + data copied to Neon Nov 3 (scripted batch copy, on conflict do nothing). Re-sync the newest rows (predictions etc. keep growing) right before cutover.
-- [ ] Migrate shared data access, account security and all 17 automatic hook tasks to the external setup; verify preview and online use before cutover. No existing data or jobs may be removed before validation.
+- [x] App data access switched to Neon (Nov 3), pages verified loading.
+- [ ] Speed: some pages (e.g. AI bets) load slowly over Neon — batch queries.
+- [ ] Move sign-in off Lovable Cloud auth; move 17 scheduled jobs to an outside scheduler. Was: Migrate shared data access, account security and all 17 automatic hook tasks to the external setup; verify preview and online use before cutover. No existing data or jobs may be removed before validation.
 - [x] Automatic detailed news reader, durable queue/credit pause, team and match opinion wiring; extraction/attribution tests and real refresh checked.
 - [ ] Verify a real detailed AI news opinion and its prediction refresh — blocked by AI gateway “Not enough credits” (384 articles queued).
 

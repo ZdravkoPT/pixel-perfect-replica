@@ -19,3 +19,4 @@ Match-center presentation uses stored confirmed/projected lineup rows and live F
 - Detailed news reading uses a publisher-restricted extractor and a durable oldest-first queue with a database lease and persistent gateway pause; this avoids duplicate spending and unsafe article requests.
 - News facts are linked per fact to canonical teams and evidence is bounded to min(now, kickoff); this prevents cross-team attribution and future news leaking into historical predictions.
 - News facts are extracted by the rule-based reader in src/lib/news-rules.ts (no AI); the user requires news reading to cost no AI credits.
+- All app data reads/writes go to Neon via src/lib/db/neon-client.server.ts (supabase-js-compatible builder over the connector gateway); never import the Cloud admin client directly. Sign-in still uses Lovable Cloud auth.
