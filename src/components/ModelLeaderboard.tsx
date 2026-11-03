@@ -29,7 +29,7 @@ export function ModelLeaderboard() {
     staleTime: 30 * 60_000,
   });
   if (!data) return null;
-  const results = (data.results ?? []) as Result[];
+  const results = (data.results ?? []) as unknown as Result[];
   return (
     <section className="space-y-3 rounded-lg border border-border bg-card p-5">
       <div>
