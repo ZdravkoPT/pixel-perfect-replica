@@ -20,5 +20,5 @@ export const getLatestLambdas = createServerFn({ method: "GET" })
 
 export const getLatestCompetition = createServerFn({ method: "GET" }).handler(async () => {
   const { data: row } = await (await db()).from("model_competitions").select("run_at, winner, results").order("run_at", { ascending: false }).limit(1).maybeSingle();
-  return (row as { run_at: string; winner: string; results: unknown } | null) ?? null;
+  return (row as { run_at: string; winner: string; results: Array<Record<string, number | string | null>> } | null) ?? null;
 });
