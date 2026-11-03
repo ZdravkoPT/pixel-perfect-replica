@@ -14,10 +14,10 @@ async function sql(query: string, params: unknown[]): Promise<any[]> {
   const L = process.env["LOVABLE_API_KEY"], N = process.env["NEON_API_KEY"];
   if (!L || !N) throw new Error("Missing LOVABLE_API_KEY or NEON_API_KEY");
   for (let attempt = 1; ; attempt++) {
-    const t0 = Date.now(); (globalThis as any).__nq = ((globalThis as any).__nq ?? 0) + 1; if ((globalThis as any).__nq % 200 === 0) console.warn(`[neon queries ${(globalThis as any).__nq}] ${query.slice(0, 160)}`);
+    const t0 = Date.now(); (globalThis as any).__nq = ((globalThis as any).__nq ?? 0) + 1; if ((globalThis as any).__nq % 20 === 0) console.warn(`[neon queries ${(globalThis as any).__nq}] ${query.slice(0, 160)}`);
     const res = await fetch(GATEWAY, { method: "POST", headers: { Authorization: `Bearer ${L}`, "X-Connection-Api-Key": N, "Content-Type": "application/json" }, body: JSON.stringify({ query, params }) });
     const text = await res.text();
-    if (process.env["NEON_SLOW_LOG"] !== "0" && Date.now() - t0 > 1500) console.warn(`[neon slow ${Date.now() - t0}ms] ${query.slice(0, 220)}`);
+    if (process.env["NEON_SLOW_LOG"] !== "0" && Date.now() - t0 > 700) console.warn(`[neon slow ${Date.now() - t0}ms] ${query.slice(0, 220)}`);
     let json: any = {}; try { json = JSON.parse(text); } catch { /* keep */ }
     if (res.ok) return json.rows ?? [];
     if ((res.status === 429 || res.status === 500 || res.status === 503) && attempt < 3) { await new Promise((r) => setTimeout(r, 600 * attempt)); continue; }
