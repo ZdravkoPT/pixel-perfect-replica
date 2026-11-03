@@ -128,6 +128,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <footer className="border-t border-border px-4 py-3 text-center text-xs text-muted-foreground">
+        AI probabilities, not guarantees · 18+ only · Bet responsibly — if gambling stops being fun, take a break or seek help.
+      </footer>
       <Toaster />
     </QueryClientProvider>
   );
