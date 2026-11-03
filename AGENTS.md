@@ -18,3 +18,4 @@ Match-center presentation uses stored confirmed/projected lineup rows and live F
 - ESPN (providers/espn.server.ts) is only a fallback for team match statistics when FotMob has none; rows carry payload.source='espn' and stay eligible for a FotMob retry because ESPN has no shots or player lines.
 - Detailed news reading uses a publisher-restricted extractor and a durable oldest-first queue with a database lease and persistent gateway pause; this avoids duplicate spending and unsafe article requests.
 - News facts are linked per fact to canonical teams and evidence is bounded to min(now, kickoff); this prevents cross-team attribution and future news leaking into historical predictions.
+- News facts are extracted by the rule-based reader in src/lib/news-rules.ts (no AI); the user requires news reading to cost no AI credits.
