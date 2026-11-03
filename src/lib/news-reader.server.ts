@@ -1,15 +1,9 @@
-import { allowedNewsUrl, articleText, newsChunks } from "./news-content";
+import { allowedNewsUrl, articleText } from "./news-content";
+import { extractRuleFacts } from "./news-rules";
 
 type Admin = (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"];
 type Fact = { category: string; status: string; importance: number; impact: string; sentiment: "negative" | "positive" | "neutral" };
 const categories = ["injury", "suspension", "transfer", "manager", "lineup", "match_report", "preview", "club_statement", "other"];
-const schema = { type: "object", additionalProperties: false, required: ["facts"], properties: { facts: { type: "array", items: {
-  type: "object", additionalProperties: false, required: ["category", "status", "importance", "impact", "sentiment"], properties: {
-    category: { type: "string", enum: categories }, status: { type: "string", enum: ["official", "reported", "rumour"] },
-    importance: { type: "integer", minimum: 1, maximum: 5 }, impact: { type: "string" },
-    sentiment: { type: "string", enum: ["negative", "positive", "neutral"] },
-  },
-} } } };
 
 async function readableArticle(url: string, feed: string) {
   if (!allowedNewsUrl(url, feed)) throw new Error("Article URL is outside this publisher.");
@@ -55,8 +49,7 @@ async function readableArticle(url: string, feed: string) {
 
 /** One durable oldest-first queue, shared by scheduled and manual news refreshes. */
 export async function readDetailedNews(sb: Admin, teams: Array<{ id: string; names: string[] }>, link: (text: string, teams: Array<{ id: string; names: string[] }>) => string[]) {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key) return { analyzed: 0, message: "AI is not configured.", changedTeams: [] as string[] };
+  // No AI key needed: reading is rule-based and free.
   const token = crypto.randomUUID();
   const { data: acquired, error: lockError } = await sb.rpc("acquire_news_reader", { p_token: token });
   if (lockError) throw lockError;
