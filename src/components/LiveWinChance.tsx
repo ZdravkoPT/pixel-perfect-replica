@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { getLatestLambdas } from "@/lib/public-reads.functions";
 
 const pmf = (k: number, l: number) => { let f = 1; for (let i = 2; i <= k; i++) f *= i; return Math.exp(-l) * Math.pow(l, k) / f; };
 
@@ -10,9 +10,7 @@ export function LiveWinChance({ matchId, homeName, awayName, homeScore, awayScor
   const { data: pred } = useQuery({
     queryKey: ["live-lambdas", matchId],
     queryFn: async () => {
-      const { data } = await supabase.from("predictions").select("lambda_home, lambda_away").eq("match_id", matchId)
-        .order("prediction_timestamp", { ascending: false }).limit(1).maybeSingle();
-      return data;
+      return getLatestLambdas({ data: { matchId } });
     },
   });
   if (!pred || minute == null) return null;
