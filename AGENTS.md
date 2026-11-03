@@ -20,3 +20,4 @@ Match-center presentation uses stored confirmed/projected lineup rows and live F
 - News facts are linked per fact to canonical teams and evidence is bounded to min(now, kickoff); this prevents cross-team attribution and future news leaking into historical predictions.
 - News facts are extracted by the rule-based reader in src/lib/news-rules.ts (no AI); the user requires news reading to cost no AI credits.
 - All app data reads/writes go to Neon via src/lib/db/neon-client.server.ts (supabase-js-compatible builder over the connector gateway); never import the Cloud admin client directly. Sign-in still uses Lovable Cloud auth.
+- Automatic jobs accept either Cloud schedules or the x-cron-secret header (src/lib/cron-guard.server.ts) so a free outside scheduler (.github/workflows/scheduled-jobs.yml) can replace Cloud cron.

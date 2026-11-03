@@ -1,0 +1,47 @@
+# Free scheduler: starts the app's automatic jobs. Needs repo secrets APP_URL (published site) and CRON_SECRET.
+name: scheduled-jobs
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+    - cron: '*/15 * * * *'
+    - cron: '*/30 * * * *'
+    - cron: '*/5 * * * *'
+    - cron: '0 4 * * 1'
+    - cron: '0 5 * * 2'
+    - cron: '10 4 * * *'
+    - cron: '15 */6 * * *'
+    - cron: '20 5 * * 1'
+    - cron: '30 3 * * *'
+    - cron: '30 4 * * *'
+    - cron: '40 4 * * 2'
+    - cron: '5 * * * *'
+    - cron: '50 * * * *'
+    - cron: '50 4 * * 1'
+    - cron: '50 4 * * 2'
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call due jobs
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          if [ "$SCHEDULE" = '*/30 * * * *' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/ingest-fixtures" || echo 'ingest-fixtures failed'; fi
+          if [ "$SCHEDULE" = '15 */6 * * *' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/refresh-intel" || echo 'refresh-intel failed'; fi
+          if [ "$SCHEDULE" = '*/10 * * * *' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/kickoff-refresh" || echo 'kickoff-refresh failed'; fi
+          if [ "$SCHEDULE" = '0 4 * * 1' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/bet-review" || echo 'bet-review failed'; fi
+          if [ "$SCHEDULE" = '*/5 * * * *' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/live-refresh" || echo 'live-refresh failed'; fi
+          if [ "$SCHEDULE" = '30 3 * * *' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/match-stats" || echo 'match-stats failed'; fi
+          if [ "$SCHEDULE" = '5 * * * *' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/match-picks" || echo 'match-picks failed'; fi
+          if [ "$SCHEDULE" = '10 4 * * *' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/elo" || echo 'elo failed'; fi
+          if [ "$SCHEDULE" = '40 4 * * 2' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/history" || echo 'history failed'; fi
+          if [ "$SCHEDULE" = '20 5 * * 1' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/model-competition" || echo 'model-competition failed'; fi
+          if [ "$SCHEDULE" = '50 4 * * 1' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/market-values" || echo 'market-values failed'; fi
+          if [ "$SCHEDULE" = '30 4 * * *' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/player-careers" || echo 'player-careers failed'; fi
+          if [ "$SCHEDULE" = '50 4 * * 2' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/international" || echo 'international failed'; fi
+          if [ "$SCHEDULE" = '50 * * * *' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/match-context" || echo 'match-context failed'; fi
+          if [ "$SCHEDULE" = '0 5 * * 2' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/understat" || echo 'understat failed'; fi
+          if [ "$SCHEDULE" = '*/15 * * * *' ] || [ -z "$SCHEDULE" ]; then curl -fsS -m 300 -X POST -H "x-cron-secret: $CRON_SECRET" -H 'Content-Type: application/json' -d '{}' "$APP_URL/api/public/hooks/news" || echo 'news failed'; fi
